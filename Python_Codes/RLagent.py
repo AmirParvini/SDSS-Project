@@ -1,6 +1,11 @@
 import numpy as np
 # import cupy as cp
 import itertools
+import random
+import seaborn as sns
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+
 
 
 class rlagent():
@@ -50,6 +55,7 @@ class rlagent():
 
         # the current diversity index
         self.diversity = 1
+        self.div_list = []
         
         # the current reward awarded
         self.reward = 0
@@ -88,6 +94,7 @@ class rlagent():
 
                 # then add it to the tie list
                 ties.append([arr[i], i])
+                # ties.append([len(self.actionSpace)-29, len(self.actionSpace)-29])
         
         # pick a random index
         choice = np.random.choice(np.arange(len(ties)))
@@ -140,11 +147,11 @@ class rlagent():
             fState = 'I'
         elif df == 0:
             fState = 'S'
-        elif df < 0.01:
+        elif df < 0.005:
             fState = 'VLC'
-        elif df < 0.05:
+        elif df < 0.025:
             fState = 'LC'
-        elif df < 0.25:
+        elif df < 0.1:
             fState = 'HC'
         else:
             fState = 'VHC'
@@ -168,8 +175,7 @@ class rlagent():
         
     def initAction(self):
         # reset the action count to disregard the first action
-        self.actionCount = np.zeros(len(self.actionSpace))
-
+        
         # the action count is updated
         self.actionCount[self.action] += 1
         
@@ -194,6 +200,7 @@ class rlagent():
         
         # the action count is updated
         self.actionCount[self.action] += 1
+        # print("\n agent.actionCount = ",self.actionCount)
 
         # print and save the results
         # self.__results(count)
@@ -209,7 +216,7 @@ class rlagent():
         # determine the delta of the previous fitness and the current best fitness of the population and the diversity 
         self.fitness = self.__d_fitness(fitnesses)
         self.diversity = self.__diversity(population)
-        
+        self.div_list.append(self.diversity)
         # get the new state and rewards
         self.__state(self.fitness, self.diversity)
         self.__reward()
@@ -221,18 +228,37 @@ class rlagent():
 
         # update the current state
         self.currState = self.nextState
+        
+    def df_normalplot(self, df_list):
+        sns.histplot(df_list, bins=30, kde=True, stat="density", color="blue", alpha=0.6)
+        # اضافه کردن منحنی تابع توزیع نرمال
+        xmin, xmax = plt.xlim()
+        x = np.linspace(xmin, xmax, 100)
+        p = norm.pdf(x, np.mean(df_list), np.std(df_list))
+        plt.plot(x, p, 'r', linewidth=2, label="Normal Distribution")
+
+        # نمایش نمودار
+        plt.legend()
+        plt.title(f"Normal Distribution of Data \n mean = {np.mean(df_list)} \n std = , {np.std(df_list)}")
+        plt.xlabel("Value")
+        plt.ylabel("Density")
+        plt.show()
+        
+    def diversity_plot(self,g, div_list):
+        x = range(g)
+        plt.plot(x, div_list)
+        
 
         
         
         
-# cRange = np.array(range(1, 10))/10
-# mRange = np.array(range(1, 10))/10
+# cRange = np.array(range(1, 11))/10
+# mRange = np.array(range(1, 11))/10
 # alpha = 0.7
 # gamma = 0.1
 # epsilon = 0.3
 # crossover = 0.8
 # mutation = 0.2
-# agent = rlagent(alpha, gamma, epsilon, cRange, mRange, crossover, mutation)
 
-# agent = rlagent()
-# print(agent.actionSpace[0])
+# agent = rlagent(alpha, gamma, epsilon, cRange, mRange, crossover, mutation)
+# print(agent.actionSpace[-60])
