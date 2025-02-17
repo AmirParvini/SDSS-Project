@@ -41,8 +41,9 @@ W = 30480 # Weight Capacity of TDR
 # Reading the File
 n = [] # maximum number of TDR facilities that can be allocated in neighborhood i
 s = [] # safety level of neighborhood i
-elite_Chromosoms = []
+elite_Chromosom = []
 elites_fitness = math.inf
+bad_chromosom_index = 0
 x_nodes = []
 y_nodes = []
 No_nodes = 0
@@ -110,8 +111,8 @@ pprint.pprint(distmatrix)
 
 
 # Initial Population
-Population = []
 def generate_initial_population(pop_size):
+    Population = []
     for ـ in range(pop_size):
         Chromosom = []
         selectable = demand_nodes_index.copy()
@@ -155,7 +156,7 @@ def distance(pop: list):
         c_supp[i] = 0
     return sum(distance_fitness)
 def fitness(population: list):
-    global elite_Chromosoms, elites_fitness
+    global elite_Chromosom, elites_fitness
     Fitness = []
     for pop in population:
         
@@ -172,9 +173,10 @@ def fitness(population: list):
 
             
         Fitness.append(sum_facilities_fitness*L + unmet_demand_fitness*G + distance_fitness)
+    bad_chromosom_index = Population.index(Population[Fitness.index(max(Fitness))])
     if min(Fitness) < elites_fitness:
         elites_fitness = min(Fitness)
-        elite_Chromosoms = Population[Fitness.index(min(Fitness))]
+        elite_Chromosom = Population[Fitness.index(min(Fitness))]
     return Fitness
 # Fitness = fitness(Population)
 # print(Fitness)
@@ -199,8 +201,8 @@ for index, i in enumerate(ChromosomsProb):
 def SRS_Selection(ChromosomsFitness: list):
     selectedchromosomforcrossover = []
     SelectedChromosomForCrossOver = []
-    if elites_fitness not in ChromosomsFitness: 
-        Population[rn.randint(0,len(Population)-1)] = elite_Chromosoms
+    # if elites_fitness not in ChromosomsFitness: 
+    #     Population[rn.randint(0,len(Population)-1)] = elite_Chromosom
     ChromosomsFitnessSorted = sorted(ChromosomsFitness, reverse=True)
     ChromosomsIndexByFitness = [ChromosomsFitness.index(i) for i in ChromosomsFitnessSorted]
     for _ in Ranking:
@@ -219,7 +221,8 @@ def SRS_Selection(ChromosomsFitness: list):
 
 
 
-# OX Crossover
+
+# PMX Crossover
 def PMX_Crossover(selectedcrossover, crossoverprob):
     childs = []
     for i in selectedcrossover:
@@ -326,6 +329,7 @@ def Generation(repeat):
         Childs = PMX_Crossover(SelectedChromosoms, c)
         childsaftermutation = Mutation(Childs, m)
         Population = childsaftermutation
+        Population[bad_chromosom_index] = elite_Chromosom
     # Chromosom_Plot(InitialChromosoms[Fitness(InitialChromosoms).index(min(Fitness(InitialChromosoms)))])
     best_solution = Population[fitness(Population).index(min(fitness(Population)))]
     
@@ -338,10 +342,12 @@ def Generation(repeat):
     
     plt.plot(g,minfit)
     plt.title(f'min_fitness = {minfit[-1]}')
-    # plt.figure(1)
+    plt.figure(1)
     plt.show()
+    # agent.df_normalplot(agent.df_list)
+    agent.diversity_plot(repeat,agent.div_list)
     return best_solution
-best_solution = Generation(2000)
+best_solution = Generation(4000)
 print("Best Solution = ",best_solution)
 print("\nSumDemand = ", sum(v_demands), "\nSumSupply = ", sum(V*n for n in best_solution[No_demandNodes:]))
 print("\nTotal Facilities opened = ",sum(best_solution[No_demandNodes:]),
@@ -413,6 +419,6 @@ def chromosomplot(bestsolution):
         x.append(x_nodes[bestsolution[j]])
         y.append(y_nodes[bestsolution[j]])
         plt.plot(x,y)
-    plt.figure(1)
+    plt.figure(2)
     plt.show()
 chromosomplot(best_solution)    
