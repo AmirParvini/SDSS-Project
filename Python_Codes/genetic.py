@@ -222,56 +222,31 @@ def SRS_Selection(ChromosomsFitness: list):
 
 
 
-# PMX Crossover
-def PMX_Crossover(selectedcrossover, crossoverprob):
+# OX Crossover
+def OX_Crossover(selectedcrossover, crossoverprob):
     childs = []
     for i in selectedcrossover:
         r = rn.uniform(0,1)
-        if r <= crossoverprob:
-            p1 = Population[i[0]]
-            p2 = Population[i[1]]
-            child1 = [1]*len(p1)
-            child2 = [1]*len(p1)
-            crossoverindex = rn.sample(list(range(len(demand_nodes_index))),2)
-            bp1 = p1[min(crossoverindex):max(crossoverindex)+1]
-            bp2 = p2[min(crossoverindex):max(crossoverindex)+1]
-            child1[min(crossoverindex):max(crossoverindex)+1] = bp2.copy()
-            child2[min(crossoverindex):max(crossoverindex)+1] = bp1.copy()
-            Chain = chain(range(min(crossoverindex)), range(max(crossoverindex)+1, len(child1)))
-            for j in Chain:
-                chekpoint1 = p1[j]
-                chekpoint2 = p2[j]
-                m = 0
-                ch = False
-                while chekpoint1 in bp2:
-                    m += 1
-                    chekpoint1 = bp1[bp2.index(chekpoint1)]
-                    if m > len(bp2):
-                        ch = True
-                        child1[j] = p2[j]
-                        break
-                if ch == False:
-                    child1[j] = chekpoint1
-                m = 0
-                ch = False
-                while chekpoint2 in bp1:
-                    m += 1
-                    chekpoint2 = bp2[bp1.index(chekpoint2)]
-                    if m > len(bp1):
-                        ch = True
-                        child2[j] = p1[j]
-                        break
-                if ch == False:
-                    child2[j] = chekpoint2
-                
-                
-            for index, i in enumerate(p2[len(demand_nodes_index):]):
-                child1[len(demand_nodes_index)+index] = i
-                child2[len(demand_nodes_index)+index] = p1[len(demand_nodes_index)+index]
-                
-            childs.append(child1)
-            childs.append(child2)
-            
+        if r < crossoverprob:
+            for t in range(2):
+                if  t== 0:
+                    p1 = Population[i[0]]
+                    p2 = Population[i[1]]
+                if t == 1:
+                    p2 = Population[i[0]]
+                    p1 = Population[i[1]]
+                child = [-1]*len(p1[:No_demandNodes])
+                crossoverindex = rn.sample(list(range(No_demandNodes)),2)
+                child[min(crossoverindex):max(crossoverindex)+1] = p1[min(crossoverindex):max(crossoverindex)+1]
+                j = 0
+                Chain = chain(range(min(crossoverindex)), range(max(crossoverindex)+1, len(child)))
+                for l in Chain:
+                    if l < min(crossoverindex) or l > max(crossoverindex):
+                        while p2[j] in child[min(crossoverindex):max(crossoverindex)+1]:
+                            j += 1
+                        child[l] = p2[j]
+                    j += 1
+                childs.append(child + p2[No_demandNodes:])
         else:
             childs.append(Population[i[0]])
             childs.append(Population[i[1]])
@@ -286,20 +261,12 @@ def Mutation(childs: list, mutationprob):
     for i in childs:
         r = rn.uniform(0,1)
         if r <= mutationprob:
-            rnd = rn.sample(list(range(len(demand_nodes_index))),2)
+            rnd = rn.sample(list(range(No_demandNodes)),2)
             rnd0 = i[rnd[0]]
             rnd1 = i[rnd[1]]
             i[rnd[0]] = rnd1
             i[rnd[1]] = rnd0
             childsaftermutation.append(i)
-            
-            # rnd = rn.sample(list(range(len(demand_nodes_index), len(i))),2)
-            # rnd0 = i[rnd[0]]
-            # rnd1 = i[rnd[1]]
-            # if n[rnd[1]] > rnd0 and n[rnd[0]] > rnd1:
-            #     i[rnd[0]] = rnd1
-            #     i[rnd[1]] = rnd0
-            # childsaftermutation.append(i)
         else:
             childsaftermutation.append(i)
     return childsaftermutation
@@ -326,7 +293,7 @@ def Generation(repeat):
         agent.updateQlearning()
         minfit.append(min(Fitness) if (min(Fitness) <= elites_fitness) else elites_fitness)
         SelectedChromosoms = SRS_Selection(Fitness)
-        Childs = PMX_Crossover(SelectedChromosoms, c)
+        Childs = OX_Crossover(SelectedChromosoms, c)
         childsaftermutation = Mutation(Childs, m)
         Population = childsaftermutation
         Population[bad_chromosom_index] = elite_Chromosom
