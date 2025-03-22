@@ -20,7 +20,8 @@ class rlagent():
         # the exploration rate
         self.epsilon = epsilon
                                    
-        self.actionSpace = list(itertools.product(cRange, mRange))
+        # self.actionSpace = list(itertools.product(cRange, mRange))
+        self.actionSpace = [(c, m) for c in cRange for m in mRange if abs(c + m - 1) == 0]
         # get the rewards table
         self.rewardSpace = np.array([200,   150,   100,   50,    25,
                                      150,   113,   75,    38,    19,
@@ -93,7 +94,7 @@ class rlagent():
             elif arr[i] == top:
 
                 # then add it to the tie list
-                ties.append([arr[i], i])
+                ties.append([i, arr[i]])
                 # ties.append([len(self.actionSpace)-29, len(self.actionSpace)-29])
         
         # pick a random index
@@ -147,11 +148,11 @@ class rlagent():
             fState = 'I'
         elif df == 0:
             fState = 'S'
-        elif df < 0.005:
+        elif df < 0.01:
             fState = 'VLC'
-        elif df < 0.025:
+        elif df < 0.05:
             fState = 'LC'
-        elif df < 0.1:
+        elif df < 0.25:
             fState = 'HC'
         else:
             fState = 'VHC'
