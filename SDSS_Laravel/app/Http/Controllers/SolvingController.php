@@ -27,7 +27,7 @@ class SolvingController extends Controller
         $combinedJson = json_encode(['parameters' => $parameters, 'nodes_data' => $nodes_data], JSON_UNESCAPED_UNICODE);
         // read data from Tables
         try {
-            $pythonScriptPath = base_path('public/python/genetic.py');
+            $pythonScriptPath = base_path('public/python/test.py');
             $process = new Process(['python', $pythonScriptPath]);
             $process->setInput($combinedJson);
             $process->mustRun();
@@ -35,9 +35,12 @@ class SolvingController extends Controller
                 throw new ProcessFailedException($process);
             }
             $output = $process->getOutput();
-            return $output;
+            $output = json_decode($output, true);
+            // $output = ['test' => 'hello'];
+            // return response()->json(['csrf_token' => csrf_token()]);
+            return response()->json($output);
         } catch (Exception $e) {
-            dd($e);
+            return response()->json($e);
         }
     }
 }

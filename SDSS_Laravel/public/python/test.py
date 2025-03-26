@@ -10,7 +10,6 @@ try:
     parameters = data['parameters']
     nodes_data = data['nodes_data']
 
-
     # Parameters for standard configuration
     NT = parameters['NT']  # total number of TDR facilities available
     ST = parameters['ST'] # safety level threshold
@@ -66,19 +65,26 @@ try:
     No_supplierNodes = len(supplier_nodes_index)
     No_demandNodes = len(demand_nodes_index)
 
-    print("x_nodes = ", x_nodes, "\n\ny_nodes = ", y_nodes, "\n\nv_capacity = ",
-            v_capacity, "\n\nw_capacity = ", w_capacity, "\n\nv_demands = ",
-            v_demands, "\n\nw_demands =", w_demands, "\n\nSafty Levels = ", s, flush=True)
+    output = {
+        "x_nodes":x_nodes,
+        "y_nodes":y_nodes
+    }
+    json_data = json.dumps(output)
+    print(json_data)
+    # print("x_nodes = ", x_nodes, "\n\ny_nodes = ", y_nodes, "\n\nv_capacity = ",
+    #         v_capacity, "\n\nw_capacity = ", w_capacity, "\n\nv_demands = ",
+    #         v_demands, "\n\nw_demands =", w_demands, "\n\nSafty Levels = ", s
+    #         )
 
-    print("\nSumVolumeCapacities = ", sum(v_capacity[i] for i in supplier_nodes_index), "\nSumWeightCapacities = ", sum(w_capacity[i] for i in supplier_nodes_index),
-            "\nSumVolumeDemands = ", sum(v_demands), "\nSumWeightDemands = ", sum(w_demands), flush=True)
+    # print("\nSumVolumeCapacities = ", sum(v_capacity[i] for i in supplier_nodes_index), "\nSumWeightCapacities = ", sum(w_capacity[i] for i in supplier_nodes_index),
+    #         "\nSumVolumeDemands = ", sum(v_demands), "\nSumWeightDemands = ", sum(w_demands))
 
-    print("\nNum of Nodes = ",No_nodes,
-            "\nNum of Spplier Nodes = ", No_supplierNodes,
-            "\nNum of demand Nodes = ", No_demandNodes,
-            "\nSum of Facilities = ", sum([n[i] for i in supplier_nodes_index]),
-            "\nSupplier Nodes Index = ", supplier_nodes_index,
-            "\nDemand Nodes Index = ", demand_nodes_index, flush=True)
+    # print("\nNum of Nodes = ",No_nodes,
+    #         "\nNum of Spplier Nodes = ", No_supplierNodes,
+    #         "\nNum of demand Nodes = ", No_demandNodes,
+    #         "\nSum of Facilities = ", sum([n[i] for i in supplier_nodes_index]),
+    #         "\nSupplier Nodes Index = ", supplier_nodes_index,
+    #         "\nDemand Nodes Index = ", demand_nodes_index)
 
 except Exception as e:
     print(e)
