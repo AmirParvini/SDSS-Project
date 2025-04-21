@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('configurations', function (Blueprint $table) {
             $table->id()->autoIncrement();
-            $table->char('name');
+            $table->char('Name');
             $table->integer('NT');
+            $table->integer('ni');
             $table->float('ST');
             $table->integer('M');
             $table->integer('L');

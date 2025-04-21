@@ -24,19 +24,20 @@ agent = rlagent(alpha, gamma, epsilon, cRange, mRange, c, m)
 
 
 # Parameters for standard configuration
-NT = 400  # total number of TDR facilities available
-ST = 0.975 # safety level threshold
-M = 10**6  # total demands threshold
-L = 5000  # Lambda: scaling factor for total number of facilities opened
-A = 10  # Alpha: maximum number of neighborhoods that a neighborhood can serve
-B = 10  # Beta: maximum number of neighborhoods that a neighborhood can be served by
-G = 15  # Gamma: penalty for unit unmet demand
+APR = 0.9
+NT = 100 # total number of TDR facilities available
+ST = 0.95 # safety level threshold
+M = 10**6 # total demands threshold
+L = 5000 # Lambda: scaling factor for total number of facilities opened
+A = 10 # Alpha: maximum number of neighborhoods that a neighborhood can serve
+B = 10 # Beta: maximum number of neighborhoods that a neighborhood can be served by
+G = 15 # Gamma: penalty for unit unmet demand
 k = ["Water", "Food", "Medical Kit"]  # commodities type
 v = dict(zip(k, [1, 1, 0.5]))  # unit volume of commodity k
 w = dict(zip(k, [1, 0.25, 0.25]))  # unit weight of commodity k
-cd = dict(zip(k, [2.5, 3, 0.333]))  # commodities demand of an injured in 1day
+cd = dict(zip(k, [0.833, 1, 0.111]))  # commodities demand of an injured in 1day
 V = 120000 # Volume Capacity of TDR
-W = 30480*5 # Weight Capacity of TDR
+W = 120000 # Weight Capacity of TDR
 
 
 # Reading the File
@@ -51,13 +52,18 @@ No_nodes = 0
 No_supplierNodes = 0
 No_demandNodes = 0
 supplier_nodes_index = []
+supplier_nodes_name = []
 demand_nodes_index = []
 v_capacity = []
 w_capacity = []
 v_demands = []
+v_demands_water = []
+v_demands_food = []
+v_demands_medicalkit = []
 w_demands = []
 dist = [] # distance between neighborhoods i and j
 genetic_best_solution = np.nan
+Allocation_Clusters = {}
 
 def readfile(path: str):
     global No_nodes, No_supplierNodes, No_demandNodes, supplier_nodes_index, demand_nodes_index, n, v_demands
@@ -67,15 +73,19 @@ def readfile(path: str):
     for i, line in enumerate(lines, start=1):
         if 2 < i:
             NodesAttributes = line.split(",")
+            supplier_nodes_name.append(NodesAttributes[1])
             x_nodes.append(float(NodesAttributes[7]))
             y_nodes.append(float(NodesAttributes[8]))
-            population = int(NodesAttributes[4])
+            population = int(NodesAttributes[4])*APR
             No_facility = int(NodesAttributes[6])
             n.append(No_facility)
             s.append(float(NodesAttributes[5]))
             v_capacity.append(V*(No_facility))
             w_capacity.append(W*No_facility)
             v_demands.append(sum([x * y * population for x, y in zip(list(v.values()), list(cd.values()))]))
+            v_demands_water.append(v['Water'] * cd['Water'] * population)
+            v_demands_food.append(v['Food'] * cd['Food'] * population)
+            v_demands_medicalkit.append(v['Medical Kit'] * cd['Medical Kit'] * population)
             w_demands.append(sum([x * y * population for x, y in zip(list(w.values()), list(cd.values()))]))
             
     No_nodes = len(x_nodes)
@@ -123,16 +133,16 @@ def generate_initial_population(pop_size):
         Chromosom = []
         selectable = demand_nodes_index.copy()
         for i in range(No_nodes):
-            if (i <= len(demand_nodes_index)-1):
+            if (i <= No_demandNodes-1):
                 j = rn.choice(selectable)
                 selectable.remove(j)
             else:
-                j = rn.choice(range(min(n),n[supplier_nodes_index[i-len(demand_nodes_index)]]+1))
+                j = rn.choice(range(0,n[supplier_nodes_index[i-No_demandNodes]]+1))
             Chromosom.append(j)
 
         Population.append(Chromosom)
     return Population
-Population = generate_initial_population(50)
+Population = generate_initial_population(200)
 # print(Population)
 
 
@@ -185,7 +195,7 @@ def fitness(population: list):
         
         distance_fitness = distance(pop)
          
-        Fitness.append(sum_facilities_fitness*L + unmet_demand_fitness*G + penalty + distance_fitness*100)
+        Fitness.append(sum_facilities_fitness*L + unmet_demand_fitness*G + penalty + distance_fitness*10)
     bad_chromosom_index = Fitness.index(max(Fitness))
     if min(Fitness) < elites_fitness:
         elites_fitness = min(Fitness)
@@ -419,7 +429,7 @@ def Generation(repeat):
     # agent.df_normalplot(agent.df_list)
     # agent.diversity_plot(repeat,agent.div_list)
     return best_solution
-genetic_best_solution = Generation(2000)
+genetic_best_solution = Generation(20)
 print("Best Solution = ",genetic_best_solution)
 print("\nSumDemand = ", sum(v_demands), "\nSumSupply = ", sum(V*n for n in genetic_best_solution[No_demandNodes:]))
 print("\nTotal Facilities opened = ",sum(genetic_best_solution[No_demandNodes:]),
@@ -456,7 +466,7 @@ def chromosomplot(bestsolution):
     
 # display allocating nodes
     d_supp = np.array([v_demands[s] for s in supplier_nodes_index])
-    c_supp = np.array([i*V  for i in best_solution[No_demandNodes:]]) - d_supp
+    c_supp = np.array([i*V  for i in bestsolution[No_demandNodes:]]) - d_supp
     d = np.array([v_demands[i] for i in demand_nodes_index])
     j = 0
     end = False
@@ -569,7 +579,44 @@ def tabu_search(initial_solution, max_iterations, tabu_tenure):
     return best_solution, best_cost
 
 
-best_solution, best_cost = tabu_search(genetic_best_solution, 3000, 10)
+def allocation_clusters(best_solution):
+    Allocation_Clusters = {}
+    d_supp = np.array([v_demands[s] for s in supplier_nodes_index])
+    c_supp = np.array([i*V  for i in best_solution[No_demandNodes:]]) - d_supp
+    d = np.array([v_demands[i] for i in demand_nodes_index])
+    j = 0
+    end = False
+    for i in range(No_supplierNodes):
+        dni = []
+        while c_supp[i] >= d[j]:
+            dni.append(best_solution[j])
+            c_supp[i] -= d[j]
+            d[j] = 0
+            j += 1
+            if j == No_demandNodes:
+                end = True
+                break
+        if end == True:
+            break
+        dni.append(best_solution[j])
+        Allocation_Clusters[f'{supplier_nodes_index[i]}'] = dni
+        d[j] -= c_supp[i]
+        c_supp[i] = 0
+    return Allocation_Clusters
+
+
+best_solution, best_cost = tabu_search(genetic_best_solution, 30, 10)
+Allocation_Clusters = allocation_clusters(best_solution)
+
+
+InventoryDesitions = {}
+for index, i in enumerate(Allocation_Clusters.keys()):
+    sum_vd_water = sum([v_demands_water[k] for k in Allocation_Clusters[i]])
+    sum_vd_food = sum([v_demands_food[k] for k in Allocation_Clusters[i]])
+    sum_vd_medicalkit = sum([v_demands_medicalkit[k] for k in Allocation_Clusters[i]])
+    values = [best_solution[No_demandNodes + index], sum_vd_water, sum_vd_food, sum_vd_medicalkit]
+    InventoryDesitions[supplier_nodes_name[int(i)]] = values
+
 print(f"best_solution = {best_solution} \n best_cost = {best_cost}")
 print("Best Solution = ",best_solution)
 print("\nSumDemand = ", sum(v_demands), "\nSumSupply = ", sum(V*n for n in best_solution[No_demandNodes:]))

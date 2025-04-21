@@ -15,32 +15,49 @@ use function PHPSTORM_META\type;
 
 class SolvingController extends Controller
 {
-    var $record;
     public function index(Request $request)
     {
-        set_time_limit(120);
-        // read data from Tables
-        $record = DB::table('configurations')->where('Name', 'standard')->first();
-        $parameters =  $record;
-        $record = Node::all()->toArray();
-        $nodes_data =  $record;
-        $combinedJson = json_encode(['parameters' => $parameters, 'nodes_data' => $nodes_data], JSON_UNESCAPED_UNICODE);
-        // read data from Tables
         try {
-            $pythonScriptPath = base_path('public/python/test.py');
+            $APR = $request->input('APR');
+            $PP = $request->input('PP');
+            $ConfigName = $request->input('Config');
+
+            // read data from Tables-------------------------------------------------------
+            $config_parameters = DB::table('configurations')->where('Name', $ConfigName)->first();
+            $nodes_data = Node::all()->toArray();
+            $commodity_demands = DB::table('scenarios')->where('ArrivalTime(h)', $PP)->first();
+            $combinedJson = json_encode([
+                'config_parameters' => $config_parameters,
+                'nodes_data' => $nodes_data,
+                'commodity_demands' => $commodity_demands,
+                'APR' => $APR
+            ], JSON_UNESCAPED_UNICODE);
+            // read data from Tables-------------------------------------------------------
+
+            $pythonScriptPath = base_path('public/python/genetic.py');
             $process = new Process(['python', $pythonScriptPath]);
             $process->setInput($combinedJson);
+            $process->setTimeout(900);
             $process->mustRun();
             if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
+                // throw new ProcessFailedException($process);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Process failed',
+                    'error' => $process->getErrorOutput()
+                ], 500);
             }
             $output = $process->getOutput();
             $output = json_decode($output, true);
+            return response()->json(['status' => 'success', 'output' => $output]);
             // $output = ['test' => 'hello'];
             // return response()->json(['csrf_token' => csrf_token()]);
-            return response()->json($output);
         } catch (Exception $e) {
-            return response()->json($e);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'An error occurred: ' . $e->getMessage(),
+                'error' => isset($process) ? $process->getErrorOutput() : 'No process output available'
+            ], 500);
         }
     }
 }
