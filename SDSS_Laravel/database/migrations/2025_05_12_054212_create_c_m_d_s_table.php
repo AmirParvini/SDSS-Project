@@ -11,15 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('configurations', function (Blueprint $table) {
-            $table->id()->autoIncrement();
+        Schema::create('c_m_d_s', function (Blueprint $table) {
+            $table->id();
             $table->char('Name');
-            $table->integer('NT');
-            $table->integer('L');
-            $table->integer('A');
-            $table->integer('G');
-            $table->integer('O');
-            $table->integer('V');
+            $table->char('City');
+            $table->integer('District');
+            $table->double('X');
+            $table->double('Y');
         });
     }
 
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('configurations');
+        Schema::dropIfExists('c_m_d_s');
     }
 };

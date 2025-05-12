@@ -20,7 +20,7 @@ data = sys.stdin.buffer.read()
 data = json.loads(data)
 parameters = data['config_parameters']
 nodes_data = data['nodes_data']
-commodity_demands = data['commodity_demands']
+commodity_demands_unit = data['commodity_demands_unit']
 APR = float(data['APR'])
 
 
@@ -36,7 +36,7 @@ G = parameters['G']  # Gamma: penalty for unit unmet demand
 k = ["Water", "Food", "Medical Kit"]  # commodities type
 v = dict(zip(k, [1, 1, 0.5]))  # unit volume of commodity k
 w = dict(zip(k, [1, 0.25, 0.25]))  # unit weight of commodity k
-cd = dict(zip(k, [commodity_demands["Water(unit-pp)"], commodity_demands["Food(unit-pp)"], commodity_demands["MedicalKit(unit-pp)"]]))  # commodities demand of an injured in 1day
+cd = dict(zip(k, [commodity_demands_unit["Water(unit-pp)"], commodity_demands_unit["Food(unit-pp)"], commodity_demands_unit["MedicalKit(unit-pp)"]]))  # commodities demand of an injured in 1day
 V = parameters['V'] # Volume Capacity of TDR
 W = parameters['W'] # Weight Capacity of TDR
 

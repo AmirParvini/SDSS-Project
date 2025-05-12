@@ -286,13 +286,11 @@ def New_Crossover(selectedcrossover, crossoverprob):
                 joint = [r for r in range(rn1, rn2 + 1) if p1[r] in p2[rn1:rn2 + 1]]
                 for r in joint:
                     child[r] = p1[r]
-                
                 for j in joint:
                     if child[j-1] == -1 and p2[j-1] not in child:
                         child[j-1] = p2[j-1]
                     if child[j+1] == -1 and p2[j+1] not in child:
                         child[j+1] = p2[j+1]
-
                 c = 0
                 for index, l in enumerate(child):
                     if l == -1:

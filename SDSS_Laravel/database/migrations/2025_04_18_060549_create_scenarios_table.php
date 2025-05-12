@@ -18,7 +18,7 @@ return new class extends Migration
             $table->float('Water(unit-pp)')->nullable();
             $table->float('Food(unit-pp)')->nullable();
             $table->float('MedicalKit(unit-pp)')->nullable();
-            $table->float('ScenarioProbability')->nullable();
+            $table->float('Shelter(unit-pp)')->nullable();
         });
     }
 

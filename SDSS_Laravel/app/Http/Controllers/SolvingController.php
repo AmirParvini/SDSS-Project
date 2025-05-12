@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use App\Models\CMD;
+use App\Models\LDC;
+use App\Models\EC;
 
 use function PHPSTORM_META\type;
 
@@ -24,20 +27,23 @@ class SolvingController extends Controller
 
             // read data from Tables-------------------------------------------------------
             $config_parameters = DB::table('configurations')->where('Name', $ConfigName)->first();
-            $nodes_data = Node::all()->toArray();
-            $commodity_demands = DB::table('scenarios')->where('ArrivalTime(h)', $PP)->first();
+            $CMD_nodes_data = CMD::all()->toArray();
+            $LDC_nodes_data = LDC::all()->toArray();
+            $EC_nodes_data = EC::all()->toArray();
+            $nodes_data = [$CMD_nodes_data, $LDC_nodes_data, $EC_nodes_data];
+            $commodity_demands_unit = DB::table('scenarios')->where('ArrivalTime(h)', $PP)->first();
             $combinedJson = json_encode([
                 'config_parameters' => $config_parameters,
                 'nodes_data' => $nodes_data,
-                'commodity_demands' => $commodity_demands,
+                'commodity_demands_unit' => $commodity_demands_unit,
                 'APR' => $APR
             ], JSON_UNESCAPED_UNICODE);
             // read data from Tables-------------------------------------------------------
 
-            $pythonScriptPath = base_path('public/python/genetic.py');
+            $pythonScriptPath = base_path('public/python/genetic_NewModel.py');
             $process = new Process(['python', $pythonScriptPath]);
             $process->setInput($combinedJson);
-            $process->setTimeout(900);
+            $process->setTimeout(1800);
             $process->mustRun();
             if (!$process->isSuccessful()) {
                 // throw new ProcessFailedException($process);
