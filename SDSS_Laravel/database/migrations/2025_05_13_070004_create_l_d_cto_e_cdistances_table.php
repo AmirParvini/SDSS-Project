@@ -11,15 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('configurations', function (Blueprint $table) {
+        Schema::create('l_d_cto_e_cdistances', function (Blueprint $table) {
             $table->id();
-            $table->char('Name');
-            $table->integer('NT');
-            $table->integer('L');
-            $table->integer('A');
-            $table->integer('G');
-            $table->integer('O');
-            $table->integer('V');
+            $table->text("LDC_name");
+            $table->text("EC_name");
+            $table->double("Distance");
         });
     }
 
@@ -28,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('configurations');
+        Schema::dropIfExists('l_d_cto_e_cdistances');
     }
 };

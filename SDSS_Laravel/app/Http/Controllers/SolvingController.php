@@ -24,6 +24,9 @@ class SolvingController extends Controller
             $APR = $request->input('APR');
             $PP = $request->input('PP');
             $ConfigName = $request->input('Config');
+            // $APR = 0.9;
+            // $PP = 8;
+            // $ConfigName = "MC1-Standard";
 
             // read data from Tables-------------------------------------------------------
             $config_parameters = DB::table('configurations')->where('Name', $ConfigName)->first();
@@ -54,15 +57,14 @@ class SolvingController extends Controller
                 ], 500);
             }
             $output = $process->getOutput();
+            dd($output);
             $output = json_decode($output, true);
             return response()->json(['status' => 'success', 'output' => $output]);
-            // $output = ['test' => 'hello'];
-            // return response()->json(['csrf_token' => csrf_token()]);
         } catch (Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'An error occurred: ' . $e->getMessage(),
-                'error' => isset($process) ? $process->getErrorOutput() : 'No process output available'
+                'message' => 'An error occurred = ' . $e->getMessage(),
+                // 'error' => isset($process) ? $process->getErrorOutput() : 'No process output available'
             ], 500);
         }
     }

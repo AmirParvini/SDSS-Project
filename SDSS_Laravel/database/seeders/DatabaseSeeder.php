@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\CMD;
+use App\Models\CMD_to_LDC_distance;
+use App\Models\CMDtoLDCdistance;
+use App\Models\LDC_to_EC_distance;
 use App\Models\Configuration;
 use App\Models\EC;
 use App\Models\Scenario;
@@ -29,7 +32,9 @@ class DatabaseSeeder extends Seeder
             CMDSeeder::class,
             LDCSeeder::class,
             ECSeeder::class,
-            ScenarioSeeder::class
+            ScenarioSeeder::class,
+            CMDtoLDCdistanceSeeder::class,
+            LDCtoECdistanceSeeder::class
         ]);
 
 
