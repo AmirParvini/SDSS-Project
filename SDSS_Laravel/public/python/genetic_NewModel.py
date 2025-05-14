@@ -91,13 +91,10 @@ cmd_ldc_ODMatrix = np.full((No_CMD, No_LDC), np.nan)
 for CLdist in CMD_to_LDC_dist_data:
     if normalize_str(CLdist['CMD_name']) in CMD_name and normalize_str(CLdist['LDC_name']) in LDC_name:
         cmd_ldc_ODMatrix[CMD_name.index(normalize_str(CLdist['CMD_name'])), LDC_name.index(normalize_str(CLdist['LDC_name']))] = CLdist['Distance']
-# print(json.dumps(cmd_ldc_ODMatrix.tolist(), ensure_ascii=False))
 ldc_ec_ODMatrix = np.full((No_LDC, No_EC), np.nan)
 for LEdist in LDC_to_EC_dist_data:
     if normalize_str(LEdist['LDC_name']) in LDC_name and normalize_str(LEdist['EC_name']) in EC_name:
         ldc_ec_ODMatrix[LDC_name.index(normalize_str(LEdist['LDC_name'])), EC_name.index(normalize_str(LEdist['EC_name']))] = LEdist['Distance']
-# print(json.dumps(cmd_ldc_ODMatrix.tolist(), ensure_ascii=False))
-
 
 nan_cols_cmd_ldc_ODMatrix = np.where(np.all(np.isnan(cmd_ldc_ODMatrix), axis=0))[0]
 nan_rows_cmd_ldc_ODMatrix = np.where(np.all(np.isnan(cmd_ldc_ODMatrix), axis=1))[0]
@@ -106,8 +103,6 @@ nan_rows_ldc_ec_ODMatrix = np.where(np.all(np.isnan(ldc_ec_ODMatrix), axis=1))[0
 cmd_invalid_index = list(nan_rows_cmd_ldc_ODMatrix)
 ldc_invalid_index = list(nan_rows_ldc_ec_ODMatrix)
 ec_invalid_index = list(nan_cols_ldc_ec_ODMatrix)
-
-# print(json.dumps(f"cmd_invalid_index: {cmd_invalid_index}\nldc_invalid_index: {ldc_invalid_index}\nec_invalid_index: {ec_invalid_index}"))
 
 if len(cmd_invalid_index) > 0:
     cmd_ldc_ODMatrix = np.delete(cmd_ldc_ODMatrix, cmd_invalid_index, axis=0)
@@ -159,10 +154,9 @@ def generate_initial_population(pop_size):
         Chromosom_part2 = rn.sample(range(No_EC), No_EC)
         population.append(Chromosom_part1 + Chromosom_part2)
     return population
-# Population = generate_initial_population(10)
-# print(json.dumps(Population, ensure_ascii=False))
+# Initial Population    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+
 # Fitness    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-#fitness
 used_CMD_index = []
 opened_LDC_index = []
 unmet_demand = np.NaN
@@ -198,11 +192,9 @@ def fitness(pop):
         else:
             unmet_demand = 0
             additional_inventory = 0
-        # print(f"used CMDs index: {used_CMD_index}\nopened LDCs index: {opened_LDC_index}\nused LDCs inventory: {used_LDC_inventory_list}\nused Ecs index: {used_EC_index}\nused ECs demand: {EC_demand_update}\n")
         for i in range(len(used_CMD_index)):
             CMDs_to_LDCs_dist.append(cmd_ldc_ODMatrix[used_CMD_index[i]][opened_LDC_index[i]])
             CMDs_to_LDCs_allocation[f"{CMD_name[used_CMD_index[i]]}"].append((LDC_name[opened_LDC_index[i]], used_LDC_inventory_list[i]))
-        # print(f"CMDs_to_LDCs_dist: {CMDs_to_LDCs_dist}")
         k = 0
         NOT_DEMAND = False
         for i in range(A):
@@ -239,32 +231,22 @@ def fitness(pop):
                         k = 0
             if NOT_DEMAND == True:
                 break
-        # print(f"LDCs_to_ECs_dist: {LDCs_to_ECs_dist}")
-
         sum_dist = sum(CMDs_to_LDCs_dist) + sum(LDCs_to_ECs_dist)
         sum_opened_LDC = len(opened_LDC_index)
         fitness_list.append(sum_dist + sum_opened_LDC*1000 + unmet_demand*10 + additional_inventory)
-        # print(f"\nsum_dist: {sum_dist}\nsum_opened_LDC: {sum_opened_LDC}\nunmet_demand: {unmet_demand}\nadditional_inventory: {additional_inventory}")
-        # print(f"EC_demand_update: {EC_demand_update}\nused_LDC_inventory_list: {used_LDC_inventory_list}\n")
     bad_chromosom_index = fitness_list.index(max(fitness_list))
     if min(fitness_list) < elites_fitness:
         elites_fitness = min(fitness_list)
         elite_Chromosom = pop[fitness_list.index(min(fitness_list))]
     return fitness_list
+# Fitness    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 
-# fitness_list = fitness(Population)
-# print(json.dumps(fitness_list))
-# print(CMDs_to_LDCs_allocation)
-# print(LDCs_to_ECs_dist_allocation)
-
-
-# Split Rank Selection
+# Split Rank Selection    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 def SRS_Selection(ChromosomsFitness: list):
     global Ranking, ProbsRange
     selectedchromosomforcrossover = []
     SelectedChromosomForCrossOver = []
     ChromosomsFitnessSorted = sorted(ChromosomsFitness, reverse=True)
-    # print(ChromosomsFitnessSorted)
     ChromosomsIndexByFitness = [ChromosomsFitness.index(i) for i in ChromosomsFitnessSorted]
     for _ in Ranking:
         r = rn.uniform(0,1)
@@ -276,12 +258,9 @@ def SRS_Selection(ChromosomsFitness: list):
                     selectedchromosomforcrossover = []
                     break
     return SelectedChromosomForCrossOver
+# Split Rank Selection    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 
-# selcted_chromosom = SRS_Selection(fitness_list)
-# print(json.dumps(selcted_chromosom))
-
-
-# Two_point_OX_Crossover
+# Two_point_OX_Crossover    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 def Two_point_OX_Crossover(pop, selectedcrossover, probability):
     childs = []
     for i1, i2 in selectedcrossover:
@@ -290,7 +269,6 @@ def Two_point_OX_Crossover(pop, selectedcrossover, probability):
                 # part 1 (Two_point crossover)
                 ch_part1, p1_part1, p2_part1 = [-1] * No_LDC, p1[:No_LDC], p1[:No_LDC]
                 rn1, rn2 = rn.randint(0, No_LDC), rn.randint(No_LDC//2, No_LDC)
-                # rn1, rn2 = min(rn1, rn2), max(rn1, rn2)
                 ch_part1[rn1:rn2] = p1_part1[rn1:rn2]
                 ch_part1[:rn1], ch_part1[rn2:] = p2_part1[:rn1], p2_part1[rn2:]
 
@@ -310,12 +288,9 @@ def Two_point_OX_Crossover(pop, selectedcrossover, probability):
         else:
             childs.extend([pop[i1], pop[i2]])
     return childs
-# childs = Two_point_OX_Crossover(Population, selcted_chromosom, 1)
-# print(json.dumps(childs))
-# Two_point_OX_Crossover
+# Two_point_OX_Crossover    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 
-
-# Mutation
+# Mutation    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 def Mutation(childs: list, probability):
     childsaftermutation = []
     for i in childs:
@@ -339,8 +314,9 @@ def Mutation(childs: list, probability):
         else:
             childsaftermutation.append(i)
     return childsaftermutation
+# Mutation    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 
-
+# Generating    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 Ranking = []
 ChromosomsProb =[]
 ProbsRange = []
@@ -370,10 +346,95 @@ def Generation(repeat):
         Population[bad_chromosom_index] = elite_Chromosom
     genetic_best_solution = Population[fitness(Population).index(min(fitness(Population)))]
     return genetic_best_solution
-genetic_best_solution = Generation(2000)
+# Generating    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+
+genetic_best_solution = Generation(10)
 fitness([genetic_best_solution])
-print(json.dumps(genetic_best_solution, ensure_ascii=False))
+print(json.dumps(f"genetic_best_solution: {genetic_best_solution}", ensure_ascii=False))
 print(json.dumps(f"Unmet Demand = {unmet_demand}\nAdditional Inventory = {additional_inventory}\nSum Distance = {sum_dist}\nSum Opened LDC = {sum_opened_LDC}"))
+
+# Tabu_Search    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+def generate_neighbors(current_solution, moves_iteration):
+    neighbors = []
+    moves = []  # برای ذخیره حرکت‌ها
+    # حرکت نوع 1: جابجایی در بخش اول
+    rn1 = rn.sample(range(No_LDC), moves_iteration)
+    rn2 = rn.sample(range(No_LDC), moves_iteration)
+    for i in range(moves_iteration):
+        neighbor = copy.deepcopy(current_solution)
+        neighbor[rn1[i]], neighbor[rn2[i]] = neighbor[rn2[i]], neighbor[rn1[i]]
+        neighbors.append(neighbor)
+        moves.append(("par1_swap", i, rn2[i]))
+    # حرکت نوع 2: جابجایی در بخش اول
+    rn1 = rn.sample(range(No_LDC, len(current_solution[No_LDC:])), moves_iteration)
+    rn2 = rn.sample(range(No_LDC, len(current_solution[No_LDC:])), moves_iteration)
+    for _ in range(moves_iteration):
+        neighbor = copy.deepcopy(current_solution)
+        neighbor[rn1[i]], neighbor[rn2[i]] = neighbor[rn2[i]], neighbor[rn1[i]]
+        neighbors.append(neighbor)
+        moves.append(("par2_swap", rn1[i], rn2[i]))
+    # حرکت نوع 3: افزودن یا حذف LDC
+    Pop_random_values = truncnorm.rvs(a_std, b_std, loc=mu_pop*2, scale=std_pop, size=moves_iteration)
+    Commo_random_values = list(np.array(Pop_random_values)*sum(cd.values()))
+    for i in range(moves_iteration):
+        k = rn.choice(range(No_LDC))
+        if current_solution[k] == 0:
+            neighbor = copy.deepcopy(current_solution)
+            neighbor[k] = [rn.choice(range(No_CMD)), Commo_random_values[i] if Commo_random_values[i] < V else V]
+            neighbors.append(neighbor)
+            moves.append(("ChangeLDC", k, neighbor[k]))
+        else:
+            neighbor = copy.deepcopy(current_solution)
+            neighbor[k] = 0
+            neighbors.append(neighbor)
+            moves.append(("ChangeLDC", k, 0))
+    return neighbors, moves
+
+def tabu_search(initial_solution, max_iterations, tabu_tenure):
+    current_solution = initial_solution
+    best_solution = copy.deepcopy(current_solution)
+    best_cost = fitness([best_solution])
+
+    tabu_list = []  # لیست ممنوعه برای ذخیره حرکت‌ها
+    bc = []
+    for m in range(max_iterations):
+        neighbors, moves = generate_neighbors(current_solution, 10)
+        # فیلتر کردن همسایه‌های مجاز
+        valid_neighbors = []
+        valid_moves = []
+        for neighbor, move in zip(neighbors, moves):
+            if move not in tabu_list:
+                valid_neighbors.append(neighbor)
+                valid_moves.append(move)
+        if not valid_neighbors:
+            break  # هیچ همسایه مجازی وجود ندارد
+        # ارزیابی همسایه‌ها
+        neighbors_costs = [fitness([n]) for n in valid_neighbors]
+        min_cost = min(neighbors_costs)
+        min_index = neighbors_costs.index(min_cost)
+        # به‌روزرسانی جواب فعلی
+        current_solution = valid_neighbors[min_index]
+        current_move = valid_moves[min_index]
+        # به‌روزرسانی بهترین جواب
+        if min_cost < best_cost:
+            best_solution = copy.deepcopy(current_solution)
+            best_cost = min_cost
+        bc.append(best_cost)
+        # به‌روزرسانی لیست ممنوعه
+        tabu_list.append(current_move)
+        if len(tabu_list) > tabu_tenure:
+            tabu_list.pop(0)
+    return best_solution, best_cost
+# Tabu_Search    -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+tabu_best_solution = tabu_search(genetic_best_solution, 100, 3)
+fitness([tabu_best_solution[0]])
+print(json.dumps(f"Tabu_Search Best Solution : {tabu_best_solution}"))
+print(json.dumps(f"Unmet Demand = {unmet_demand}\nAdditional Inventory = {additional_inventory}\nSum Distance = {sum_dist}\nSum Opened LDC = {sum_opened_LDC}"))
+
+
+
+
+
 
 output = {
     # "LDC_Coordinate": LDC_Coordinate,
