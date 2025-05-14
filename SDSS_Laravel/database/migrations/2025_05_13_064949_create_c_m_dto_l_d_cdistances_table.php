@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('c_m_dto_l_d_cdistances', function (Blueprint $table) {
             $table->id();
+            $table->char("City");
+            $table->integer("District");
             $table->text("CMD_name");
             $table->text("LDC_name");
             $table->double("Distance");

@@ -21,6 +21,8 @@ class CMDtoLDCdistanceSeeder extends Seeder
         foreach ($lines as $line) {
             $fields = explode(",", $line);
             $dataToInsert[] = [
+                "City" => "تهران",
+                "District" => 4,
                 "CMD_name" => explode("-", $fields[1])[0],
                 "LDC_name" => explode("-", $fields[1])[1],
                 'Distance' => $fields[count($fields) -1]
