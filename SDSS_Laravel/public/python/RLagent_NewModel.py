@@ -1,16 +1,8 @@
 import numpy as np
-# import cupy as cp
-import itertools
-import random
-import seaborn as sns
-from scipy.stats import norm
-import matplotlib.pyplot as plt
-
-
 
 class rlagent():
     def __init__(self, alpha, gamma, epsilon, cRange, mRange, crossover, mutation):
-        
+
         # the learning rate
         self.alpha = alpha
 
@@ -19,7 +11,7 @@ class rlagent():
 
         # the exploration rate
         self.epsilon = epsilon
-                                   
+
         # self.actionSpace = list(itertools.product(cRange, mRange))
         self.actionSpace = [(c, m) for c in cRange for m in mRange if abs(c + m - 1) == 0]
         # get the rewards table
@@ -29,7 +21,7 @@ class rlagent():
                                      50,    38,    25,    113,   7,
                                      0,     0,    -10,   -20,   -30,
                                     -1000, -1500, -2000, -2500, -3000])
-       
+
         # a dictionary of all possible states, where the state is the key, and the value is the index for the q table and rewards space
         self.stateSpace = { '(VHC, VHD)': 0, '(VHC, HD)':1,  '(VHC, MD)':2,  '(VHC, LD)':3,  '(VHC, VLD)':4,
                             '(HC, VHD)':5,   '(HC, HD)':6,   '(HC, MD)':7,   '(HC, LD)':8,   '(HC, VLD)':9,
@@ -39,8 +31,8 @@ class rlagent():
                             '(I, VHD)':25,  '(I, HD)':26,  '(I, MD)':27,  '(I, LD)':28,  '(I, VLD)':29}
 
         self.Q = np.zeros([len(self.stateSpace), len(self.actionSpace)])
-        
-        
+
+
         # ----------------------------------------------- initialization  ------------------------------------------------
         # a variable keeping track of how much rewards it has recieved
         self.collected  = 0
@@ -50,14 +42,14 @@ class rlagent():
 
         # the previous fitness variable is initilized with a verh high cost
         self.prevFitness = 10**10
-        
+
         # the current fitness delta
         self.fitness = 0
 
         # the current diversity index
         self.diversity = 1
         self.div_list = []
-        
+
         # the current reward awarded
         self.reward = 0
 
@@ -66,8 +58,8 @@ class rlagent():
 
         # the first actions are given
         self.action = self.actionSpace.index((crossover, mutation))
-    
-    
+
+
     def __max(self, out, arr):
         # hold any ties found
         ties = []
@@ -95,33 +87,33 @@ class rlagent():
 
                 # then add it to the tie list
                 ties.append([arr[i], i])
-        
+
         # pick a random index
         choice = np.random.choice(np.arange(len(ties)))
 
         # return the desired value
         return ties[choice][out]
-    
-       
+
+
     def __d_fitness(self, fitnesses):
         # get the min fitness of the population
         bestFitness = np.amin(fitnesses)
         # obtaint the difference between the current and previous fitness values
         delta = self.prevFitness - bestFitness
-        
+
         # the difference is divided by the previous fitness to obtain a percentage
         deltaFitness = delta / self.prevFitness
-        
+
         # the current fitness is set as the previous fitness for the next iteration
         self.prevFitness = bestFitness
 
         # return the fitness imrpovement as a percenetage
         return deltaFitness
-    
-    
+
+
     def _to_hashable(self, item):
         """
-        به طور بازگشتی یک آیتم (شامل لیست‌های تو در تو یا آرایه‌های نامپای) 
+        به طور بازگشتی یک آیتم (شامل لیست‌های تو در تو یا آرایه‌های نامپای)
         را به یک نمایش قابل هش (معمولاً تاپل) تبدیل می‌کند.
         """
         if isinstance(item, list):
@@ -144,25 +136,25 @@ class rlagent():
             # اگر ورودی نه لیست است و نه آرایه نامپای، یا خالی است
             # print("هشدار: جمعیت یک لیست یا آرایه نامپای معتبر نیست.")
             return 0.0
-        
+
         if len(population) == 0:
             return 0.0 # تنوع برای جمعیت خالی
 
         num_total_individuals = len(population)
-        
+
         # از یک set برای نگهداری نمایش‌های قابل هش اعضای یکتا استفاده می‌کنیم
         seen_hashable_individuals = set()
-        
+
         for i in range(num_total_individuals):
             # 'individual' یک عضو از جمعیت است.
             # این عضو می‌تواند یک عدد، یک لیست، یا یک آرایه نامپای (اگر جمعیت اصلی آرایه‌ای از آرایه‌ها باشد) باشد.
-            individual = population[i] 
-            
+            individual = population[i]
+
             hashable_individual = self._to_hashable(individual)
             seen_hashable_individuals.add(hashable_individual)
-            
+
         num_unique_individuals = len(seen_hashable_individuals)
-        
+
         diversity_score = num_unique_individuals / num_total_individuals
         return diversity_score
 
@@ -178,8 +170,8 @@ class rlagent():
         for i in self.stateSpace:
             if self.stateSpace[i] == self.currState:
                 return i
-    
-    
+
+
     def __state(self, df, di):
         if df < 0:
             fState = 'I'
@@ -205,18 +197,18 @@ class rlagent():
             dState = 'HD'
         else:
             dState = 'VHD'
-            
+
         state = '(' + fState + ', ' + dState + ')'
         self.nextState = self.stateSpace[state]
         self.reward = self.rewardSpace[self.nextState]
-        
-        
+
+
     def initAction(self):
         # reset the action count to disregard the first action
-        
+
         # the action count is updated
         self.actionCount[self.action] += 1
-        
+
         # update the results log
         # self.__results(0)
 
@@ -235,6 +227,7 @@ class rlagent():
 
             # the max action is chosen
             self.action = int(self.__max(0, (self.Q[self.currState])))
+
         # the action count is updated
         self.actionCount[self.action] += 1
         # print("\n agent.actionCount = ",self.actionCount)
@@ -244,13 +237,13 @@ class rlagent():
 
         # give the enviroment its action (the crossover and mutation probability)
         return self.actionSpace[self.action][0], self.actionSpace[self.action][1]
-        
-        
+
+
     # the agent observes the enviroment's response to the agent's action
     def observe(self, population, fitnesses):
         # obtain the population and their fitnesses after an action
-        
-        # determine the delta of the previous fitness and the current best fitness of the population and the diversity 
+
+        # determine the delta of the previous fitness and the current best fitness of the population and the diversity
         self.fitness = self.__d_fitness(fitnesses)
         self.diversity = self.__diversity(population)
         self.div_list.append(self.diversity)
@@ -265,30 +258,30 @@ class rlagent():
 
         # update the current state
         self.currState = self.nextState
-        
-    def df_normalplot(self, df_list):
-        sns.histplot(df_list, bins=30, kde=True, stat="density", color="blue", alpha=0.6)
-        # اضافه کردن منحنی تابع توزیع نرمال
-        xmin, xmax = plt.xlim()
-        x = np.linspace(xmin, xmax, 100)
-        p = norm.pdf(x, np.mean(df_list), np.std(df_list))
-        plt.plot(x, p, 'r', linewidth=2, label="Normal Distribution")
 
-        # نمایش نمودار
-        plt.legend()
-        plt.title(f"Normal Distribution of Data \n mean = {np.mean(df_list)} \n std = , {np.std(df_list)}")
-        plt.xlabel("Value")
-        plt.ylabel("Density")
-        plt.show()
-        
-    def diversity_plot(self,g, div_list):
-        x = range(g)
-        plt.plot(x, div_list)
-        
+    # def df_normalplot(self, df_list):
+    #     sns.histplot(df_list, bins=30, kde=True, stat="density", color="blue", alpha=0.6)
+    #     # اضافه کردن منحنی تابع توزیع نرمال
+    #     xmin, xmax = plt.xlim()
+    #     x = np.linspace(xmin, xmax, 100)
+    #     p = norm.pdf(x, np.mean(df_list), np.std(df_list))
+    #     plt.plot(x, p, 'r', linewidth=2, label="Normal Distribution")
 
-        
-        
-        
+    #     # نمایش نمودار
+    #     plt.legend()
+    #     plt.title(f"Normal Distribution of Data \n mean = {np.mean(df_list)} \n std = , {np.std(df_list)}")
+    #     plt.xlabel("Value")
+    #     plt.ylabel("Density")
+    #     plt.show()
+
+    # def diversity_plot(self,g, div_list):
+    #     x = range(g)
+    #     plt.plot(x, div_list)
+
+
+
+
+
 # cRange = np.array(range(1, 11))/10
 # mRange = np.array(range(1, 11))/10
 # alpha = 0.7

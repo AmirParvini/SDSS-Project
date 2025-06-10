@@ -15,11 +15,11 @@ class ConfigurationSeeder extends Seeder
     {
         Configuration::truncate();
         $rows = [
-            ['MC1-Standard', 90, 5000, 10, 10 ,10, 100000],
-            ['MC2-Lower Budget', 10, 5000, 10, 10 ,10, 100000],
-            ['MC3-Lower Safety-Service Level', 90, 5000, 5, 10 ,10, 100000],
-            ['MC4-Higher Safety-Service Level', 90, 5000, 20, 10 ,10, 100000],
-            ['MC5-Lower Demand Satisfaction', 90, 5000, 10, 10 ,10, 100000]
+            ['MC1-Standard', 100, 1000, 10, 2, 1, 60000],
+            ['MC2-Lower Budget', 30, 1000, 5, 2, 1, 60000],
+            ['MC3-Lower Safety-Service Level', 100, 1000, 20, 2, 1, 60000],
+            ['MC4-Higher Safety-Service Level', 100, 1000, 20, 2, 1, 60000],
+            ['MC5-Lower Demand Satisfaction', 100, 1000, 10, 0.5, 1, 60000]
         ];
         foreach($rows as $row){
             DB::table('configurations')->insert([

@@ -17,8 +17,8 @@ return new class extends Migration
             $table->integer('NT');
             $table->integer('L');
             $table->integer('A');
-            $table->integer('G');
-            $table->integer('O');
+            $table->double('G');
+            $table->double('O');
             $table->integer('V');
         });
     }

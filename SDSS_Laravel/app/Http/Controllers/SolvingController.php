@@ -15,6 +15,8 @@ use App\Models\CMDtoLDCdistance;
 use App\Models\LDC;
 use App\Models\EC;
 use App\Models\LDCtoECdistance;
+use Laravel\Pail\ValueObjects\Origin\Console;
+use Illuminate\Support\Facades\Log;
 
 use function PHPSTORM_META\type;
 
@@ -38,10 +40,8 @@ class SolvingController extends Controller
             $LDC_nodes_data = LDC::all()->toArray();
             $EC_nodes_data = EC::all()->toArray();
             $CMD_to_LDC_Distances_data = DB::table('c_m_dto_l_d_cdistances')
-                ->where('City', $City)
                 ->where('District', $District)->get();
             $LDC_to_EC_Distances_data = DB::table('l_d_cto_e_cdistances')
-                ->where('City', $City)
                 ->where('District', $District)->get();
             $nodes_data = [$CMD_nodes_data, $LDC_nodes_data, $EC_nodes_data];
             $nodes_dist_data = [$CMD_to_LDC_Distances_data, $LDC_to_EC_Distances_data];
@@ -54,7 +54,6 @@ class SolvingController extends Controller
                 'APR' => $APR
             ], JSON_UNESCAPED_UNICODE);
             // read data from Tables-------------------------------------------------------
-
             $pythonScriptPath = base_path('public/python/genetic_NewModel.py');
             $process = new Process(['python', $pythonScriptPath]);
             $process->setInput($combinedJson);
@@ -69,7 +68,9 @@ class SolvingController extends Controller
                 ], 500);
             }
             $output = $process->getOutput();
-            dd($output);
+            $errorOutput = $process->getErrorOutput();
+            Log::error("Python Error:\n" . $errorOutput);
+            // dd($output);
             $output = json_decode($output, true);
             return response()->json(['status' => 'success', 'output' => $output]);
         } catch (Exception $e) {
