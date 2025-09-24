@@ -13,9 +13,11 @@ return new class extends Migration
     {
         Schema::create('e_c_s', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('capacity');
-            $table->string('coordinate');
+            $table->char('name');
+            $table->integer('demand');
+            $table->float('lat');
+            $table->float('lng');
+            $table->timestamps();
         });
     }
 

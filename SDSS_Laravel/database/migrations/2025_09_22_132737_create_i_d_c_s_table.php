@@ -13,10 +13,12 @@ return new class extends Migration
     {
         Schema::create('i_d_c_s', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('capacity');
-            $table->string('coordinate');
-            $table->string('fixed_cost');
+            $table->char('name');
+            $table->integer('capacity');
+            $table->integer('fixed_cost');
+            $table->float('lat');
+            $table->float('lng');
+            $table->timestamps();
         });
     }
 

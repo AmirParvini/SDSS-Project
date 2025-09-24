@@ -7,59 +7,28 @@ use Illuminate\Http\Request;
 
 class DamagedAreaController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
-    }
+        try {
+            // $request->validate([
+            //     'name' => 'required|string|max:255',
+            //     'population' => 'required|string|max:255',
+            //     'lat' => 'required|string|max:255',
+            //     'lng' => 'required|string|max:255',
+            // ]);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(DamagedArea $damagedArea)
-    {
-        //
-    }
+            DamagedArea::create([
+                'name' => $request->name,
+                'injured' => $request->injured,
+                'lat' => $request->lat,
+                'lng' => $request->lng
+            ]);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(DamagedArea $damagedArea)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, DamagedArea $damagedArea)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(DamagedArea $damagedArea)
-    {
-        //
+            return response()->json(['success' => true]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

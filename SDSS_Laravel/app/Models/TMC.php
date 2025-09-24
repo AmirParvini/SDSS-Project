@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class TMC extends Model
 {
-    //
+    protected $fillable = ['name', 'capacity','fixed_cost', 'lat', 'lng'];
 }

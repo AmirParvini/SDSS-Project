@@ -1,16 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ asset('css/home.css') }}">
-    <title>SDSS Panel</title>
+@extends('app')
+@section('styles')
     <style>
         #map {
             height: 70vh;
@@ -22,15 +11,26 @@
         }
 
         .dropdown-toggle {
-            max-width: 20%;
+            width: auto;
+            min-width: 200px;
         }
     </style>
-</head>
+@endsection
 
-<body>
+@php
+    $point_types = [
+        'IDC' => 'مرکز توزیع اقلام امدادی',
+        'EC' => 'پناهگاه',
+        'DA' => 'منطقه آسیب دیده',
+        'H' => 'بیمارستان',
+        'TMC' => 'مرکز درمانی موقت',
+    ];
+@endphp
+
+@section('content')
     <div class="row container-fluid p-0 m-0 mt-2 border border-1 border-black">
         <div id="map"></div>
-        <div class="container-fluid mt-2" style="max-height: 250px; overflow-y: auto;">
+        {{-- <div class="container-fluid mt-2" style="max-height: 250px; overflow-y: auto;">
             <table id="commo_shipped_table" class="table table-hover mt-2 d-none">
                 <thead class="sticky-header">
                     <tr>
@@ -46,9 +46,9 @@
                 <tbody>
                 </tbody>
             </table>
-        </div>
+        </div> --}}
         {{-- Model Inputs --}}
-        <div class="p-3">
+        {{-- <div class="p-3">
             <div class="d-flex justify-content-center" style="font-weight: bold">Model Inputs</div>
             <div class="row bg-black mt-2">
                 <div class="col-4 d-flex justify-content-center border border-black text-light">Affected Area</div>
@@ -56,8 +56,8 @@
                 <div class="col-4 d-flex justify-content-center border border-black text-light">Tasks</div>
             </div>
             <div class="row d-flex justify-content-around mt-3">
-                <div class="col-3 m-1 border border-2 border-black fw-bold">Region</div>
-                <div class="col-3 m-1 border border-2 border-black fw-bold">APR</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">Region</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">APR</div>
                 <div class="col-3 m-1 d-flex justify-content-center">
                     <button class="w-50" id="update_data">Update Data</button>
                 </div>
@@ -83,8 +83,8 @@
                 <div class="col-3 m-1"></div>
             </div>
             <div class="row mt-3 d-flex justify-content-around">
-                <div class="col-3 m-1 border border-2 border-black fw-bold">City</div>
-                <div class="col-3 m-1 border border-2 border-black fw-bold">PP(Hours)</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">City</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">PP(Hours)</div>
                 <div class="col-3 m-1 d-flex justify-content-center">
                     <button class="w-50" id="create_inputs">Create Inputs</button>
                 </div>
@@ -126,8 +126,8 @@
                 <div class="col-3"></div>
             </div>
             <div class="row d-flex justify-content-around mt-3">
-                <div class="col-3 m-1 border border-2 border-black fw-bold">District</div>
-                <div class="col-3 m-1 border border-2 border-black fw-bold">Configuration</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">District</div>
+                <div class="col-3 m-1 border-2 border-black fw-bold">Configuration</div>
                 <div class="col-3 m-1 d-flex justify-content-center">
                     <button class="w-50" id="run">Solve Model</button>
                 </div>
@@ -172,12 +172,12 @@
                 </div>
                 <div class="col-3"></div>
             </div>
-        </div>
+        </div> --}}
         {{-- Model Inputs --}}
         <div class="container-fluid text-danger" id="error_message"></div>
     </div>
 
-    <div class="container-fluid border border-1 border-black mt-5">
+    {{-- <div class="container-fluid border border-1 border-black mt-5">
         <div class="d-flex justify-content-center mt-2 mb-2" style="font-weight: bold">Model Reports</div>
         <div class="container-fluid">
             <!-- Nav tabs -->
@@ -334,14 +334,95 @@
             </div>
 
         </div>
+    </div> --}}
+
+
+    <!-- Modal for adding damaged area -->
+    <div dir="rtl" class="modal fade" id="addPointModal" tabindex="-1" aria-labelledby="addPointModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div dir="ltr" class="modal-header">
+                    <h5 class="modal-title" id="addPointModalLabel">افزودن مکان جدید</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addPointForm">
+                        <select class="form-select" aria-label="Default select example">
+                            @foreach ($point_types as $key => $value)
+                                <option value="{{ $key }}">{{ $value }}</option>
+                            @endforeach
+                        </select>
+                        <div class="mb-3" id="name">
+                            <label for="pointName" class="form-label">نام</label>
+                            <input type="text" class="form-control" id="pointName" name="name" required>
+                        </div>
+                        <div class="mb-3 d-none" id="demand">
+                            <label for="pointDemand" class="form-label">تقاضا</label>
+                            <input type="number" class="form-control" id="pointDemand" name="demand" min="0"
+                                required>
+                        </div>
+                        <div class="mb-3 d-none" id="injured">
+                            <label for="pointInjured" class="form-label">تعداد مجروحین</label>
+                            <input type="number" class="form-control" id="pointInjured" name="injured" min="0"
+                                required>
+                        </div>
+                        <div class="mb-3 d-none" id="h_tmc_capacity">
+                            <label for="pointCapacity" class="form-label">ظرفیت (نفر)</label>
+                            <input type="number" class="form-control read-only" id="h_tmc_Capacity" name="capacity"
+                                value="600" min="0" required>
+                        </div>
+                        <div class="mb-3" id="idc_capacity">
+                            <label for="pointCapacity" class="form-label">ظرفیت (حجم)</label>
+                            <input type="number" class="form-control read-only" id="idc_Capacity" name="capacity"
+                                value="20000" min="0" required>
+                        </div>
+                        <div class="mb-3" id="cost">
+                            <label for="pointCost" class="form-label">هزینه ثابت تاسیس (دلار)</label>
+                            <input type="number" class="form-control" id="pointCost" name="cost" value="50000" required>
+                        </div>
+                        {{-- <div id="idc_capacity">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault1"
+                                    value="20000" checked>
+                                <label class="form-check-label" for="radioDefault1">
+                                    ظرفیت حجمی 20,000 متر مکعب
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault2"
+                                value="32000">
+                                <label class="form-check-label" for="radioDefault2">
+                                    ظرفیت حجمی 32,000 متر مکعب
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault3"
+                                value="48000">
+                                <label class="form-check-label" for="radioDefault3">
+                                    ظرفیت حجمی 48,000 متر مکعب
+                                </label>
+                            </div>
+                        </div> --}}
+                        <div class="row">
+                            <div class="col-6">
+                                <label for="lat" class="form-label">lat</label>
+                                <input id="pointLat" name="Lat">
+                            </div>
+                            <div class="col-6">
+                                <label for="lng" class="form-label">lng</label>
+                                <input id="pointLng" name="Lng">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">لغو</button>
+                    <button type="button" class="btn btn-primary" id="savePoint">ذخیره</button>
+                </div>
+            </div>
+        </div>
     </div>
+@endsection
 
+<script type="module" src="{{ asset('js/home.js') }}"></script>
 
-</body>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ asset('js/home.js') }}"></script>
-
-</html>
