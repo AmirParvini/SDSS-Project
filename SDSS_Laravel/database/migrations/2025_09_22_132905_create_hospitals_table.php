@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('hospitals', function (Blueprint $table) {
             $table->id();
-            $table->char('name');
+            $table->string('name');
             $table->integer('capacity');
             $table->float('lat');
             $table->float('lng');

@@ -29,7 +29,7 @@ class ECController extends Controller
     public function store(Request $request)
     {
         try {
-            EC::create([
+            $ec_point = EC::create([
                 'name' => $request->name,
                 'demand' => $request->demand,
                 'fixed_cost' => $request->cost,
@@ -37,7 +37,7 @@ class ECController extends Controller
                 'lng' => $request->lng
             ]);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'pointtype' => 'EC', 'point' => $ec_point]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -72,8 +72,15 @@ class ECController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EC $eC)
+    public function destroy(int $id)
     {
-        //
+        try{
+            $point = EC::find($id);
+            $point->delete();
+            return response()->json(['success' => true]);
+        }
+        catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

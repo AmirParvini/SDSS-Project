@@ -1,26 +1,33 @@
 import {
     map,
-    lineGroup,
     markerGroup,
-    blueCircle,
-    redSquare,
 } from "./map_init.js";
+import ShowPoints from "./show_points.js";
 
 $(document).ready(function () {
+    let SP = new ShowPoints();
+    const points_json = [];
+    SP.loadpoints(Points); //Points sent from home.blade
+    Object.entries(Points).forEach(([pointType, points]) => {
+        if (points && Array.isArray(points)) {
+            points.forEach(point => {
+                points_json.push({
+                    type: pointType,
+                    point: point
+                });
+            });
+        }
+    });
+    console.log('points_json:', points_json);
     // Map click event to add point
+    const modal = new bootstrap.Modal($("#addPointModal"));
     map.on("click", function (e) {
         $("#pointLat").val(e.latlng.lat);
         $("#pointLng").val(e.latlng.lng);
-        $("#addPointModal").modal("show");
+        modal.show();
     });
 
-    const elementVisibility = {
-        IDC: { demand: true, injured: true, h_tmc_capacity: true, idc_capacity: false, cost: false },
-        EC: { demand: false, injured: true, h_tmc_capacity: true, idc_capacity: true, cost: true },
-        TMC: { demand: true, injured: true, h_tmc_capacity: false, idc_capacity: true, cost: false },
-        H: { demand: true, injured: true, h_tmc_capacity: false, idc_capacity: true, cost: true },
-        DA: { demand: true, injured: false, h_tmc_capacity: true, idc_capacity: true, cost: true }
-    };
+    const elementVisibility = SP.elementVisibility;
     $(".form-select").on("change", function () {
         let selectedValue = $(this).val();
         let visibility = elementVisibility[selectedValue];
@@ -35,14 +42,17 @@ $(document).ready(function () {
             });
         }
     });
+
+    const points_icon = SP.iconMap;
+
     // Save point
     const params = {
-    IDC: { capacity: "#idc_Capacity", cost: "#pointCost"},
-    EC: { demand: "#pointDemand"},
-    TMC: { capacity: "#h_tmc_Capacity", cost: "#pointCost"},
-    H: { capacity: "#h_tmc_Capacity"},
-    DA: { injured: "#pointInjured"}
-    };
+            IDC: { capacity: "#idc_Capacity", cost: "#pointCost"},
+            EC: { demand: "#pointDemand"},
+            TMC: { capacity: "#h_tmc_Capacity", cost: "#pointCost"},
+            H: { capacity: "#h_tmc_Capacity"},
+            DA: { injured: "#pointInjured"}
+        };
     $("#savePoint").on("click", function () {
         const formData = new FormData();
         formData.append("name", $("#pointName").val());
@@ -58,19 +68,90 @@ $(document).ready(function () {
             method: "POST",
             body: formData,
         })
-            .then((response) => response.json())
+            .then((response) => {
+                if (!response.ok) {
+                    return response.text().then((text) => {
+                        throw new Error(`HTTP ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
             .then((data) => {
                 if (data.success) {
                     // Add marker to map
                     const lat = $("#pointLat").val();
                     const lng = $("#pointLng").val();
                     const name = $("#pointName").val();
-                    L.marker([lat, lng])
-                        .addTo(markerGroup)
-                        .bindPopup("<b>" + name + "</b>");
-                    $("#addPointModal").modal("hide");
+                    console.log(points_icon[$(".form-select").val()])
+                    const marker = L.marker([lat, lng], {icon: points_icon[$(".form-select").val()]})
+                        .addTo(markerGroup);
+                    // Add click event to the marker
+                    const point = data.point;
+                    const pointType = data.pointtype
+                    marker.id = point.id;
+                    SP.markersById[point.id] = marker;
+                    console.log('point.id:', point.id);
+                    marker.on('click', function(e) {
+                        SP.editmodal.show();
+                        SP.selectmarkerid = point.id;
+                        SP.selectmarkertype = pointType;
+                        $("#pointType .form-control").val(
+                            SP.typeNames[pointType]
+                        );
+                        $("#pointNameEdit .form-control").val(point.name);
+                        $("#pointLatEdit .form-control").val(point.lat);
+                        $("#pointLngEdit .form-control").val(point.lng);
+                        $(".showinput").hide();
+                        Object.entries(SP.params[pointType]).forEach(
+                            ([param, elementid]) => {
+                                $("#pointType").show();
+                                $("#pointNameEdit").show();
+                                $("#pointLatEdit").show();
+                                $("#pointLngEdit").show();
+                                $(elementid).show();
+                                $(`${elementid} .form-control`).val(
+                                    point[param]
+                                );
+                            }
+                        );
+                    });
+                    modal.hide();
                     $("#addPointForm")[0].reset();
-                    // console.log(typeof(lat));
+                    let popupContent = `<div dir="rtl" class="text-center">`;
+                        popupContent += `<b>${pointType}</b><br>`;
+                        popupContent += `<b>نام:</b> ${
+                            point.name || "نامشخص"
+                        }<br>`;
+                        // Add specific information based on point type
+                        if (pointType === "da_points" && point.injured) {
+                            popupContent += `<b>تعداد مجروحین:</b> ${point.injured}<br>`;
+                        } else if (pointType === "ec_points" && point.demand) {
+                            popupContent += `<b>تقاضا:</b> ${point.demand}<br>`;
+                        } else if (
+                            (pointType === "idc_points" ||
+                                pointType === "tmc_points" ||
+                                pointType === "H_points") &&
+                            point.capacity
+                        ) {
+                            popupContent += `<b>ظرفیت:</b> ${point.capacity}<br>`;
+                        }
+
+                        if (point.cost) {
+                            popupContent += `<b>هزینه:</b> ${point.cost} دلار<br>`;
+                        }
+
+                        popupContent += `</div>`;
+
+                        marker.bindPopup(popupContent);
+
+                        // Add hover effects
+                        marker.on("mouseover", function () {
+                            this.openPopup();
+                        });
+
+                        marker.on("mouseout", function () {
+                            this.closePopup();
+                        });
                 } else {
                     alert(
                         "Error saving point: " +
@@ -81,6 +162,41 @@ $(document).ready(function () {
             .catch((error) => {
                 console.error("Error:", error);
                 alert("Error saving point");
+            });
+    });
+
+    $("#deletePoint").on("click", function () {
+        console.log("Deleting point:", SP.selectmarkertype, SP.selectmarkerid);
+        fetch(`/${SP.selectmarkertype}/${SP.selectmarkerid}`, {
+            method: "DELETE",
+            headers: {
+                "X-CSRF-TOKEN": document
+                    .querySelector('meta[name="csrf-token"]')
+                    .getAttribute("content"),
+                "Content-Type": "application/json",
+            },
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    return response.text().then((text) => {
+                        throw new Error(`HTTP ${response.status}: ${data.message}`);
+                    });
+                }
+                return response.json();
+            })
+            .then((data) => {
+                if (data.success) {
+                    try {
+                        markerGroup.removeLayer(
+                            SP.markersById[SP.selectmarkerid]
+                        );
+                        delete SP.markersById[SP.selectmarkerid];
+                        SP.editmodal.hide();
+                        alert("Point deleted successfully");
+                    } catch (e) {
+                        console.error("Error removing marker:", e);
+                    }                    
+                }
             });
     });
 

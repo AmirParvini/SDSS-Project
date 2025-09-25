@@ -29,7 +29,7 @@ class TMCController extends Controller
     public function store(Request $request)
     {
         try {
-            TMC::create([
+            $tmc_point = TMC::create([
                 'name' => $request->name,
                 'capacity' => $request->capacity,
                 'fixed_cost' => $request->cost,
@@ -37,7 +37,7 @@ class TMCController extends Controller
                 'lng' => $request->lng
             ]);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'pointtype' => 'TMC', 'point' => $tmc_point]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -72,8 +72,15 @@ class TMCController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(TMC $tMC)
+    public function destroy(Int $id)
     {
-        //
+        try{
+            $point = TMC::find($id);
+            $point->delete();
+            return response()->json(['success' => true]);
+        }
+        catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

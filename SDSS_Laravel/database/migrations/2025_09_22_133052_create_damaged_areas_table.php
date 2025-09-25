@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('damaged_areas', function (Blueprint $table) {
             $table->id();
-            $table->char('name');
-            $table->char('injured');
-            $table->char('lat');
-            $table->char('lng');
+            $table->string('name');
+            $table->integer('injured');
+            $table->float('lat');
+            $table->float('lng');
             $table->timestamps();
         });
     }

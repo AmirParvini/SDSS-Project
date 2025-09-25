@@ -1,5 +1,5 @@
 @extends('app')
-@section('styles')
+@push('styles')
     <style>
         #map {
             height: 70vh;
@@ -15,7 +15,7 @@
             min-width: 200px;
         }
     </style>
-@endsection
+@endpush
 
 @php
     $point_types = [
@@ -380,37 +380,14 @@
                             <label for="pointCost" class="form-label">هزینه ثابت تاسیس (دلار)</label>
                             <input type="number" class="form-control" id="pointCost" name="cost" value="50000" required>
                         </div>
-                        {{-- <div id="idc_capacity">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault1"
-                                    value="20000" checked>
-                                <label class="form-check-label" for="radioDefault1">
-                                    ظرفیت حجمی 20,000 متر مکعب
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault2"
-                                value="32000">
-                                <label class="form-check-label" for="radioDefault2">
-                                    ظرفیت حجمی 32,000 متر مکعب
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="radioDefault" id="radioDefault3"
-                                value="48000">
-                                <label class="form-check-label" for="radioDefault3">
-                                    ظرفیت حجمی 48,000 متر مکعب
-                                </label>
-                            </div>
-                        </div> --}}
                         <div class="row">
                             <div class="col-6">
                                 <label for="lat" class="form-label">lat</label>
-                                <input id="pointLat" name="Lat">
+                                <input class="form-control" id="pointLat" name="Lat">
                             </div>
                             <div class="col-6">
                                 <label for="lng" class="form-label">lng</label>
-                                <input id="pointLng" name="Lng">
+                                <input class="form-control" id="pointLng" name="Lng">
                             </div>
                         </div>
                     </form>
@@ -422,7 +399,22 @@
             </div>
         </div>
     </div>
+    <div dir="rtl" id="editPointModal" class="modal fade" tabindex="-1" aria-labelledby="editPointModalLabel" aria-hidden="true">
+        <x-edit_point></x-edit_point>
+    </div>
 @endsection
 
-<script type="module" src="{{ asset('js/home.js') }}"></script>
+@push('scripts')
+    <script>
+        Points = {
+            IDC : @json($idc_points),
+            EC : @json($ec_points),
+            DA : @json($da_points),
+            TMC : @json($tmc_points),
+            H : @json($H_points)
+        };
+    </script>
+    @vite('resources/js/home/home.js')
+@endpush
+
 

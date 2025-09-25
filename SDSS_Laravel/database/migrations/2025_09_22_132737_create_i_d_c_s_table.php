@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('i_d_c_s', function (Blueprint $table) {
             $table->id();
-            $table->char('name');
+            $table->string('name');
             $table->integer('capacity');
             $table->integer('fixed_cost');
             $table->float('lat');

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('e_c_s', function (Blueprint $table) {
             $table->id();
-            $table->char('name');
+            $table->string('name');
             $table->integer('demand');
             $table->float('lat');
             $table->float('lng');
