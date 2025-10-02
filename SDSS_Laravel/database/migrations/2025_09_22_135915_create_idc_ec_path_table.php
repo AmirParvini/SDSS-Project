@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('idc_id');
             $table->integer('ec_id');
             $table->float('distance');
-            $table->string('path');
+            $table->text('path');
         });
     }
 

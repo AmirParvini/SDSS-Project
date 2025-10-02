@@ -61,13 +61,13 @@ class ShowPoints {
                 capacity: "#idc_capacityEdit",
                 fixed_cost: "#pointcostEdit",
             },
-            EC: { demand: "#pointdemandEdit" },
+            EC: { area: "#pointdemandEdit" },
             TMC: {
                 capacity: "#h_tmc_capacityEdit",
                 fixed_cost: "#pointcostEdit",
             },
             H: { capacity: "#h_tmc_capacityEdit" },
-            DA: { injured: "#pointinjuredEdit" },
+            DA: { affected_pop: "#pointinjuredEdit" },
         };
         // Define Persian names for point types
         this.typeNames = {

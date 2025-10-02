@@ -357,12 +357,12 @@
                             <input type="text" class="form-control" id="pointName" name="name" required>
                         </div>
                         <div class="mb-3 d-none" id="demand">
-                            <label for="pointDemand" class="form-label">تقاضا</label>
+                            <label for="pointDemand" class="form-label">مساحت پناهگاه</label>
                             <input type="number" class="form-control" id="pointDemand" name="demand" min="0"
                                 required>
                         </div>
                         <div class="mb-3 d-none" id="injured">
-                            <label for="pointInjured" class="form-label">تعداد مجروحین</label>
+                            <label for="pointInjured" class="form-label">جمعیت تحت تاثر</label>
                             <input type="number" class="form-control" id="pointInjured" name="injured" min="0"
                                 required>
                         </div>

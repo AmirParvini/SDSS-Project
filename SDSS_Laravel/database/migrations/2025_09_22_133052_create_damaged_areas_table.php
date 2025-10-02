@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('damaged_areas', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->integer('injured');
+            $table->integer('affected_pop');
             $table->float('lat');
             $table->float('lng');
             $table->timestamps();

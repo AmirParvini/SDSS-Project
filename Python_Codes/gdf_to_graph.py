@@ -1,7 +1,6 @@
 import os
 from typing import Tuple, Optional
 from fastapi import FastAPI, HTTPException, Body, Header
-from fastapi.responses import JSONResponse
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -12,7 +11,6 @@ from pyproj import Transformer
 from joblib import dump, load
 from tqdm import tqdm
 import math
-from matplotlib import pyplot as plt
 from pathlib import Path
 
 APP = FastAPI(title="Tehran Routing Service")
@@ -27,7 +25,6 @@ CACHE_GRAPH = os.path.join(CACHE_DIR, "graph.pkl")
 CACHE_NODES = os.path.join(CACHE_DIR, "nodes.npy")
 CACHE_NODEIDS = os.path.join(CACHE_DIR, "node_ids.npy")
 CACHE_TRANSFORMER = os.path.join(CACHE_DIR, "transformer.pkl")
-
 # ---- متغیرهای سراسری ----
 G: Optional[nx.Graph] = None
 NODE_XY: Optional[np.ndarray] = None     # [[x,y], ...] in TARGET_EPSG

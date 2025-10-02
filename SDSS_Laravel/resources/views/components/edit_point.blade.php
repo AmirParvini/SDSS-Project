@@ -10,7 +10,7 @@
 <div class="modal-dialog">
     <div class="modal-content">
         <div dir="ltr" class="modal-header">
-            <h5 class="modal-title" id="editPointModalLabel">افزودن مکان جدید</h5>
+            <h5 class="modal-title" id="editPointModalLabel">اطلاعات مکان </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -24,11 +24,11 @@
                     <input type="text" class="form-control" id="" name="name">
                 </div>
                 <div class="showinput mb-3" id="pointdemandEdit">
-                    <label for="pointDemandEdit" class="form-label">تقاضا</label>
+                    <label for="pointDemandEdit" class="form-label">مساحت پناهگاه</label>
                     <input type="number" class="form-control" id="" name="demand" min="0" required>
                 </div>
                 <div class="showinput mb-3" id="pointinjuredEdit">
-                    <label for="pointInjuredEdit" class="form-label">تعداد مجروحین</label>
+                    <label for="pointInjuredEdit" class="form-label">جمعیت تحت تاثیر</label>
                     <input type="number" class="form-control" id="pointInjuredEdit" name="injured" min="0" required>
                 </div>
                 <div class="showinput mb-3" id="h_tmc_capacityEdit">

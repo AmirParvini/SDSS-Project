@@ -19,7 +19,7 @@ class DamagedAreaController extends Controller
 
             $da_point = DamagedArea::create([
                 'name' => $request->name,
-                'injured' => $request->injured,
+                'affected_pop' => $request->injured,
                 'lat' => $request->lat,
                 'lng' => $request->lng
             ]);

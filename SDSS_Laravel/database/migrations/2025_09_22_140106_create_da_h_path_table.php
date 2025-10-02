@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('da_id');
             $table->integer('h_id');
             $table->float('distance');
-            $table->string('path');
+            $table->text('path');
         });
     }
 

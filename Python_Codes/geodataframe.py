@@ -1,19 +1,8 @@
 # %%
-import os
-from typing import Tuple, Optional
 from fastapi import FastAPI, HTTPException, Body, Header
-from fastapi.responses import JSONResponse
-import geopandas as gpd
 import networkx as nx
 import numpy as np
 from shapely.geometry import Point, LineString
-from shapely.ops import linemerge
-from scipy.spatial import cKDTree
-from pyproj import Transformer
-from joblib import dump, load
-from tqdm import tqdm
-import math
-from matplotlib import pyplot as plt
 import gdf_to_graph as gtg
 
 APP = FastAPI(title="Tehran Routing Service")

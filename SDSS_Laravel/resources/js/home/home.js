@@ -195,7 +195,7 @@ $(document).ready(function () {
                         alert("Point deleted successfully");
                     } catch (e) {
                         console.error("Error removing marker:", e);
-                    }                    
+                    }
                 }
             });
     });

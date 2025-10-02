@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class DamagedArea extends Model
 {
-    protected $fillable = ['name', 'injured', 'lat', 'lng'];
+    protected $fillable = ['name', 'affected_pop', 'lat', 'lng'];
 }

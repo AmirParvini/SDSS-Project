@@ -31,7 +31,7 @@ class ECController extends Controller
         try {
             $ec_point = EC::create([
                 'name' => $request->name,
-                'demand' => $request->demand,
+                'area' => $request->demand,
                 'fixed_cost' => $request->cost,
                 'lat' => $request->lat,
                 'lng' => $request->lng
