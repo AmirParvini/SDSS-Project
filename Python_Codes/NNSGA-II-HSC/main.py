@@ -145,6 +145,9 @@ def complex_humanitarian_cost(chromosome, distances=None, demands=None, capaciti
     return np.array([f1, f2])
 
 # Parameters
+dist_idc_to_ec = []
+dist_da_to_h = []
+dist_da_to_tmc = []
 gd = GraphDownload()
 G = gd.download_tehran_district6_graph()
 dbname="sdss"
@@ -154,23 +157,21 @@ host="localhost"
 port="5432"
 pgc = PgsqlConnector(dbname, user, password, host, port)
 idc_to_ec, da_to_ec, da_to_tmc, da_to_h= pgc.data_fetch()
-for ite in idc_to_ec:
-    ite_list = list(ite.items())
-    short_path = gd._route(G, ite_list[0][-1], ite_list[-1][-1])
-    pgc.data_send(ite_list[0][0], ite_list[-1][0], short_path['geometry']['coordinates'], short_path['properties']['weight'], "idc_ec_path")
+# for ite in idc_to_ec:
+#     short_path = gd._route(G, ite["source_coord"], ite["target_coord"])
+#     pgc.data_send(ite["source_id"], ite["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "idc_ec_path")
+#     dist_idc_to_ec.append(short_path['properties']['weight'])
 # for dte in pgc.da_to_ec:
-#     dte_list = list(dte.items())
-#     short_path = gd._route(G, dte_list[0][-1], dte_list[-1][-1])
-#     pgc.data_send(dte_list[0][0], dte_list[-1][0], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_ec_path")
+#     short_path = gd._route(G, dte["source_coord"], dte["target_coord"])
+#     pgc.data_send(dte["source_coord"], dte["target_coord"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_ec_path")
 for dth in da_to_h:
-    dth_list = list(dth.items())
-    short_path = gd._route(G, dth_list[0][-1], dth_list[-1][-1])
-    pgc.data_send(dth_list[0][0], dth_list[-1][0], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_h_path")
-for dtt in da_to_tmc:
-    dtt_list = list(dtt.items())
-    print(dtt_list)
-    short_path = gd._route(G, dtt_list[0][-1], dtt_list[-1][-1])
-    pgc.data_send(dtt_list[0][0], dtt_list[-1][0], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_tmc_path")
+    short_path = gd._route(G, dth["source_coord"], dth["target_coord"])
+    pgc.data_send(dth["source_id"], dth["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_h_path")
+    dist_da_to_h.append(short_path['properties']['weight'])
+# for dtt in da_to_tmc:
+#     short_path = gd._route(G, dtt["source_coord"], dtt["target_coord"])
+#     pgc.data_send(dtt["source_id"], dtt["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_tmc_path")
+#     dist_da_to_tmc.append(short_path['properties']['weight'])
 t1 = 0.015 # Percentage distribution of severe injuries
 t2 = 0.067 # Percentage distribution of mild injuries
 Pua = 0.07 # Percentage of shelter area used
@@ -179,7 +180,7 @@ affected_pop = [30000, 52500, 4500, 18000, 4854] # the affected population (scen
 severe_injured = np.array(affected_pop) * t1
 minor_injured = np.array(affected_pop) * t2
 homeless = affected_pop - (severe_injured + minor_injured)
-demand = affected_pop/5
+demand = np.array(affected_pop)/5
 ec_area = [283762, 133407, 120000, 18700, 14000, 24000, 20170, 17400, 25380, 25374, 58055]
 reliefpackage_volume = 0.6273 # Cubic meter
 cost = {
@@ -188,11 +189,12 @@ cost = {
     'tmc_cost': 50000
 }
 distance = {
-    'dist_idc_to_ec': [], # OD matrix of distribution centers and shelters
+    'dist_idc_to_ec': dist_idc_to_ec, # OD matrix of distribution centers and shelters
     'dist_da_to_ec': [], # OD matrix of damaged area and shelters
-    'dist_da_to_h': [], # OD matrix of damaged area centers and hospitals
-    'dist_da_to_tmc': [] # OD matrix of damaged area centers and temporary medical centers
+    'dist_da_to_h': dist_da_to_h, # OD matrix of damaged area centers and hospitals
+    'dist_da_to_tmc': dist_da_to_tmc # OD matrix of damaged area centers and temporary medical centers
 }
+print(distance)
 capacity = {
     'ambulance_type1': {'injured_typ1': 2, 'injured_typ2': 4}, # person
     'helicopter': {'injured_typ1': 4, 'injured_typ2': 12}, # person

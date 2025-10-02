@@ -107,6 +107,18 @@ class GraphDownload():
         # Dijkstra
         try:
             path = ox.shortest_path(graph, u_id, v_id, weight="length")
+            if len(path) < 2:
+                return {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": []
+                },
+                "properties": {
+                    "weight": 0,
+                    "nodes": len(path)
+                }
+            }
             route_gdf = ox.routing.route_to_gdf(graph, path)
             path_coords = []
             for idx, row in route_gdf.iterrows():
