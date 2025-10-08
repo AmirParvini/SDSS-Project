@@ -1,313 +1,491 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from nsga2 import NSGA2_Humanitarian
 from graph_download import GraphDownload
 from pgsql_connector import PgsqlConnector
+import requests
+from collections import defaultdict
+import math
+from geopy.distance import geodesic
+import copy
+import itertools
+from convergence_metrics import ConvergenceMetrics
 
-# Example cost function for humanitarian logistics
-def humanitarian_cost_function(chromosome):
-    """
-    Calculate objectives for humanitarian logistics problem
-    
-    Returns:
-    --------
-    numpy array with objective values [f1, f2]
-    f1: Total transportation and operation cost
-    f2: Total unmet demand or response time
-    """
-    
-    # Extract chromosome parts
-    dist_assignment = chromosome[0]
-    flow_values = chromosome[1]
-    damage_to_shelter = chromosome[2]
-    damage_to_hospital = chromosome[3]
-    temp_medical = chromosome[4]
-    severe_to_hospital = chromosome[5]
-    moderate_to_hospital = chromosome[6]
-    moderate_to_temp = chromosome[7]
-    
-    # Objective 1: Total cost (example calculation)
-    # Transportation cost from distribution centers to shelters
-    transport_cost = sum(flow_values) * 0.5  # Simplified cost per unit
-    
-    # Shelter operation cost
-    shelter_cost = sum([100 if x > 0 else 0 for x in dist_assignment])
-    
-    # Temporary medical center cost
-    temp_medical_cost = sum(temp_medical) * 200
-    
-    medical_transport_cost = (sum(severe_to_hospital) * 10 + 
-                             sum(moderate_to_hospital) * 5 + 
-                             sum(moderate_to_temp) * 3)
-    
-    f1 = transport_cost + shelter_cost + temp_medical_cost + medical_transport_cost
-    
-    # Objective 2: Service quality (minimize unmet demand or maximize coverage)
-    # Count active shelters
-    active_shelters = sum([1 if x > 0 else 0 for x in dist_assignment])
-    
-    # Penalty for inactive shelters (unserved areas)
-    unserved_penalty = (len(dist_assignment) - active_shelters) * 150
-    
-    # Penalty for low flow values
-    flow_penalty = sum([max(0, 100 - f) for f in flow_values if f > 0])
-    
-    # Penalty for unallocated injured (simplified - you should use actual injured counts)
-    # This is where you'd use the actual severe_injured and moderate_injured arrays
-    total_severe = 200  # Example total
-    total_moderate = 350  # Example total
-    
-    severe_unallocated = max(0, total_severe - sum(severe_to_hospital))
-    moderate_unallocated = max(0, total_moderate - sum(moderate_to_hospital) - sum(moderate_to_temp))
-    
-    medical_penalty = severe_unallocated * 50 + moderate_unallocated * 20
-    
-    f2 = unserved_penalty + flow_penalty + medical_penalty
-    
-    return np.array([f1, f2])
+class Main():
+    def __init__(self):
+        response = requests.get("http://localhost:8000/api/v1/getparam")
+        response = response.json()
+        self.idc_id = [1, 2, 3]
+        self.ec_id = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        self.da_id = [3, 4, 5, 6, 7]
+        self.h_id = [1, 2, 3, 4]
+        self.tmc_id = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        dist_idc_to_shelter = {}
+        dist_da_to_h = {}
+        dist_da_to_ec = {}
+        dist_da_to_h_helicopter = {}
+        dist_da_to_tmc = {}
+        dist_da_to_tmc_helicopter = {}
+        for i in response['pathes']['idc_ec_path']:
+            dist_idc_to_shelter[f"{i['idc_id']},{i['ec_id']}"] = float(i['distance'])
+            
+        for i in response['pathes']['da_h_path']:
+            dist_da_to_h[f"{i['da_id']},{i['h_id']}"] = float(i['distance'])
+            dist_da_to_h_helicopter[f"{i['da_id']},{i['h_id']}"] = float(i['distance_helicopter'])
+            
+        for i in response['pathes']['da_ec_dist']:
+            dist_da_to_ec[f"{i['da_id']},{i['ec_id']}"] = float(i['distance'])
+            
+        for i in response['pathes']['da_tmc_path']:
+            dist_da_to_tmc[f"{i['da_id']},{i['tmc_id']}"] = float(i['distance'])
+            dist_da_to_tmc_helicopter[f"{i['da_id']},{i['tmc_id']}"] = float(i['distance_helicopter'])
+        t1 = 0.015  # Percentage distribution of severe injuries
+        t2 = 0.067  # Percentage distribution of mild injuries
+        Pua = 0.7  # Percentage of shelter area used
+        rta = 17.5  # Area of ​​relief tent (Square meter)
+        rtc = 5  # Relief tent capacity (person)
+        self.ambulance_speed = 45  # km/h
+        self.helicopter_speed = 200  # km/h
+        self.phi_min = 0.25
+        self.phi_max = 0.9
+        self.ks = 0.6
+        self.tm = 5
+        self.affected_pop = {5: 30000, 6: 52500, 4: 4500, 7: 18000,
+                        3: 4854}  # the affected population (scenario 1)
+        self.severe_injured = {key: value * t1 for key, value in self.affected_pop.items()}
+        self.minor_injured = {key: value * t2 for key, value in self.affected_pop.items()}
+        self.homeless = {
+            key: self.affected_pop[key] - (self.severe_injured[key] + self.minor_injured[key])
+            for key in self.affected_pop.keys()
+        }
+        self.demand = {key: value/5 for key, value in self.affected_pop.items()}
+        ec_area = {8: 283762, 9: 133407, 10: 120000, 11: 18700, 12: 14000,
+                13: 24000, 14: 20170, 15: 17400, 16: 25380, 17: 25374, 18: 58055}
+        self.reliefpackage_volume = 0.6273  # Cubic meter
+        self.cost = {
+            'reliefpackage_cost': 108.76,
+            'reliefpackage_transportation_cost': 30,
+            'tmc_cost': 50000,
+            'ec_cost': 50000,
+            'ambulance': 50,
+            'helicopter': 100
+        }
+        self.distance = {
+            'dist_idc_to_shelter': dist_idc_to_shelter,
+            'dist_da_to_ec': dist_da_to_ec,
+            'dist_da_to_h': dist_da_to_h,
+            'dist_da_to_h_helicopter': dist_da_to_h_helicopter,
+            'dist_da_to_tmc': dist_da_to_tmc,
+            'dist_da_to_tmc_helicopter': dist_da_to_tmc_helicopter
+        }
+        self.capacity = {
+            'ambulance': {'injured_type1': 2, 'injured_type2': 4},  # person
+            'helicopter': {'injured_type1': 4, 'injured_type2': 12},  # person
+            'truck_type1': 6,  # Cubic meter
+            'truck_type2': 12,  # Cubic meter
+            'hospital': {1: 800, 2: 600, 3: 600, 4: 600},  # person
+            'tmc': {1: 300, 2: 300, 3: 600, 4: 300, 5: 600, 6: 300, 7: 300, 8: 600, 9: 600, 10: 300},  # person
+            'shelter': {key: (value * Pua / rta)*rtc for key, value in ec_area.items()} # person
+        }
 
-# Alternative more complex cost function
-def complex_humanitarian_cost(chromosome, distances=None, demands=None, capacities=None):
-    """
-    More realistic cost function with actual problem parameters
-    
-    Parameters:
-    -----------
-    distances: dict with distance matrices
-    demands: dict with demand values for shelters and medical facilities
-    capacities: dict with capacity constraints
-    """
-    
-    dist_assignment = chromosome[0]
-    flow_values = chromosome[1]
-    damage_to_shelter = chromosome[2]
-    damage_to_hospital = chromosome[3]
-    temp_medical = chromosome[4]
-    
-    # If no data provided, generate random realistic data
-    if distances is None:
-        n_dist = 3
-        n_shelters = len(dist_assignment)
-        n_damage = 5
-        n_hospitals = 4
+
+    def complex_humanitarian_cost(self, chromosome):
+        # global idc_id, ec_id, da_id, h_id, tmc_id, ambulance_speed, helicopter_speed, \
+        #     dist_idc_to_shelter, dist_da_to_h, dist_da_to_ec, dist_da_to_tmc, dist_da_to_h_helicopter, dist_da_to_tmc_helicopter, cost, severe_injured, minor_injured
+        """
+        More realistic cost function with actual problem parameters
         
-        # Random distance matrix from distribution centers to shelters
-        dist_to_shelter = np.random.uniform(10, 100, (n_dist, n_shelters))
+        Parameters:
+        -----------
+        distances: dict with distance matrices
+        demands: dict with demand values for shelters and medical facilities
+        capacities: dict with capacity constraints
+        """
+        idc_to_shelter = chromosome[0]
+        flow_values = chromosome[1]
+        damage_to_shelter = chromosome[2]
+        damage_to_hospital = chromosome[3]
+        severe_injured_to_hospital_by_ambulance = chromosome[4]
+        damage_to_hospital_TMC = chromosome[5]
+        minor_injured_to_hospital_TMC_by_ambulance = chromosome[6]
+
+        # calculating TransportingReliefPackageCost, UnmetDemand
+        sum_dist_idcs_to_ecs = 0
+        sum_dist_da_to_ec = 0
+        sum_ecs_cost = 0
+        sum_tmcs_cost = 0
+        transporting_reliefpackage_cost = 0
+        unmet_demand = {}
+        ec_capacity_shortage = 0
+        hospital_capacity_shortage = 0
+        tmc_capacity_shortage = 0
+        death_prob = 0
+        transporting_injured_cost = 0
+        hospital_cap = copy.deepcopy(self.capacity['hospital'])
+        tmc_cap = copy.deepcopy(self.capacity['tmc'])
+        da_ec_alloc = defaultdict(list)
         
-        # Random distance from damage points to shelters
-        damage_to_shelter_dist = np.random.uniform(5, 50, (n_damage, n_shelters))
+        # part 3
+        shelters = [self.ec_id[idx] for idx, x in enumerate(idc_to_shelter) if x != 0]
+        damaged_areas = [x for x in damage_to_shelter if x != 0]
+        if len(shelters) == len(damaged_areas):
+            for idx, b in enumerate(damaged_areas):
+                da_ec_alloc[b].append(shelters[idx])
+                sum_dist_da_to_ec += self.distance['dist_da_to_ec'][f"{b},{shelters[idx]}"]
+        elif len(shelters) > len(damaged_areas):
+            cycle = itertools.cycle(damaged_areas)
+            damaged_areas = list(itertools.islice(cycle, len(shelters)))
+            for idx, b in enumerate(damaged_areas):
+                da_ec_alloc[b].append(shelters[idx])
+                sum_dist_da_to_ec += self.distance['dist_da_to_ec'][f"{b},{shelters[idx]}"]
+        elif len(shelters) < len(damaged_areas):
+            cycle = itertools.cycle(shelters)
+            shelters = list(itertools.islice(cycle, len(damaged_areas)))
+            for idx, b in enumerate(damaged_areas):
+                da_ec_alloc[b].append(shelters[idx])
+                sum_dist_da_to_ec += self.distance['dist_da_to_ec'][f"{b},{shelters[idx]}"]
+        demand, ec_capacity_shortage = self.allocate_population_under_capacity(da_ec_alloc)
         
-        # Random distance from damage points to hospitals
-        damage_to_hospital_dist = np.random.uniform(5, 60, (n_damage, n_hospitals))
-    
-    if demands is None:
-        # Random demands for each shelter
-        shelter_demands = np.random.uniform(50, 200, len(dist_assignment))
+        for idx, i in enumerate(idc_to_shelter): # part 1, 2
+            if i > 0:
+                sum_ecs_cost += self.cost['ec_cost']
+                # print(self.distance['dist_da_to_ec'][f"{damage_to_shelter[idx]},{self.ec_id[idx]}"])
+                sum_dist_idcs_to_ecs += self.distance['dist_idc_to_shelter'][f"{i},{self.ec_id[idx]}"]
+                transporting_reliefpackage_cost += sum_dist_idcs_to_ecs * \
+                    self.cost['reliefpackage_transportation_cost'] * \
+                    flow_values[idx] * demand[self.ec_id[idx]]
+                unmet_demand[self.ec_id[idx]] = demand[self.ec_id[idx]] * \
+                    (1-flow_values[idx])
+
+        for idx, i in enumerate(damage_to_hospital): #part 4, 5
+            i = np.array(i)/sum(i)
+            for h_idx, j in enumerate(i):
+                if j > 0:
+                    if self.severe_injured[self.da_id[idx]] * j > hospital_cap[self.h_id[h_idx]]:
+                        hospital_capacity_shortage += self.severe_injured[self.da_id[idx]] * j - hospital_cap[self.h_id[h_idx]]
+                        hospital_cap[self.h_id[h_idx]] = 0
+                    else:
+                        hospital_cap[self.h_id[h_idx]] = hospital_cap[self.h_id[h_idx]] - self.severe_injured[self.da_id[idx]] * j
+                    transporting_injured_cost += (math.ceil(self.severe_injured[self.da_id[idx]] * j * severe_injured_to_hospital_by_ambulance[idx][h_idx]) / self.capacity['ambulance']['injured_type1']) * self.cost['ambulance'] + (
+                        math.ceil(self.severe_injured[self.da_id[idx]] * j * (1 - severe_injured_to_hospital_by_ambulance[idx][h_idx])) / self.capacity['helicopter']['injured_type1']) * self.cost['helicopter']
+                    t_ambulance = self.distance['dist_da_to_h'][f"{self.da_id[idx]},{self.h_id[h_idx]}"] / self.ambulance_speed
+                    t_helicopter = self.distance['dist_da_to_h_helicopter'][f"{self.da_id[idx]},{self.h_id[h_idx]}"] / self.ambulance_speed
+                    death_prob += (self.death_probability(self.phi_min, self.phi_max, self.ks, t_ambulance, self.tm) * self.severe_injured[self.da_id[idx]] * j) + (
+                    self.death_probability(self.phi_min, self.phi_max, self.ks, t_helicopter, self.tm) * self.severe_injured[self.da_id[idx]] * (1 - j)
+                    )
         
-        # Random number of homeless and injured at damage points
-        homeless_count = np.random.randint(20, 100, 5)
-        severe_injured = np.random.randint(5, 20, 5)
-        moderate_injured = np.random.randint(10, 30, 5)
-    
-    # Objective 1: Total transportation and setup cost
-    f1 = 0
-    
-    # Transportation cost from distribution to shelters
-    for i, dc in enumerate(dist_assignment):
-        if dc > 0:
-            f1 += dist_to_shelter[dc-1, i] * flow_values[i] * 0.1
-    
-    # Fixed cost for opening shelters
-    f1 += sum([500 if x > 0 else 0 for x in dist_assignment])
-    
-    # Fixed cost for temporary medical centers
-    f1 += sum(temp_medical) * 800
-    
-    # Objective 2: Total response time or unmet demand
-    f2 = 0
-    
-    # Response time for homeless to shelters
-    for i, shelter_idx in enumerate(damage_to_shelter):
-        if shelter_idx > 0:
-            f2 += damage_to_shelter_dist[i % 5, shelter_idx-1] * homeless_count[i % 5] * 0.01
-    
-    # Response time for injured to hospitals
-    for i, hospital_idx in enumerate(damage_to_hospital):
-        if hospital_idx > 0:
-            f2 += damage_to_hospital_dist[i, hospital_idx-1] * severe_injured[i] * 0.02
-    
-    # Penalty for unmet demand
-    total_demand = sum(shelter_demands)
-    total_supply = sum(flow_values)
-    if total_supply < total_demand:
-        f2 += (total_demand - total_supply) * 10
-    
-    return np.array([f1, f2])
-
-# Parameters
-dist_idc_to_ec = []
-dist_da_to_h = []
-dist_da_to_tmc = []
-gd = GraphDownload()
-G = gd.download_tehran_district6_graph()
-dbname="sdss"
-user="postgres"
-password="AP@pgsql79"
-host="localhost"
-port="5432"
-pgc = PgsqlConnector(dbname, user, password, host, port)
-idc_to_ec, da_to_ec, da_to_tmc, da_to_h= pgc.data_fetch()
-# for ite in idc_to_ec:
-#     short_path = gd._route(G, ite["source_coord"], ite["target_coord"])
-#     pgc.data_send(ite["source_id"], ite["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "idc_ec_path")
-#     dist_idc_to_ec.append(short_path['properties']['weight'])
-# for dte in pgc.da_to_ec:
-#     short_path = gd._route(G, dte["source_coord"], dte["target_coord"])
-#     pgc.data_send(dte["source_coord"], dte["target_coord"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_ec_path")
-for dth in da_to_h:
-    short_path = gd._route(G, dth["source_coord"], dth["target_coord"])
-    pgc.data_send(dth["source_id"], dth["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_h_path")
-    dist_da_to_h.append(short_path['properties']['weight'])
-# for dtt in da_to_tmc:
-#     short_path = gd._route(G, dtt["source_coord"], dtt["target_coord"])
-#     pgc.data_send(dtt["source_id"], dtt["target_id"], short_path['geometry']['coordinates'], short_path['properties']['weight'], "da_tmc_path")
-#     dist_da_to_tmc.append(short_path['properties']['weight'])
-t1 = 0.015 # Percentage distribution of severe injuries
-t2 = 0.067 # Percentage distribution of mild injuries
-Pua = 0.07 # Percentage of shelter area used
-rtc = 5 # Capacity of each relief tent
-affected_pop = [30000, 52500, 4500, 18000, 4854] # the affected population (scenario 1)
-severe_injured = np.array(affected_pop) * t1
-minor_injured = np.array(affected_pop) * t2
-homeless = affected_pop - (severe_injured + minor_injured)
-demand = np.array(affected_pop)/5
-ec_area = [283762, 133407, 120000, 18700, 14000, 24000, 20170, 17400, 25380, 25374, 58055]
-reliefpackage_volume = 0.6273 # Cubic meter
-cost = {
-    'reliefpackage_cost': 108.76,
-    'reliefpackage_transportation_cost': 30,
-    'tmc_cost': 50000
-}
-distance = {
-    'dist_idc_to_ec': dist_idc_to_ec, # OD matrix of distribution centers and shelters
-    'dist_da_to_ec': [], # OD matrix of damaged area and shelters
-    'dist_da_to_h': dist_da_to_h, # OD matrix of damaged area centers and hospitals
-    'dist_da_to_tmc': dist_da_to_tmc # OD matrix of damaged area centers and temporary medical centers
-}
-print(distance)
-capacity = {
-    'ambulance_type1': {'injured_typ1': 2, 'injured_typ2': 4}, # person
-    'helicopter': {'injured_typ1': 4, 'injured_typ2': 12}, # person
-    'truck_type1': 6, # Cubic meter
-    'truck_type2': 12, # Cubic meter
-    'hospital': [800, 600, 600, 600], # person
-    'tmc': [300, 300, 600, 300, 600, 300, 300, 600, 600, 300], # person
-    'shelter': np.array(ec_area) * Pua / rtc
-}
+        for idx, i in enumerate(damage_to_hospital_TMC): # part 6, 7
+            i = np.array(i)/sum(i)
+            for h_idx, j in enumerate(i[:len(self.h_id)]):
+                if j > 0:
+                    sum_tmcs_cost += self.cost['tmc_cost']
+                    if self.minor_injured[self.da_id[idx]] * j > hospital_cap[self.h_id[h_idx]]:
+                        hospital_capacity_shortage += self.minor_injured[self.da_id[idx]] * j - hospital_cap[self.h_id[h_idx]]
+                        hospital_cap[self.h_id[h_idx]] = 0
+                    else:
+                        hospital_cap[self.h_id[h_idx]] = hospital_cap[self.h_id[h_idx]] - self.minor_injured[self.da_id[idx]] * j
+                    transporting_injured_cost += (math.ceil(self.minor_injured[self.da_id[idx]] * j * minor_injured_to_hospital_TMC_by_ambulance[idx][h_idx]) / self.capacity['ambulance']['injured_type2']) * self.cost['ambulance'] +\
+                        (math.ceil(self.minor_injured[self.da_id[idx]] * j * (1 - minor_injured_to_hospital_TMC_by_ambulance[idx][h_idx])) / self.capacity['helicopter']['injured_type2']) * self.cost['helicopter']
+                    t_ambulance = self.distance['dist_da_to_h'][f"{self.da_id[idx]},{self.h_id[h_idx]}"] / self.ambulance_speed
+                    t_helicopter = self.distance['dist_da_to_h_helicopter'][f"{self.da_id[idx]},{self.h_id[h_idx]}"] / self.ambulance_speed
+                    death_prob += (self.death_probability(self.phi_min, self.phi_max, self.ks, t_ambulance, self.tm) * self.minor_injured[self.da_id[idx]] * j) + (
+                    self.death_probability(self.phi_min, self.phi_max, self.ks, t_helicopter, self.tm) * self.minor_injured[self.da_id[idx]] * (1 - j)
+                    )  
+            for h_tmc_idx, j in enumerate(i[len(self.h_id)+1:]):
+                if j > 0:
+                    if self.minor_injured[self.da_id[idx]] * j > tmc_cap[self.tmc_id[h_tmc_idx]]:
+                        tmc_capacity_shortage += self.minor_injured[self.da_id[idx]] * j - tmc_cap[self.tmc_id[h_tmc_idx]]
+                        tmc_cap[self.tmc_id[h_tmc_idx]] = 0
+                    else:
+                        tmc_cap[self.tmc_id[h_tmc_idx]] = tmc_cap[self.tmc_id[h_idx]] - self.minor_injured[self.da_id[idx]] * j
+                    transporting_injured_cost += (
+                        (math.ceil(self.minor_injured[self.da_id[idx]] * j * minor_injured_to_hospital_TMC_by_ambulance[idx][h_tmc_idx]) / self.capacity['ambulance']['injured_type1'])) * self.cost['ambulance'] + (
+                            math.ceil(self.minor_injured[self.da_id[idx]] * j * (1 - minor_injured_to_hospital_TMC_by_ambulance[idx][h_tmc_idx])) / self.capacity['helicopter']['injured_type1']) * self.cost['helicopter']
+                    t_ambulance = self.distance['dist_da_to_tmc'][f"{self.da_id[idx]},{self.tmc_id[h_tmc_idx]}"] / self.ambulance_speed
+                    t_helicopter = self.distance['dist_da_to_tmc_helicopter'][f"{self.da_id[idx]},{self.tmc_id[h_tmc_idx]}"] / self.ambulance_speed
+                    death_prob += (self.death_probability(self.phi_min, self.phi_max, self.ks, t_ambulance, self.tm) * self.minor_injured[self.da_id[idx]] * j) + (
+                    self.death_probability(self.phi_min, self.phi_max, self.ks, t_helicopter, self.tm) * self.minor_injured[self.da_id[idx]] * (1 - j)
+                    )
+        F1 = (transporting_reliefpackage_cost + transporting_injured_cost + sum_ecs_cost + sum_tmcs_cost +\
+            (ec_capacity_shortage + hospital_capacity_shortage + tmc_capacity_shortage)*100)/1e7
+        F2 = sum(unmet_demand.values())/1000
+        F3 = death_prob/3000
+        # print(
+        #     'transporting_reliefpackage_cost', transporting_reliefpackage_cost, '\n'
+        #     'transporting_injured_cost', transporting_injured_cost, '\n'
+        #     'sum_ecs_cost', sum_ecs_cost, '\n'
+        #     'sum_tmcs_cost', sum_tmcs_cost, '\n'
+        #     'ec_capacity_shortage', ec_capacity_shortage, '\n'
+        #     'hospital_capacity_shortage', hospital_capacity_shortage, '\n'
+        #     'tmc_capacity_shortage', tmc_capacity_shortage, '\n'
+        #     'unmet_demand', unmet_demand, '\n'
+        #     'death_prob', death_prob
+        # )
+        return np.array([F1,F2,F3])
 
 
-# Problem Definition
-problem = {
-    'cost_function': complex_humanitarian_cost  # Use simple or complex function
-}
+    def allocate_population_under_capacity(self, da_ec: dict):
+        demand = {}
+        ec_capacity_shortage = [0]
+        for da_id, ec_id_list in da_ec.items():
+            ec_id_list = list(dict.fromkeys(ec_id_list))
+            ec_cap = [self.capacity['shelter'][v] for v in ec_id_list]
+            totalcapacity = sum(ec_cap)
+            if self.affected_pop[da_id] > totalcapacity:
+                ec_capacity_shortage.append(
+                    (self.affected_pop[da_id]/5)*17.5-totalcapacity)
+            alloc_ratio = [i/totalcapacity for i in ec_cap]
+            pop_to_ec = [round(ar * self.affected_pop[da_id]) for ar in alloc_ratio]
+            for (key, value) in enumerate(list(zip(ec_id_list, pop_to_ec))):
+                demand[value[0]] = math.ceil(value[-1]/5)
+        return demand, sum(ec_capacity_shortage)
 
-# Initialize Algorithm with problem dimensions
-alg = NSGA2_Humanitarian(
-    max_iter=50,
-    pop_size=100,
-    p_crossover=0.7,
-    p_mutation=0.3,
-    verbose=True,
-    n_shelters=8,
-    n_distribution=3,
-    n_damage_points=5,
-    n_hospitals=4,
-    n_temp_medical=11,
-)
 
-# # Solve the Problem
-# results = alg.run(problem)
-# pop = results['pop']
-# F = results['F']
-# pareto_pop = results['pareto_pop']
+    def death_probability(self, phi_min, phi_max, ks, t, tm):
+        return phi_min + (phi_max - phi_min)/(1 + math.exp(ks * (t - tm)))
 
-# # Extract Pareto Front costs
-# pf_costs = np.array([ind['cost'] for ind in pareto_pop])
 
-# # Plot Results
-# plt.figure(figsize=(10, 6))
-# plt.scatter(pf_costs[:, 0], pf_costs[:, 1], c='blue', s=50, alpha=0.6, edgecolors='black')
-# plt.grid(True, alpha=0.3)
-# plt.xlabel('Total Cost (f1)', fontsize=12)
-# plt.ylabel('Unmet Demand / Response Time (f2)', fontsize=12)
-# plt.title('Pareto Front - Humanitarian Logistics Optimization', fontsize=14)
+    # Parameters
+    # gd = GraphDownload()
+    # G = gd.download_tehran_district6_graph()
+    # dbname="sdss"
+    # user="postgres"
+    # password="AP@pgsql79"
+    # host="localhost"
+    # port="5432"
+    # pgc = PgsqlConnector(dbname, user, password, host, port)
+    # idc_to_shelter, da_to_ec, da_to_tmc, da_to_h= pgc.data_fetch()
+    # for ite in idc_to_shelter:
+    #     short_path = gd._route(G, ite["source_coord"], ite["target_coord"])
+    #     distance_meters = geodesic(ite['source_coord'], ite['target_coord']).m
+    #     pgc.data_send(ite["source_id"], ite["target_id"], "idc_ec_path", short_path['geometry']['coordinates'], short_path['properties']['weight'], distance_helicopter=distance_meters)
+        # dist_idc_to_shelter.append(short_path['properties']['weight'])
+    # for dte in da_to_ec:
+    #     distance_meters = geodesic(dte['source_coord'], dte['target_coord']).m
+    #     pgc.data_send(dte["source_id"], dte["target_id"], "da_ec_dist", distance=distance_meters)
+    # for dth in da_to_h:
+    #     short_path = gd._route(G, dth["source_coord"], dth["target_coord"])
+    #     distance_meters = geodesic(dth['source_coord'], dth['target_coord']).m
+    #     pgc.data_send(dth["source_id"], dth["target_id"], "da_h_path", short_path['geometry']['coordinates'], short_path['properties']['weight'], distance_helicopter=distance_meters)
+    #     # dist_da_to_h.append(short_path['properties']['weight'])
+    # for dtt in da_to_tmc:
+    #     short_path = gd._route(G, dtt["source_coord"], dtt["target_coord"])
+    #     distance_meters = geodesic(dtt['source_coord'], dtt['target_coord']).m
+    #     pgc.data_send(dtt["source_id"], dtt["target_id"], "da_tmc_path", short_path['geometry']['coordinates'], short_path['properties']['weight'], distance_helicopter=distance_meters)
+        # dist_da_to_tmc.append(short_path['properties']['weight'])
+        
 
-# # Annotate some solutions
-# if len(pf_costs) > 0:
-#     # Mark best cost solution
-#     best_cost_idx = np.argmin(pf_costs[:, 0])
-#     plt.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 1], 
-#                 c='red', s=100, marker='*', label='Min Cost')
-    
-#     # Mark best service solution
-#     best_service_idx = np.argmin(pf_costs[:, 1])
-#     plt.scatter(pf_costs[best_service_idx, 0], pf_costs[best_service_idx, 1], 
-#                 c='green', s=100, marker='*', label='Min Unmet Demand')
-    
-#     plt.legend()
+    def main(self):
+        # Problem Definition
+        problem = {
+            'cost_function': self.complex_humanitarian_cost  # Use simple or complex function
+        }
 
-# plt.tight_layout()
-# plt.show()
+        # Initialize Algorithm with problem dimensions
+        alg = NSGA2_Humanitarian(
+            max_iter=200,
+            pop_size=200,
+            p_crossover=0.8,
+            p_mutation=0.2,
+            verbose=True,
+            shelter_id = self.ec_id,
+            distribution_center_id = self.idc_id,
+            damage_points_id = self.da_id,
+            hospital_id = self.h_id,
+            temporary_medical_id = self.tmc_id
+        )
 
-# # Display some statistics
-# print("\n" + "="*50)
-# print("Optimization Results Summary")
-# print("="*50)
-# print(f"Number of Pareto optimal solutions: {len(pareto_pop)}")
-# print(f"Best cost: {np.min(pf_costs[:, 0]):.2f}")
-# print(f"Best service (min unmet demand): {np.min(pf_costs[:, 1]):.2f}")
+        # Solve the Problem
+        results = alg.run(problem)
+        pop = results['pop']
+        F = results['F']
+        pareto_pop = results['pareto_pop']
+        metrics = results['metrics'] 
+        
+        # رسم نمودارهای همگرایی
+        metrics.plot_convergence(save_path='convergence_metrics.png')
+        metrics.print_summary()
+        
+        # Plot Results
+        fig = plt.figure(figsize=(20, 5))
 
-# # Display a sample solution
-# if len(pareto_pop) > 0:
-#     print("\n" + "="*50)
-#     print("Sample Pareto Optimal Solution (Balanced)")
-#     print("="*50)
-    
-#     # Find a balanced solution (closest to the middle of Pareto front)
-#     normalized_costs = (pf_costs - pf_costs.min(axis=0)) / (pf_costs.max(axis=0) - pf_costs.min(axis=0) + 1e-10)
-#     distances_to_ideal = np.linalg.norm(normalized_costs, axis=1)
-#     balanced_idx = np.argmin(distances_to_ideal)
-    
-#     balanced_solution = pareto_pop[balanced_idx]
-#     chromosome = balanced_solution['chromosome']
-    
-#     print(f"Objectives: f1={balanced_solution['cost'][0]:.2f}, f2={balanced_solution['cost'][1]:.2f}")
-#     print(f"\nActive Shelters: {sum([1 if x > 0 else 0 for x in chromosome[0]])}/{len(chromosome[0])}")
-#     print(f"Active Temporary Medical Centers: {sum(chromosome[4])}/{len(chromosome[4])}")
-#     print(f"Total Flow: {sum(chromosome[1]):.2f}")
-    
-#     # Show distribution assignments
-#     print("\nShelter Assignments:")
-#     for i, (dc, flow) in enumerate(zip(chromosome[0], chromosome[1])):
-#         if dc > 0:
-#             print(f"  Shelter {i+1}: Supplied by DC{dc}, Flow={flow:.2f}")
-    
-#     # Show medical allocations
-#     print("\nMedical Allocations:")
-#     print(f"Severe Injured to Hospitals: {sum(chromosome[5])}/{sum(severe_injured)}")
-#     print(f"Moderate Injured to Hospitals: {sum(chromosome[6])}/{sum(moderate_injured)}")
-#     print(f"Moderate Injured to Temp Medical: {sum(chromosome[7])}/{sum(moderate_injured)}")
-    
-#     # Show detailed medical allocation
-#     print("\nDetailed Medical Allocation by Damage Point:")
-#     for i in range(alg.n_damage_points):
-#         print(f"  Damage Point {i+1}:")
-#         print(f"    Severe: {chromosome[5][i]}/{severe_injured[i]} to Hospital {chromosome[3][i]}")
-#         print(f"    Moderate: {chromosome[6][i]} to Hospital, "
-#               f"{moderate_injured[i] - chromosome[6][i]} to Temp Medical")
-    
-#     # Show active temp medical centers
-#     print("\nActive Temporary Medical Centers:")
-#     for i, (active, allocated) in enumerate(zip(chromosome[4], chromosome[7])):
-#         if active:
-#             print(f"  Temp Medical {i+1}: {allocated} patients")
+        # Extract Pareto Front costs
+        pf_costs = np.array([ind['cost'] for ind in pareto_pop])
+
+        # Plot 1: F1 vs F2
+        ax1 = fig.add_subplot(131)
+        sc1 = ax1.scatter(pf_costs[:, 0], pf_costs[:, 1], c='blue', s=50, alpha=0.6, edgecolors='black')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlabel('F1: Total Cost', fontsize=12)
+        ax1.set_ylabel('F2: Unmet Demand', fontsize=12)
+        ax1.set_title('Pareto Front: F1 vs F2', fontsize=14)
+
+        if len(pf_costs) > 0:
+            best_cost_idx = np.argmin(pf_costs[:, 0])
+            ax1.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 1],
+                        c='red', s=100, marker='*', label='Min F1')
+            best_demand_idx = np.argmin(pf_costs[:, 1])
+            ax1.scatter(pf_costs[best_demand_idx, 0], pf_costs[best_demand_idx, 1],
+                        c='green', s=100, marker='*', label='Min F2')
+            ax1.legend()
+
+        # Plot 2: F1 vs F3
+        ax2 = fig.add_subplot(132)
+        sc2 = ax2.scatter(pf_costs[:, 0], pf_costs[:, 2], c='blue', s=50, alpha=0.6, edgecolors='black')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlabel('F1: Total Cost', fontsize=12)
+        ax2.set_ylabel('F3: Death Probability', fontsize=12)
+        ax2.set_title('Pareto Front: F1 vs F3', fontsize=14)
+
+        if len(pf_costs) > 0:
+            best_cost_idx = np.argmin(pf_costs[:, 0])
+            ax2.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 2],
+                        c='red', s=100, marker='*', label='Min F1')
+            best_death_idx = np.argmin(pf_costs[:, 2])
+            ax2.scatter(pf_costs[best_death_idx, 0], pf_costs[best_death_idx, 2],
+                        c='orange', s=100, marker='*', label='Min F3')
+            ax2.legend()
+
+        # Plot 3: F2 vs F3
+        ax3 = fig.add_subplot(133)
+        sc3 = ax3.scatter(pf_costs[:, 1], pf_costs[:, 2], c='blue', s=50, alpha=0.6, edgecolors='black')
+        ax3.grid(True, alpha=0.3)
+        ax3.set_xlabel('F2: Unmet Demand', fontsize=12)
+        ax3.set_ylabel('F3: Death Probability', fontsize=12)
+        ax3.set_title('Pareto Front: F2 vs F3', fontsize=14)
+
+        if len(pf_costs) > 0:
+            best_demand_idx = np.argmin(pf_costs[:, 1])
+            ax3.scatter(pf_costs[best_demand_idx, 1], pf_costs[best_demand_idx, 2],
+                        c='green', s=100, marker='*', label='Min F2')
+            best_death_idx = np.argmin(pf_costs[:, 2])
+            ax3.scatter(pf_costs[best_death_idx, 1], pf_costs[best_death_idx, 2],
+                        c='orange', s=100, marker='*', label='Min F3')
+            ax3.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+        # 3D Plot
+        fig = plt.figure(figsize=(12, 9))
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.scatter(pf_costs[:, 0], pf_costs[:, 1], pf_costs[:, 2], 
+                c='blue', s=50, alpha=0.6, edgecolors='black', label='Pareto Solutions')
+
+        if len(pf_costs) > 0:
+            # Mark best solutions for each objective
+            best_cost_idx = np.argmin(pf_costs[:, 0])
+            ax.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 1], pf_costs[best_cost_idx, 2],
+                    c='red', s=150, marker='*', label='Min F1 (Cost)')
+            
+            best_demand_idx = np.argmin(pf_costs[:, 1])
+            ax.scatter(pf_costs[best_demand_idx, 0], pf_costs[best_demand_idx, 1], pf_costs[best_demand_idx, 2],
+                    c='green', s=150, marker='*', label='Min F2 (Unmet Demand)')
+            
+            best_death_idx = np.argmin(pf_costs[:, 2])
+            ax.scatter(pf_costs[best_death_idx, 0], pf_costs[best_death_idx, 1], pf_costs[best_death_idx, 2],
+                    c='orange', s=150, marker='*', label='Min F3 (Death Prob)')
+
+        ax.set_xlabel('F1: Total Cost', fontsize=12)
+        ax.set_ylabel('F2: Unmet Demand', fontsize=12)
+        ax.set_zlabel('F3: Death Probability', fontsize=12)
+        ax.set_title('3D Pareto Front - Humanitarian Logistics Optimization', fontsize=14)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Display some statistics
+        print("\n" + "="*50)
+        print("Optimization Results Summary")
+        print("="*50)
+        print(f"Number of Pareto optimal solutions: {len(pareto_pop)}")
+        print(f"Best F1 (Total Cost): {np.min(pf_costs[:, 0]):.2f}")
+        print(f"Best F2 (Unmet Demand): {np.min(pf_costs[:, 1]):.2f}")
+        print(f"Best F3 (Death Probability): {np.min(pf_costs[:, 2]):.2f}")
+
+        # Extract Pareto Front costs
+        # pf_costs = np.array([ind['cost'] for ind in pareto_pop])
+
+        # Plot Results
+        # plt.figure(figsize=(10, 6))
+        # plt.scatter(pf_costs[:, 0], pf_costs[:, 1], c='blue', s=50, alpha=0.6, edgecolors='black')
+        # plt.grid(True, alpha=0.3)
+        # plt.xlabel('Total Cost (f1)', fontsize=12)
+        # plt.ylabel('Unmet Demand / Response Time (f2)', fontsize=12)
+        # plt.title('Pareto Front - Humanitarian Logistics Optimization', fontsize=14)
+
+        # # Annotate some solutions
+        # if len(pf_costs) > 0:
+        #     # Mark best cost solution
+        #     best_cost_idx = np.argmin(pf_costs[:, 0])
+        #     plt.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 1],
+        #                 c='red', s=100, marker='*', label='Min Cost')
+
+        #     # Mark best service solution
+        #     best_service_idx = np.argmin(pf_costs[:, 1])
+        #     plt.scatter(pf_costs[best_service_idx, 0], pf_costs[best_service_idx, 1],
+        #                 c='green', s=100, marker='*', label='Min Unmet Demand')
+
+        #     plt.legend()
+
+        # plt.tight_layout()
+        # plt.show()
+
+        # # Display some statistics
+        # print("\n" + "="*50)
+        # print("Optimization Results Summary")
+        # print("="*50)
+        # print(f"Number of Pareto optimal solutions: {len(pareto_pop)}")
+        # print(f"Best cost: {np.min(pf_costs[:, 0]):.2f}")
+        # print(f"Best service (min unmet demand): {np.min(pf_costs[:, 1]):.2f}")
+
+        # # Display a sample solution
+        # if len(pareto_pop) > 0:
+        #     print("\n" + "="*50)
+        #     print("Sample Pareto Optimal Solution (Balanced)")
+        #     print("="*50)
+
+            # Find a balanced solution (closest to the middle of Pareto front)
+            # normalized_costs = (pf_costs - pf_costs.min(axis=0)) / (pf_costs.max(axis=0) - pf_costs.min(axis=0) + 1e-10)
+            # distances_to_ideal = np.linalg.norm(normalized_costs, axis=1)
+            # balanced_idx = np.argmin(distances_to_ideal)
+
+            # balanced_solution = pareto_pop[balanced_idx]
+            # chromosome = balanced_solution['chromosome']
+
+            # print(f"Objectives: f1={balanced_solution['cost'][0]:.2f}, f2={balanced_solution['cost'][1]:.2f}")
+            # print(f"\nActive Shelters: {sum([1 if x > 0 else 0 for x in chromosome[0]])}/{len(chromosome[0])}")
+            # print(f"Active Temporary Medical Centers: {sum(chromosome[4])}/{len(chromosome[4])}")
+            # print(f"Total Flow: {sum(chromosome[1]):.2f}")
+
+            # # Show distribution assignments
+            # print("\nShelter Assignments:")
+            # for i, (dc, flow) in enumerate(zip(chromosome[0], chromosome[1])):
+            #     if dc > 0:
+            #         print(f"  Shelter {i+1}: Supplied by DC{dc}, Flow={flow:.2f}")
+
+            # # Show medical allocations
+            # print("\nMedical Allocations:")
+            # print(f"Severe Injured to Hospitals: {sum(chromosome[5])}/{sum(severe_injured)}")
+            # print(f"Moderate Injured to Hospitals: {sum(chromosome[6])}/{sum(moderate_injured)}")
+            # print(f"Moderate Injured to Temp Medical: {sum(chromosome[7])}/{sum(moderate_injured)}")
+
+            # # Show detailed medical allocation
+            # print("\nDetailed Medical Allocation by Damage Point:")
+            # for i in range(alg.n_damage_points):
+            #     print(f"  Damage Point {i+1}:")
+            #     print(f"    Severe: {chromosome[5][i]}/{severe_injured[i]} to Hospital {chromosome[3][i]}")
+            #     print(f"    Moderate: {chromosome[6][i]} to Hospital, "
+            #           f"{moderate_injured[i] - chromosome[6][i]} to Temp Medical")
+
+            # # Show active temp medical centers
+            # print("\nActive Temporary Medical Centers:")
+            # for i, (active, allocated) in enumerate(zip(chromosome[4], chromosome[7])):
+            #     if active:
+            #         print(f"  Temp Medical {i+1}: {allocated} patients")
+m = Main()
+m.main()

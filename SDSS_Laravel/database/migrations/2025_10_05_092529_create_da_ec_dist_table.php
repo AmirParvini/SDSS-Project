@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('da_ec_path', function (Blueprint $table) {
+        Schema::create('da_ec_dist', function (Blueprint $table) {
             $table->id();
             $table->integer('da_id');
             $table->integer('ec_id');
             $table->float('distance');
-            $table->text('path');
         });
     }
 
@@ -25,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('da_ec_path');
+        Schema::dropIfExists('da_ec_dist');
     }
 };

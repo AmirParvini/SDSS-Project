@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\EC;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Exception;
 
 class ECController extends Controller
 {
@@ -38,9 +40,9 @@ class ECController extends Controller
             ]);
 
             return response()->json(['success' => true, 'pointtype' => 'EC', 'point' => $ec_point]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

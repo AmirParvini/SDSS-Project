@@ -58,7 +58,7 @@ class PgsqlConnector():
             
         return self.idc_to_ec, self.da_to_ec, self.da_to_tmc, self.da_to_h
                 
-    def data_send(self, source_id, target_id, path, distance, table):
+    def data_send(self, source_id, target_id, table, path=None, distance=None, distance_helicopter=None):
         conn = psycopg2.connect(
             dbname=self.dbname,
             user=self.user,
@@ -71,9 +71,11 @@ class PgsqlConnector():
         if table == "idc_ec_path":
             cur.execute(f"INSERT INTO {table} (idc_id, ec_id, distance, path)" + "VALUES (%s, %s, %s, %s)", (source_id, target_id, distance, path))
         elif table == "da_h_path":
-            cur.execute(f"INSERT INTO {table} (da_id, h_id, distance, path)" + "VALUES (%s, %s, %s, %s)", (source_id, target_id, distance, path))
+            cur.execute(f"INSERT INTO {table} (da_id, h_id, distance, path, distance_helicopter)" + "VALUES (%s, %s, %s, %s, %s)", (source_id, target_id, distance, path, distance_helicopter))
+        elif table == "da_ec_dist":
+            cur.execute(f"INSERT INTO {table} (da_id, ec_id, distance)" + "VALUES (%s, %s, %s)", (source_id, target_id, distance))
         elif table == "da_tmc_path":
-            cur.execute(f"INSERT INTO {table} (da_id, tmc_id, distance, path)" + "VALUES (%s, %s, %s, %s)", (source_id, target_id, distance, path))
+            cur.execute(f"INSERT INTO {table} (da_id, tmc_id, distance, path, distance_helicopter)" + "VALUES (%s, %s, %s, %s, %s)", (source_id, target_id, distance, path, distance_helicopter))
         
         conn.commit()
         # بستن cursor و اتصال

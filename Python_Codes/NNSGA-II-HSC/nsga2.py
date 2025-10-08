@@ -1,13 +1,14 @@
 import numpy as np
 from copy import deepcopy
-from itertools import chain
+import random
+from convergence_metrics import ConvergenceMetrics
 
 class NSGA2_Humanitarian:
     """NSGA-II for humanitarian logistics optimization with custom chromosome structure"""
 
-    def __init__(self, max_iter=100, pop_size=100, p_crossover=0.7, p_mutation=0.3, 
-                 verbose=True, n_shelters=8, n_distribution=3, n_damage_points=5, 
-                 n_hospitals=4, n_temp_medical=11, severe_injured=None, moderate_injured=None):
+    def __init__(self, shelter_id, distribution_center_id, damage_points_id, hospital_id,
+                temporary_medical_id, max_iter=100, pop_size=100, p_crossover=0.7, p_mutation=0.3, 
+                verbose=True):
         """
         Constructor for humanitarian logistics NSGA-II
         
@@ -28,22 +29,15 @@ class NSGA2_Humanitarian:
         self.verbose = verbose
         
         # Problem dimensions
-        self.n_shelters = n_shelters
-        self.n_distribution = n_distribution
-        self.n_damage_points = n_damage_points
-        self.n_hospitals = n_hospitals
-        self.n_temp_medical = n_temp_medical
+        self.da_id = damage_points_id
+        self.idc_id = distribution_center_id
+        self.n_shelters = len(shelter_id)
+        self.n_distribution = len(distribution_center_id)
+        self.n_damage_points = len(damage_points_id)
+        self.n_hospitals = len(hospital_id)
+        self.n_temp_medical = len(temporary_medical_id)
         
-        # Injured counts (if not provided, generate random)
-        if severe_injured is None:
-            self.severe_injured = np.random.randint(10, 50, n_damage_points)
-        else:
-            self.severe_injured = np.array(severe_injured)
-            
-        if moderate_injured is None:
-            self.moderate_injured = np.random.randint(20, 80, n_damage_points)
-        else:
-            self.moderate_injured = np.array(moderate_injured)
+        self.metrics = ConvergenceMetrics()
 
     def create_random_chromosome(self):
         """
@@ -57,40 +51,33 @@ class NSGA2_Humanitarian:
         
         # Part 1: Distribution center assignment to shelters (0 means shelter not selected)
         # Randomly select which shelters to activate (at least 1)
-        n_active = np.random.randint(1, self.n_shelters + 1)
+        n_active = random.randint(1, self.n_shelters)
         active_shelters = np.random.choice(self.n_shelters, n_active, replace=False)
         dist_assignment = [0] * self.n_shelters
         for idx in active_shelters:
-            dist_assignment[idx] = np.random.randint(1, self.n_distribution + 1)
+            dist_assignment[idx] = random.randint(1, self.n_distribution)
         chromosome.append(dist_assignment)
         
         # Part 2: Flow values from distribution centers to shelters
         flow_values = []
         for i in range(self.n_shelters):
-            if dist_assignment[i] > 0:
-                # Use normal distribution with mean 0.6 and std 0.15
-                ratio = np.clip(np.random.normal(0.6, 0.15), 0, 1)
-                flow_values.append(ratio)
-            else:
-                flow_values.append(0)
+            # Use normal distribution with mean 0.6 and std 0.15
+            ratio = np.clip(np.random.normal(0.6, 0.15), 0, 1)
+            flow_values.append(ratio)
         chromosome.append(flow_values)
         
         # Part 3: Damage point to shelter assignment
-        damage_to_shelter = []
-        for _ in range(self.n_shelters):
-            if dist_assignment[_] > 0:
-                # Assign to a random damage point
-                damage_to_shelter.append(np.random.randint(1, self.n_damage_points + 1))
-            else:
-                # Shelter not active, set to 0
-                damage_to_shelter.append(0)
+        np.random.shuffle(self.da_id)
+        damage_to_shelter:list  = deepcopy(self.da_id)
+        for _ in range(self.n_damage_points, self.n_shelters):
+            damage_to_shelter.append(np.random.choice(self.da_id))
         chromosome.append(damage_to_shelter)
         
         # Part 4: damaged_points to hospital assignment for transfer of severely injured
         part4 = np.zeros((self.n_damage_points, self.n_hospitals))
         for i in range(self.n_damage_points):
-            num_active = np.random.randint(1, self.n_hospitals)
-            active_indices = np.random.sample(range(self.n_hospitals), num_active)
+            num_active = random.randint(1, self.n_hospitals)
+            active_indices = random.sample(range(self.n_hospitals), num_active)
             weights = [np.random.random() for _ in range(num_active)]
             total = sum(weights)
             for idx, dest in enumerate(active_indices):
@@ -109,7 +96,7 @@ class NSGA2_Humanitarian:
         part6 = np.zeros((self.n_damage_points, self.n_hospitals + self.n_temp_medical))
         for i in range(self.n_damage_points):
             num_active = np.random.randint(1, self.n_hospitals + self.n_temp_medical)
-            active_indices = np.random.sample(range(self.n_hospitals + self.n_temp_medical), num_active)
+            active_indices = random.sample(range(self.n_hospitals + self.n_temp_medical), num_active)
             weights = [np.random.random() for _ in range(num_active)]
             total = sum(weights)
             for idx, dest in enumerate(active_indices):
@@ -126,77 +113,6 @@ class NSGA2_Humanitarian:
 
         return chromosome
 
-    # def repair_chromosome(self, chromosome):
-    #     """
-    #     Repair chromosome to ensure all constraints are satisfied
-    #     """
-    #     repaired = deepcopy(chromosome)
-        
-    #     # Ensure consistency between parts
-    #     # If shelter is not selected (part 1 = 0), set corresponding values to 0
-    #     for i in range(self.n_shelters):
-    #         if repaired[0][i] == 0:
-    #             repaired[1][i] = 0  # No flow
-    #             repaired[2][i] = 0  # No damage point assignment
-    #         else:
-    #             # Ensure valid distribution center index
-    #             if repaired[0][i] > self.n_distribution:
-    #                 repaired[0][i] = np.random.randint(1, self.n_distribution + 1)
-                
-    #             # Ensure flow is positive for active shelters
-    #             if repaired[1][i] <= 0:
-    #                 repaired[1][i] = np.random.uniform(10, 200)
-                
-    #             # Ensure valid damage point assignment
-    #             if repaired[2][i] <= 0 or repaired[2][i] > self.n_damage_points:
-    #                 repaired[2][i] = np.random.randint(1, self.n_damage_points + 1)
-        
-    #     # Ensure valid hospital assignments
-    #     for i in range(self.n_damage_points):
-    #         if repaired[3][i] <= 0 or repaired[3][i] > self.n_hospitals:
-    #             repaired[3][i] = np.random.randint(1, self.n_hospitals + 1)
-        
-    #     # Ensure binary values for temp medical centers
-    #     for i in range(self.n_temp_medical):
-    #         repaired[4][i] = 1 if repaired[4][i] > 0.5 else 0
-        
-    #     # Repair medical allocations (Parts 6, 7, 8)
-    #     # Part 6: Severe injured to hospitals - cannot exceed total severe injured
-    #     for i in range(self.n_damage_points):
-    #         if repaired[5][i] > self.severe_injured[i]:
-    #             repaired[5][i] = self.severe_injured[i]
-    #         elif repaired[5][i] < 0:
-    #             repaired[5][i] = 0
-        
-    #     # Part 7: Moderate injured to hospitals - cannot exceed total moderate injured
-    #     for i in range(self.n_damage_points):
-    #         if repaired[6][i] > self.moderate_injured[i]:
-    #             repaired[6][i] = self.moderate_injured[i]
-    #         elif repaired[6][i] < 0:
-    #             repaired[6][i] = 0
-        
-    #     # Part 8: Moderate injured to temp centers
-    #     # First, set inactive centers to 0
-    #     for i in range(self.n_temp_medical):
-    #         if repaired[4][i] == 0:
-    #             repaired[7][i] = 0
-    #         elif repaired[7][i] < 0:
-    #             repaired[7][i] = 0
-        
-    #     # Ensure total moderate injured allocation doesn't exceed available
-    #     for i in range(self.n_damage_points):
-    #         # Calculate total moderate injured allocated from this damage point
-    #         total_moderate_allocated = repaired[6][i]  # To hospitals
-            
-    #         # Add moderate injured sent to temp centers from this damage point
-    #         # (This is simplified - in reality you'd need to track which damage point sends to which temp center)
-            
-    #         # If over-allocated, scale down proportionally
-    #         if total_moderate_allocated > self.moderate_injured[i]:
-    #             scale = self.moderate_injured[i] / total_moderate_allocated
-    #             repaired[6][i] = int(repaired[6][i] * scale)
-        
-    #     return repaired
 
     def crossover(self, parent1, parent2):
         """
@@ -205,58 +121,54 @@ class NSGA2_Humanitarian:
         child1 = deepcopy(parent1)
         child2 = deepcopy(parent2)
         
-        # Part-wise crossover with different strategies for each part
-        
-        # Part 1 & 2: Distribution assignment and flows (uniform crossover)
-        for i in range(self.n_shelters):
-            if np.random.rand() < 0.5:
-                child1[0][i], child2[0][i] = child2[0][i], child1[0][i]
-                child1[1][i], child2[1][i] = child2[1][i], child1[1][i]
-        
-        # Part 3: Damage to shelter (uniform crossover)
+        # Part 1 & 2
+        point = random.choice(range(1, self.n_shelters))
+        child1[0][:point], child2[0][:point] = child2[0][:point], child1[0][:point]
+        child1[1][:point], child2[1][:point] = child2[1][:point], child1[1][:point]
+        if sum(bool(x) for x in child1[0]) == 0:
+            child1[0] = deepcopy(parent1[0])
+            child1[1] = deepcopy(parent2[1])
+        if sum(bool(x) for x in child2[0]) == 0:
+            child2[0] = deepcopy(parent2[0])
+            child2[1] = deepcopy(parent2[1])
+            
+        # Part 3
         for i in range(self.n_shelters):
             if np.random.rand() < 0.5:
                 child1[2][i], child2[2][i] = child2[2][i], child1[2][i]
         
-        # Part 4: Damage to hospital (two-point crossover)
-        if self.n_damage_points > 2:
-            points = sorted(np.random.choice(self.n_damage_points, 2, replace=False))
-            temp = child1[3][points[0]:points[1]]
-            child1[3][points[0]:points[1]] = child2[3][points[0]:points[1]]
-            child2[3][points[0]:points[1]] = temp
+        # Part 4
+        point1 = np.random.choice(range(1, self.n_damage_points))
+        point2 = np.random.choice(range(1, self.n_hospitals))
+        child1[3][:point1, :point2], child2[3][:point1, :point2] = child2[3][:point1, :point2], child1[3][:point1, :point2]
+        child1[3][point1:, point2:], child2[3][point1:, point2:] = child2[3][point1:, point2:], child1[3][point1:, point2:]
+        for i in child1[3]:
+            if sum(bool(x) for x in i) == 0:
+                child1[3] = deepcopy(parent1[3])
+        for i in child2[3]:
+            if sum(bool(x) for x in i) == 0:
+                child2[3] = deepcopy(parent2[3])         
+        # Part 5
+        point1 = np.random.choice(range(1, self.n_damage_points))
+        point2 = np.random.choice(range(1, self.n_hospitals))
+        child1[4][:point1, :point2], child2[4][:point1, :point2] = child2[4][:point1, :point2], child1[4][:point1, :point2]
+        child1[4][point1:, point2:], child2[4][point1:, point2:] = child2[4][point1:, point2:], child1[4][point1:, point2:]
+            
+        # Part 6
+        point1 = np.random.choice(range(1, self.n_damage_points))
+        point2 = np.random.choice(range(1, self.n_hospitals))
+        point3 = np.random.choice(range(self.n_hospitals+1, self.n_temp_medical))
+        child1[5][:point1, :point2], child2[5][:point1, :point2] = child2[5][:point1, :point2], child1[5][:point1, :point2]
+        child1[5][point1:, point2:self.n_hospitals], child2[5][point1:, point2:self.n_hospitals] = child2[5][point1:, point2:self.n_hospitals], child1[5][point1:, point2:self.n_hospitals]
+        child1[5][:point1, self.n_hospitals:point3], child2[5][:point1, self.n_hospitals:point3] = child2[5][:point1, self.n_hospitals:point3], child1[5][:point1, self.n_hospitals:point3]
+        child1[5][point1:, point3:], child2[5][point1:, point3:] = child2[5][point1:, point3:], child1[5][point1:, point3:]
         
-        # Part 5: Temp medical centers (uniform crossover)
-        for i in range(self.n_temp_medical):
-            if np.random.rand() < 0.5:
-                child1[4][i], child2[4][i] = child2[4][i], child1[4][i]
-        
-        # Part 6 & 7: Medical allocations for injured (arithmetic crossover)
-        # This maintains more realistic values
-        for i in range(self.n_damage_points):
-            if np.random.rand() < 0.5:
-                # Swap severe injured allocations
-                child1[5][i], child2[5][i] = child2[5][i], child1[5][i]
-                # Swap moderate to hospital allocations
-                child1[6][i], child2[6][i] = child2[6][i], child1[6][i]
-            else:
-                # Arithmetic crossover for smoother values
-                alpha = np.random.uniform(0.3, 0.7)
-                temp1 = int(alpha * child1[5][i] + (1-alpha) * child2[5][i])
-                temp2 = int((1-alpha) * child1[5][i] + alpha * child2[5][i])
-                child1[5][i], child2[5][i] = temp1, temp2
-                
-                temp1 = int(alpha * child1[6][i] + (1-alpha) * child2[6][i])
-                temp2 = int((1-alpha) * child1[6][i] + alpha * child2[6][i])
-                child1[6][i], child2[6][i] = temp1, temp2
-        
-        # Part 8: Moderate to temp medical (uniform crossover)
-        for i in range(self.n_temp_medical):
-            if np.random.rand() < 0.5:
-                child1[7][i], child2[7][i] = child2[7][i], child1[7][i]
-        
-        # Repair children to ensure validity
-        child1 = self.repair_chromosome(child1)
-        child2 = self.repair_chromosome(child2)
+        # Part 7
+        point1 = np.random.choice(range(1, self.n_damage_points))
+        point2, point3 = sorted(random.sample(range(1, self.n_hospitals + self.n_temp_medical), k=2))
+        child1[6][:point1, point2:point3], child2[6][:point1, point2:point3] = child2[6][:point1, point2:point3], child1[6][:point1, point2:point3]
+        child1[6][point1:, :point2], child2[6][point1:, :point2] = child2[6][point1:, :point2], child1[6][point1:, :point2]
+        child1[6][point1:, point3:], child2[6][point1:, point3:] = child2[6][point1:, point3:], child1[6][point1:, point3:]
         
         return child1, child2
 
@@ -265,83 +177,68 @@ class NSGA2_Humanitarian:
         Custom mutation for humanitarian logistics chromosome
         """
         mutated = deepcopy(chromosome)
+        # Part 1
+        i = np.random.randint(0, self.n_shelters)
+        if mutated[0][i] == 0:
+            mutated[0][i] = random.randint(1, self.n_distribution)
+        else:
+            mutated[0][i] = random.randint(1, self.n_distribution)
+                        
+        # Part 2
+        i = np.random.randint(0, self.n_shelters)
+        while mutated[1][i] == 0:
+            i = np.random.randint(0, self.n_shelters)
+        mutated[1][i] = max(0, np.clip(mutated[1][i] + np.random.normal(0, 0.1), 0, 1))
         
-        # Part 1: Distribution assignment mutation
-        for i in range(self.n_shelters):
-            if np.random.rand() < mutation_rate:
-                if mutated[0][i] == 0:
-                    # Activate shelter with probability
-                    if np.random.rand() < 0.3:
-                        mutated[0][i] = np.random.randint(1, self.n_distribution + 1)
-                        mutated[1][i] = np.random.uniform(10, 200)
-                        mutated[2][i] = np.random.randint(1, self.n_damage_points + 1)
-                else:
-                    # Change distribution center or deactivate
-                    if np.random.rand() < 0.8:
-                        mutated[0][i] = np.random.randint(1, self.n_distribution + 1)
-                    else:
-                        mutated[0][i] = 0
-                        mutated[1][i] = 0
-                        mutated[2][i] = 0
-        
-        # Part 2: Flow values mutation
-        for i in range(self.n_shelters):
-            if mutated[0][i] > 0 and np.random.rand() < mutation_rate:
-                # Gaussian mutation for flow values
-                mutated[1][i] = max(0, mutated[1][i] + np.random.normal(0, 20))
-        
-        # Part 3: Damage to shelter mutation
-        for i in range(self.n_shelters):
-            if mutated[0][i] > 0 and np.random.rand() < mutation_rate:
-                mutated[2][i] = np.random.randint(1, self.n_damage_points + 1)
-        
-        # Part 4: Damage to hospital mutation
+        # Part 3
+        i = np.random.randint(0, self.n_shelters)
+        if mutated[2][i] == 0:
+            mutated[2][i] = random.choice(self.da_id)
+        elif mutated[2][i] != 0 and i > self.n_damage_points:
+            mutated[2][i] = 0
+        elif mutated[2][i] != 0 and i < self.n_damage_points:
+            mutated[2][i] = random.choice(self.da_id)
+                
+        # Part 4 & 5
         for i in range(self.n_damage_points):
-            if np.random.rand() < mutation_rate:
-                mutated[3][i] = np.random.randint(1, self.n_hospitals + 1)
-        
-        # Part 5: Temp medical centers mutation (bit flip)
-        for i in range(self.n_temp_medical):
-            if np.random.rand() < mutation_rate:
-                mutated[4][i] = 1 - mutated[4][i]
-                # If activated, allocate some injured
-                if mutated[4][i] == 1:
-                    # Will be properly allocated in repair
-                    pass
+            j = random.randint(0, self.n_hospitals - 1)
+            if mutated[3][i][j] == 0:
+                if random.random() < 0.1:
+                    mutated[3][i][j] = random.uniform(0, 0.2)
+                    mutated[4][i][j] = max(0, np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1))
+            else:
+                if random.random() < 0.1:
+                    mutated[3][i][j] = 0
                 else:
-                    # If deactivated, clear allocations
-                    mutated[7][i] = 0
+                    mutated[3][i][j] = max(0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1))
+                    mutated[4][i][j] = max(0, np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1))
         
-        # Part 6: Severe injured mutation (small adjustments)
-        for i in range(self.n_damage_points):
-            if np.random.rand() < mutation_rate:
-                # Small Gaussian perturbation
-                change = int(np.random.normal(0, 5))
-                mutated[5][i] = max(0, min(self.severe_injured[i], mutated[5][i] + change))
-        
-        # Part 7: Moderate to hospital mutation
-        for i in range(self.n_damage_points):
-            if np.random.rand() < mutation_rate:
-                # Reallocate between hospital and temp centers
-                if np.random.rand() < 0.5:
-                    # Increase hospital allocation
-                    increase = np.random.randint(1, 10)
-                    mutated[6][i] = min(self.moderate_injured[i], mutated[6][i] + increase)
+        # Part 6
+        for i in range(self.n_hospitals):
+            j = random.randint(0, self.n_hospitals - 1)
+            if mutated[5][i][j] == 0:
+                if random.random() < 0.1:
+                    mutated[5][i][j] = random.uniform(0, 0.2)
+                    mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
+            else:
+                if random.random() < 0.1:
+                    mutated[5][i][j] = 0
                 else:
-                    # Decrease hospital allocation (send more to temp)
-                    decrease = np.random.randint(1, 10)
-                    mutated[6][i] = max(0, mutated[6][i] - decrease)
+                    mutated[5][i][j] = max(0, np.clip(mutated[5][i][j] + np.random.normal(0, 0.1), 0, 1))
+                    mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
+            k = random.randint(self.n_hospitals, self.n_hospitals + self.n_temp_medical - 1)
+            if mutated[5][i][k] == 0:
+                if random.random() < 0.1:
+                    mutated[5][i][k] = random.uniform(0, 0.2)
+                    mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
+            else:
+                if random.random() < 0.1:
+                    mutated[5][i][k] = 0
+                else:
+                    mutated[5][i][k] = max(0, np.clip(mutated[5][i][k] + np.random.normal(0, 0.1), 0, 1))
+                    mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
         
-        # Part 8: Moderate to temp medical mutation
-        active_temps = [i for i in range(self.n_temp_medical) if mutated[4][i] == 1]
-        if active_temps and np.random.rand() < mutation_rate:
-            # Redistribute among active temp centers
-            for i in range(len(active_temps)):
-                if np.random.rand() < 0.3:
-                    change = int(np.random.normal(0, 10))
-                    mutated[7][active_temps[i]] = max(0, mutated[7][active_temps[i]] + change)
-        
-        return self.repair_chromosome(mutated)
+        return mutated
 
     def run(self, problem):
         """
@@ -380,12 +277,11 @@ class NSGA2_Humanitarian:
         # Main loop
         for it in range(self.max_iter):
             # Crossover
+            print('iteration: ', it)
             popc = []
             for _ in range(n_crossover // 2):
-                parents_idx = np.random.choice(range(self.pop_size), size=2, replace=False)
-                p1 = pop[parents_idx[0]]
-                p2 = pop[parents_idx[1]]
-                
+                p1 = self.crowding_tournament_selection(pop)
+                p2 = self.crowding_tournament_selection(pop)
                 c1_chrom, c2_chrom = self.crossover(p1['chromosome'], p2['chromosome'])
                 
                 c1 = deepcopy(empty_individual)
@@ -421,10 +317,17 @@ class NSGA2_Humanitarian:
             # Truncate
             pop, F = self.truncate_population(pop, F)
             
+            # اضافه کردن محاسبه metrics
+            pareto_pop = [pop[i] for i in F[0]]
+            self.metrics.update_metrics(pareto_pop, it)
+            
             # Display iteration info
             if self.verbose:
                 print(f'Iteration {it + 1}: Number of Pareto Members = {len(F[0])}')
-        
+                if it > 0:
+                    print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
+                    print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
+
         # Get Pareto front
         pareto_pop = [pop[i] for i in F[0]]
         
@@ -432,6 +335,7 @@ class NSGA2_Humanitarian:
             'pop': pop,
             'F': F,
             'pareto_pop': pareto_pop,
+            'metrics': self.metrics
         }
 
     def dominates(self, p, q):
@@ -526,3 +430,18 @@ class NSGA2_Humanitarian:
             F[k] = [i for i in F[k] if i < pop_size]
         
         return pop, F
+    
+    def crowding_tournament_selection(self, pop, tournament_size=2):
+        """انتخاب با ترجیح rank کمتر و تنوع بیشتر"""
+        idx1, idx2 = np.random.choice(range(len(pop)), size=tournament_size, replace=False)
+        
+        p1, p2 = pop[idx1], pop[idx2]
+        
+        # اگر rank متفاوت، rank کمتر برنده
+        if p1['rank'] < p2['rank']:
+            return p1
+        elif p2['rank'] < p1['rank']:
+            return p2
+        else:
+            # اگر rank یکسان، crowding distance بیشتر برنده (حفظ تنوع)
+            return p1 if p1['crowding_distance'] > p2['crowding_distance'] else p2
