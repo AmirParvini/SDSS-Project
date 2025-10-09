@@ -2,6 +2,7 @@ import numpy as np
 from copy import deepcopy
 import random
 from convergence_metrics import ConvergenceMetrics
+from diagnostic_metrics import DiagnosticMetrics
 
 class NSGA2_Humanitarian:
     """NSGA-II for humanitarian logistics optimization with custom chromosome structure"""
@@ -38,6 +39,7 @@ class NSGA2_Humanitarian:
         self.n_temp_medical = len(temporary_medical_id)
         
         self.metrics = ConvergenceMetrics()
+        self.diagnostics = DiagnosticMetrics()
 
     def create_random_chromosome(self):
         """
@@ -279,32 +281,36 @@ class NSGA2_Humanitarian:
             # Crossover
             print('iteration: ', it)
             popc = []
-            for _ in range(n_crossover // 2):
+            for _ in range(len(pop)):
                 p1 = self.crowding_tournament_selection(pop)
                 p2 = self.crowding_tournament_selection(pop)
-                c1_chrom, c2_chrom = self.crossover(p1['chromosome'], p2['chromosome'])
-                
-                c1 = deepcopy(empty_individual)
-                c2 = deepcopy(empty_individual)
-                c1['chromosome'] = c1_chrom
-                c2['chromosome'] = c2_chrom
-                c1['cost'] = cost_function(c1['chromosome'])
-                c2['cost'] = cost_function(c2['chromosome'])
-                
-                popc.extend([c1, c2])
+                if random.uniform(0,1) < self.p_crossover:
+                    c1_chrom, c2_chrom = self.crossover(p1['chromosome'], p2['chromosome'])
+                    c1 = deepcopy(empty_individual)
+                    c2 = deepcopy(empty_individual)
+                    c1['chromosome'] = c1_chrom
+                    c2['chromosome'] = c2_chrom
+                    c1['cost'] = cost_function(c1['chromosome'])
+                    c2['cost'] = cost_function(c2['chromosome'])
+                    popc.append(c1)
+                    popc.append(c2)
+                else:
+                    popc.append(p1)
+                    popc.append(p2)
             
             # Mutation
             popm = []
-            for _ in range(n_mutation):
-                p = pop[np.random.randint(self.pop_size)]
-                m = deepcopy(empty_individual)
-                m['chromosome'] = self.mutate(p['chromosome'])
-                m['cost'] = cost_function(m['chromosome'])
-                popm.append(m)
-            
+            for _ in range(len(popc)):
+                p = popc[np.random.randint(self.pop_size)]
+                if random.uniform(0,1) < 0.2:
+                    m = deepcopy(empty_individual)
+                    m['chromosome'] = self.mutate(p['chromosome'])
+                    m['cost'] = cost_function(m['chromosome'])
+                    popm.append(m)
+                else:
+                    popm.append(p)
             # Merge populations
-            pop = pop + popc + popm
-            
+            pop = pop + popm
             # Non-dominated sorting
             pop, F = self.non_dominated_sorting(pop)
             
@@ -320,13 +326,23 @@ class NSGA2_Humanitarian:
             # اضافه کردن محاسبه metrics
             pareto_pop = [pop[i] for i in F[0]]
             self.metrics.update_metrics(pareto_pop, it)
+            self.diagnostics.update_all_metrics(
+            population=pop,
+            pareto_pop=pareto_pop,
+            offspring_pop=popc,
+            mutation_pop=popm
+            )
             
             # Display iteration info
             if self.verbose:
                 print(f'Iteration {it + 1}: Number of Pareto Members = {len(F[0])}')
                 if it > 0:
-                    print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
+                    # print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
                     print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
+                if it > 0 and len(self.diagnostics.diversity_history) > 0:
+                    print(f'   Diversity: {self.diagnostics.diversity_history[-1]:.4f}')
+                    print(f'   Selection Pressure: {self.diagnostics.selection_pressure[-1]:.4f}')
+    
 
         # Get Pareto front
         pareto_pop = [pop[i] for i in F[0]]
@@ -335,7 +351,8 @@ class NSGA2_Humanitarian:
             'pop': pop,
             'F': F,
             'pareto_pop': pareto_pop,
-            'metrics': self.metrics
+            'metrics': self.metrics,
+            'diagnostics': self.diagnostics
         }
 
     def dominates(self, p, q):

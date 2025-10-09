@@ -208,9 +208,9 @@ class Main():
                     self.death_probability(self.phi_min, self.phi_max, self.ks, t_helicopter, self.tm) * self.minor_injured[self.da_id[idx]] * (1 - j)
                     )
         F1 = (transporting_reliefpackage_cost + transporting_injured_cost + sum_ecs_cost + sum_tmcs_cost +\
-            (ec_capacity_shortage + hospital_capacity_shortage + tmc_capacity_shortage)*100)/1e7
-        F2 = sum(unmet_demand.values())/1000
-        F3 = death_prob/3000
+            (ec_capacity_shortage + hospital_capacity_shortage + tmc_capacity_shortage)*100)
+        F2 = sum(unmet_demand.values())
+        F3 = death_prob
         # print(
         #     'transporting_reliefpackage_cost', transporting_reliefpackage_cost, '\n'
         #     'transporting_injured_cost', transporting_injured_cost, '\n'
@@ -222,7 +222,7 @@ class Main():
         #     'unmet_demand', unmet_demand, '\n'
         #     'death_prob', death_prob
         # )
-        return np.array([F1,F2,F3])
+        return np.array([F1,F2, F3])
 
 
     def allocate_population_under_capacity(self, da_ec: dict):
@@ -284,7 +284,7 @@ class Main():
 
         # Initialize Algorithm with problem dimensions
         alg = NSGA2_Humanitarian(
-            max_iter=200,
+            max_iter=50,
             pop_size=200,
             p_crossover=0.8,
             p_mutation=0.2,
@@ -302,10 +302,13 @@ class Main():
         F = results['F']
         pareto_pop = results['pareto_pop']
         metrics = results['metrics'] 
+        diagnostics = results['diagnostics']
         
         # رسم نمودارهای همگرایی
         metrics.plot_convergence(save_path='convergence_metrics.png')
         metrics.print_summary()
+        diagnostics.diagnose_problems()
+        diagnostics.plot_diagnostic_metrics(save_path='diagnostic_metrics.png')
         
         # Plot Results
         fig = plt.figure(figsize=(20, 5))

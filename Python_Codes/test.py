@@ -1,4 +1,6 @@
 import numpy as np
 import random
+from scipy.spatial.distance import cdist
 
-print(random.choice(range(1, 2)))
+a = [1,2,3]
+a.extend(4,5)

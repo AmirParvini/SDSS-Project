@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, pdist, squareform
+from hyper_volume import calculate_hypervolume_3d
 
 class ConvergenceMetrics:
     """
@@ -17,51 +18,66 @@ class ConvergenceMetrics:
         self.mean_objectives_history = []
         self.std_objectives_history = []
         
+    # def hypervolume(self, pareto_front, reference_point=None):
+    #     """
+    #     محاسبه Hypervolume Indicator
+    #     حجم فضای اهداف که توسط جواب‌های پارتو تحت پوشش قرار می‌گیرد
+        
+    #     Parameters:
+    #     -----------
+    #     pareto_front: np.array of shape (n_solutions, n_objectives)
+    #     reference_point: np.array یا None (اگر None باشد، بدترین مقادیر + 10% استفاده می‌شود)
+    #     """
+    #     if len(pareto_front) == 0:
+    #         return 0.0
+            
+    #     if reference_point is None:
+    #         reference_point = np.max(pareto_front, axis=0) * 1.1
+            
+    #     # برای سادگی از روش WFG استفاده می‌کنیم (برای 2-3 هدف)
+    #     # نرمال‌سازی نسبت به reference point
+    #     normalized_pf = pareto_front / reference_point
+        
+    #     # مرتب‌سازی بر اساس اولین هدف
+    #     sorted_indices = np.argsort(normalized_pf[:, 0])
+    #     sorted_pf = normalized_pf[sorted_indices]
+        
+    #     hv = 0.0
+    #     n_obj = pareto_front.shape[1]
+        
+    #     if n_obj == 2:
+    #         # محاسبه مستقیم برای 2 هدف
+    #         for i in range(len(sorted_pf)):
+    #             if i == 0:
+    #                 width = sorted_pf[i, 0]
+    #             else:
+    #                 width = sorted_pf[i, 0] - sorted_pf[i-1, 0]
+    #             height = 1.0 - sorted_pf[i, 1]
+    #             hv += width * height
+    #     else:
+    #         # تقریب ساده برای 3 هدف
+    #         for point in sorted_pf:
+    #             volume = np.prod(1.0 - point)
+    #             hv += volume
+    #         hv /= len(sorted_pf)
+            
+    #     return hv
     def hypervolume(self, pareto_front, reference_point=None):
         """
-        محاسبه Hypervolume Indicator
-        حجم فضای اهداف که توسط جواب‌های پارتو تحت پوشش قرار می‌گیرد
-        
-        Parameters:
-        -----------
-        pareto_front: np.array of shape (n_solutions, n_objectives)
-        reference_point: np.array یا None (اگر None باشد، بدترین مقادیر + 10% استفاده می‌شود)
+        محاسبه Hypervolume با الگوریتم WFG
         """
         if len(pareto_front) == 0:
             return 0.0
-            
-        if reference_point is None:
-            reference_point = np.max(pareto_front, axis=0) * 1.1
-            
-        # برای سادگی از روش WFG استفاده می‌کنیم (برای 2-3 هدف)
-        # نرمال‌سازی نسبت به reference point
-        normalized_pf = pareto_front / reference_point
         
-        # مرتب‌سازی بر اساس اولین هدف
-        sorted_indices = np.argsort(normalized_pf[:, 0])
-        sorted_pf = normalized_pf[sorted_indices]
+        # استفاده از کلاس حرفه‌ای
+        hv = calculate_hypervolume_3d(
+            pareto_front, 
+            reference_point=reference_point,
+            method='wfg'  # دقیق‌ترین روش
+        )
         
-        hv = 0.0
-        n_obj = pareto_front.shape[1]
-        
-        if n_obj == 2:
-            # محاسبه مستقیم برای 2 هدف
-            for i in range(len(sorted_pf)):
-                if i == 0:
-                    width = sorted_pf[i, 0]
-                else:
-                    width = sorted_pf[i, 0] - sorted_pf[i-1, 0]
-                height = 1.0 - sorted_pf[i, 1]
-                hv += width * height
-        else:
-            # تقریب ساده برای 3 هدف
-            for point in sorted_pf:
-                volume = np.prod(1.0 - point)
-                hv += volume
-            hv /= len(sorted_pf)
-            
         return hv
-    
+        
     def spacing(self, pareto_front):
         """
         محاسبه Spacing Metric
@@ -82,53 +98,80 @@ class ConvergenceMetrics:
         
         # محاسبه spacing
         d_mean = np.mean(min_distances)
-        spacing_metric = np.sqrt(np.sum((min_distances - d_mean)**2) / len(min_distances))
+        spacing_metric = np.sqrt(np.sum((min_distances - d_mean)**2) / (len(min_distances) -1))
         
         return spacing_metric
     
+    # def spread(self, pareto_front):
+    #     """
+    #     محاسبه Spread (Delta) Metric
+    #     سنجش میزان پوشش و تنوع جواب‌ها
+    #     مقدار کمتر = پوشش بهتر
+        
+    #     Parameters:
+    #     -----------
+    #     pareto_front: np.array of shape (n_solutions, n_objectives)
+    #     """
+    #     if len(pareto_front) <= 2:
+    #         return 1.0
+        
+    #     n_obj = pareto_front.shape[1]
+        
+    #     # پیدا کردن نقاط انتهایی (extreme points)
+    #     extreme_points = []
+    #     for i in range(n_obj):
+    #         extreme_points.append(pareto_front[np.argmin(pareto_front[:, i])])
+    #     extreme_points = np.array(extreme_points)
+        
+    #     # محاسبه فاصله‌ها
+    #     distances = cdist(pareto_front, pareto_front, metric='euclidean')
+    #     np.fill_diagonal(distances, np.inf)
+    #     min_distances = np.min(distances, axis=1)
+    #     d_mean = np.mean(min_distances)
+        
+    #     # فاصله تا نقاط انتهایی
+    #     d_f = 0
+    #     for ext_point in extreme_points:
+    #         dist_to_ext = np.linalg.norm(pareto_front - ext_point, axis=1)
+    #         d_f += np.min(dist_to_ext)
+        
+    #     # محاسبه spread
+    #     numerator = d_f + np.sum(np.abs(min_distances - d_mean))
+    #     denominator = d_f + len(pareto_front) * d_mean
+        
+    #     if denominator == 0:
+    #         return 1.0
+            
+    #     spread_metric = numerator / denominator
+        
+    #     return spread_metric
     def spread(self, pareto_front):
         """
-        محاسبه Spread (Delta) Metric
-        سنجش میزان پوشش و تنوع جواب‌ها
-        مقدار کمتر = پوشش بهتر
-        
-        Parameters:
-        -----------
-        pareto_front: np.array of shape (n_solutions, n_objectives)
+        Spread (Δ) metric for multi-objective fronts
+        Smaller = better diversity and coverage
         """
-        if len(pareto_front) <= 2:
+        n = len(pareto_front)
+        if n <= 2:
             return 1.0
-        
-        n_obj = pareto_front.shape[1]
-        
-        # پیدا کردن نقاط انتهایی (extreme points)
-        extreme_points = []
-        for i in range(n_obj):
-            extreme_points.append(pareto_front[np.argmin(pareto_front[:, i])])
-        extreme_points = np.array(extreme_points)
-        
-        # محاسبه فاصله‌ها
-        distances = cdist(pareto_front, pareto_front, metric='euclidean')
-        np.fill_diagonal(distances, np.inf)
-        min_distances = np.min(distances, axis=1)
-        d_mean = np.mean(min_distances)
-        
-        # فاصله تا نقاط انتهایی
-        d_f = 0
-        for ext_point in extreme_points:
-            dist_to_ext = np.linalg.norm(pareto_front - ext_point, axis=1)
-            d_f += np.min(dist_to_ext)
-        
-        # محاسبه spread
-        numerator = d_f + np.sum(np.abs(min_distances - d_mean))
-        denominator = d_f + len(pareto_front) * d_mean
-        
-        if denominator == 0:
-            return 1.0
-            
-        spread_metric = numerator / denominator
-        
-        return spread_metric
+
+        # فاصله بین تمام نقاط
+        D = cdist(pareto_front, pareto_front)
+        np.fill_diagonal(D, np.inf)
+
+        # فاصله‌های مینیمم بین همسایه‌ها
+        d_i = np.min(D, axis=1)
+        d_mean = np.mean(d_i)
+
+        # دو نقطه‌ی انتهایی (دورترین از هم)
+        D_full = squareform(pdist(pareto_front))
+        i, j = np.unravel_index(np.argmax(D_full), D_full.shape)
+        d_f = np.linalg.norm(pareto_front[i] - pareto_front[j])
+
+        # Spread metric
+        numerator = d_f + np.sum(np.abs(d_i - d_mean))
+        denominator = d_f + (n - 1) * d_mean
+
+        return numerator / denominator
     
     def generational_distance(self, pareto_front, true_pareto_front):
         """
@@ -187,11 +230,11 @@ class ConvergenceMetrics:
         pareto_front = np.array([ind['cost'] for ind in pareto_pop])
         
         # محاسبه شاخص‌ها
-        hv = self.hypervolume(pareto_front)
+        # hv = self.hypervolume(pareto_front)
         sp = self.spacing(pareto_front)
         spr = self.spread(pareto_front)
         
-        self.hypervolume_history.append(hv)
+        # self.hypervolume_history.append(hv)
         self.spacing_history.append(sp)
         self.spread_history.append(spr)
         self.n_pareto_history.append(len(pareto_pop))
@@ -217,15 +260,15 @@ class ConvergenceMetrics:
         fig, axes = plt.subplots(3, 2, figsize=(15, 12))
         fig.suptitle('Convergence Metrics Over Iterations', fontsize=16, fontweight='bold')
         
-        iterations = range(1, len(self.hypervolume_history) + 1)
+        iterations = range(1, len(self.spacing_history) + 1)
         
         # 1. Hypervolume
-        ax = axes[0, 0]
-        ax.plot(iterations, self.hypervolume_history, 'b-', linewidth=2, marker='o', markersize=4)
-        ax.set_xlabel('Iteration', fontsize=11)
-        ax.set_ylabel('Hypervolume', fontsize=11)
-        ax.set_title('Hypervolume Indicator\n(بیشتر = بهتر)', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3)
+        # ax = axes[0, 0]
+        # ax.plot(iterations, self.hypervolume_history, 'b-', linewidth=2, marker='o', markersize=4)
+        # ax.set_xlabel('Iteration', fontsize=11)
+        # ax.set_ylabel('Hypervolume', fontsize=11)
+        # ax.set_title('Hypervolume Indicator\n(بیشتر = بهتر)', fontsize=12, fontweight='bold')
+        # ax.grid(True, alpha=0.3)
         
         # 2. Spacing
         ax = axes[0, 1]
