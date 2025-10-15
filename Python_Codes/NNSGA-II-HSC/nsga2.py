@@ -115,7 +115,27 @@ class NSGA2_Humanitarian:
 
         return chromosome
 
+    def repair_probability_rows(self, matrix):
+        rows, cols = matrix.shape
+        repaired_matrix = matrix.copy()
 
+        for i in range(rows):
+            # بررسی مجموع سطر
+            if np.sum(repaired_matrix[i, :]) == 0:
+                
+                num_active = random.randint(1, cols)
+                active_indices = random.sample(range(cols), num_active)
+                weights = [np.random.random() for _ in range(num_active)]
+                total = sum(weights)
+                
+                new_row = np.zeros(cols)
+                for idx, dest in enumerate(active_indices):
+                    new_row[dest] = weights[idx] / total
+                    
+                repaired_matrix[i, :] = new_row
+                
+        return repaired_matrix
+    
     def crossover(self, parent1, parent2):
         """
         Custom crossover for humanitarian logistics chromosome
@@ -140,16 +160,12 @@ class NSGA2_Humanitarian:
                 child1[2][i], child2[2][i] = child2[2][i], child1[2][i]
         
         # Part 4
-        point1 = np.random.choice(range(1, self.n_damage_points))
-        point2 = np.random.choice(range(1, self.n_hospitals))
-        child1[3][:point1, :point2], child2[3][:point1, :point2] = child2[3][:point1, :point2], child1[3][:point1, :point2]
-        child1[3][point1:, point2:], child2[3][point1:, point2:] = child2[3][point1:, point2:], child1[3][point1:, point2:]
-        for i in child1[3]:
-            if sum(i) == 0:
-                child1[3] = deepcopy(parent1[3])
-        for i in child2[3]:
-            if sum(i) == 0:
-                child2[3] = deepcopy(parent2[3])
+        mask_matrix = np.random.rand(self.n_damage_points, self.n_hospitals) < 0.5
+        child1[3][mask_matrix] = parent2[3][mask_matrix]
+        child2[3][mask_matrix] = parent1[3][mask_matrix]
+        child1[3] = self.repair_probability_rows(child1[3])
+        child2[3] = self.repair_probability_rows(child2[3])
+        
         # Part 5
         point1 = np.random.choice(range(1, self.n_damage_points))
         point2 = np.random.choice(range(1, self.n_hospitals))
@@ -157,19 +173,11 @@ class NSGA2_Humanitarian:
         child1[4][point1:, point2:], child2[4][point1:, point2:] = child2[4][point1:, point2:], child1[4][point1:, point2:]
             
         # Part 6
-        point1 = np.random.choice(range(1, self.n_damage_points))
-        point2 = np.random.choice(range(1, self.n_hospitals))
-        point3 = np.random.choice(range(self.n_hospitals+1, self.n_temp_medical))
-        child1[5][:point1, :point2], child2[5][:point1, :point2] = child2[5][:point1, :point2], child1[5][:point1, :point2]
-        child1[5][point1:, point2:self.n_hospitals], child2[5][point1:, point2:self.n_hospitals] = child2[5][point1:, point2:self.n_hospitals], child1[5][point1:, point2:self.n_hospitals]
-        child1[5][:point1, self.n_hospitals:point3], child2[5][:point1, self.n_hospitals:point3] = child2[5][:point1, self.n_hospitals:point3], child1[5][:point1, self.n_hospitals:point3]
-        child1[5][point1:, point3:], child2[5][point1:, point3:] = child2[5][point1:, point3:], child1[5][point1:, point3:]
-        for i in child1[5]:
-            if sum(i) == 0:
-                child1[5] = deepcopy(parent1[5])
-        for i in child2[5]:
-            if sum(i) == 0:
-                child2[5] = deepcopy(parent2[5])
+        mask_matrix = np.random.rand(self.n_damage_points, self.n_hospitals + self.n_temp_medical) < 0.5
+        child1[5][mask_matrix] = parent2[5][mask_matrix]
+        child2[5][mask_matrix] = parent1[5][mask_matrix]
+        child1[5] = self.repair_probability_rows(child1[5])
+        child2[5] = self.repair_probability_rows(child2[5])
                 
         # Part 7
         point1 = np.random.choice(range(1, self.n_damage_points))
