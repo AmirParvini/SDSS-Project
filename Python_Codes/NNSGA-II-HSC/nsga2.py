@@ -145,11 +145,11 @@ class NSGA2_Humanitarian:
         child1[3][:point1, :point2], child2[3][:point1, :point2] = child2[3][:point1, :point2], child1[3][:point1, :point2]
         child1[3][point1:, point2:], child2[3][point1:, point2:] = child2[3][point1:, point2:], child1[3][point1:, point2:]
         for i in child1[3]:
-            if sum(bool(x) for x in i) == 0:
+            if sum(i) == 0:
                 child1[3] = deepcopy(parent1[3])
         for i in child2[3]:
-            if sum(bool(x) for x in i) == 0:
-                child2[3] = deepcopy(parent2[3])         
+            if sum(i) == 0:
+                child2[3] = deepcopy(parent2[3])
         # Part 5
         point1 = np.random.choice(range(1, self.n_damage_points))
         point2 = np.random.choice(range(1, self.n_hospitals))
@@ -164,7 +164,13 @@ class NSGA2_Humanitarian:
         child1[5][point1:, point2:self.n_hospitals], child2[5][point1:, point2:self.n_hospitals] = child2[5][point1:, point2:self.n_hospitals], child1[5][point1:, point2:self.n_hospitals]
         child1[5][:point1, self.n_hospitals:point3], child2[5][:point1, self.n_hospitals:point3] = child2[5][:point1, self.n_hospitals:point3], child1[5][:point1, self.n_hospitals:point3]
         child1[5][point1:, point3:], child2[5][point1:, point3:] = child2[5][point1:, point3:], child1[5][point1:, point3:]
-        
+        for i in child1[5]:
+            if sum(i) == 0:
+                child1[5] = deepcopy(parent1[5])
+        for i in child2[5]:
+            if sum(i) == 0:
+                child2[5] = deepcopy(parent2[5])
+                
         # Part 7
         point1 = np.random.choice(range(1, self.n_damage_points))
         point2, point3 = sorted(random.sample(range(1, self.n_hospitals + self.n_temp_medical), k=2))
@@ -205,40 +211,40 @@ class NSGA2_Humanitarian:
         for i in range(self.n_damage_points):
             j = random.randint(0, self.n_hospitals - 1)
             if mutated[3][i][j] == 0:
-                if random.random() < 0.1:
-                    mutated[3][i][j] = random.uniform(0, 0.2)
-                    mutated[4][i][j] = max(0, np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                mutated[3][i][j] = random.uniform(0.1, 0.5)
+                mutated[4][i][j] = np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1)
             else:
-                if random.random() < 0.1:
-                    mutated[3][i][j] = 0
-                else:
-                    mutated[3][i][j] = max(0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1))
-                    mutated[4][i][j] = max(0, np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                #     mutated[3][i][j] = 0
+                # else:
+                mutated[3][i][j] = max(0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1))
+                mutated[4][i][j] = np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1)
         
         # Part 6
         for i in range(self.n_hospitals):
             j = random.randint(0, self.n_hospitals - 1)
             if mutated[5][i][j] == 0:
-                if random.random() < 0.1:
-                    mutated[5][i][j] = random.uniform(0, 0.2)
-                    mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                mutated[5][i][j] = random.uniform(0, 0.2)
+                mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
             else:
-                if random.random() < 0.1:
-                    mutated[5][i][j] = 0
-                else:
-                    mutated[5][i][j] = max(0, np.clip(mutated[5][i][j] + np.random.normal(0, 0.1), 0, 1))
-                    mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                #     mutated[5][i][j] = 0
+                # else:
+                mutated[5][i][j] = max(0, np.clip(mutated[5][i][j] + np.random.normal(0, 0.1), 0, 1))
+                mutated[6][i][j] = max(0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1))
             k = random.randint(self.n_hospitals, self.n_hospitals + self.n_temp_medical - 1)
             if mutated[5][i][k] == 0:
-                if random.random() < 0.1:
-                    mutated[5][i][k] = random.uniform(0, 0.2)
-                    mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                mutated[5][i][k] = random.uniform(0, 0.2)
+                mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
             else:
-                if random.random() < 0.1:
-                    mutated[5][i][k] = 0
-                else:
-                    mutated[5][i][k] = max(0, np.clip(mutated[5][i][k] + np.random.normal(0, 0.1), 0, 1))
-                    mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
+                # if random.random() < 0.1:
+                #     mutated[5][i][k] = 0
+                # else:
+                mutated[5][i][k] = max(0, np.clip(mutated[5][i][k] + np.random.normal(0, 0.1), 0, 1))
+                mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
         
         return mutated
 
@@ -259,13 +265,21 @@ class NSGA2_Humanitarian:
             'cost': None,
             'rank': None,
             'crowding_distance': None,
+            'constriant_violation': 0
         }
         
         # Initialize population
         pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
         for i in range(self.pop_size):
             pop[i]['chromosome'] = self.create_random_chromosome()
-            pop[i]['cost'] = cost_function(pop[i]['chromosome'])
+            # pop[i]['cost'] = cost_function(pop[i]['chromosome'])
+        chromosom_list = []
+        for p in pop:
+            chromosom_list.append(p['chromosome'])
+        costs, constriants_violation = cost_function(chromosom_list)
+        for idx, i in enumerate(costs):
+            pop[idx]['cost'] = np.array(i)
+            pop[idx]['constriant_violation'] = constriants_violation[idx]
         
         # Non-dominated sorting
         pop, F = self.non_dominated_sorting(pop)
@@ -277,11 +291,12 @@ class NSGA2_Humanitarian:
         pop, F = self.sort_population(pop)
         
         # Main loop
+        pareto_pop_list = []
         for it in range(self.max_iter):
             # Crossover
             print('iteration: ', it)
             popc = []
-            for _ in range(len(pop)):
+            for _ in range(len(pop)//2):
                 p1 = self.crowding_tournament_selection(pop)
                 p2 = self.crowding_tournament_selection(pop)
                 if random.uniform(0,1) < self.p_crossover:
@@ -290,8 +305,8 @@ class NSGA2_Humanitarian:
                     c2 = deepcopy(empty_individual)
                     c1['chromosome'] = c1_chrom
                     c2['chromosome'] = c2_chrom
-                    c1['cost'] = cost_function(c1['chromosome'])
-                    c2['cost'] = cost_function(c2['chromosome'])
+                    # c1['cost'] = cost_function(c1['chromosome'])
+                    # c2['cost'] = cost_function(c2['chromosome'])
                     popc.append(c1)
                     popc.append(c2)
                 else:
@@ -305,12 +320,19 @@ class NSGA2_Humanitarian:
                 if random.uniform(0,1) < 0.2:
                     m = deepcopy(empty_individual)
                     m['chromosome'] = self.mutate(p['chromosome'])
-                    m['cost'] = cost_function(m['chromosome'])
+                    # m['cost'] = cost_function(m['chromosome'])
                     popm.append(m)
                 else:
                     popm.append(p)
             # Merge populations
             pop = pop + popm
+            chromosom_list = []
+            for p in pop:
+                chromosom_list.append(p['chromosome'])
+            costs, constriants_violation = cost_function(chromosom_list)
+            for idx, i in enumerate(costs):
+                pop[idx]['cost'] = np.array(i)
+                pop[idx]['constriant_violation'] = constriants_violation[idx]
             # Non-dominated sorting
             pop, F = self.non_dominated_sorting(pop)
             
@@ -325,39 +347,43 @@ class NSGA2_Humanitarian:
             
             # اضافه کردن محاسبه metrics
             pareto_pop = [pop[i] for i in F[0]]
-            self.metrics.update_metrics(pareto_pop, it)
-            self.diagnostics.update_all_metrics(
-            population=pop,
-            pareto_pop=pareto_pop,
-            offspring_pop=popc,
-            mutation_pop=popm
-            )
+            pareto_pop_list.append(deepcopy(pareto_pop))
+            # self.diagnostics.update_all_metrics(
+            # population=pop,
+            # pareto_pop=pareto_pop,
+            # offspring_pop=popc,
+            # mutation_pop=popm
+            # )
             
             # Display iteration info
             if self.verbose:
                 print(f'Iteration {it + 1}: Number of Pareto Members = {len(F[0])}')
-                if it > 0:
+                # if it > 0:
                     # print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
-                    print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
-                if it > 0 and len(self.diagnostics.diversity_history) > 0:
-                    print(f'   Diversity: {self.diagnostics.diversity_history[-1]:.4f}')
-                    print(f'   Selection Pressure: {self.diagnostics.selection_pressure[-1]:.4f}')
-    
-
-        # Get Pareto front
-        pareto_pop = [pop[i] for i in F[0]]
+                    # print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
+                # if it > 0 and len(self.diagnostics.diversity_history) > 0:
+                #     print(f'   Diversity: {self.diagnostics.diversity_history[-1]:.4f}')
+                #     print(f'   Selection Pressure: {self.diagnostics.selection_pressure[-1]:.4f}')
         
+        self.metrics.update_metrics(pareto_pop_list)
         return {
             'pop': pop,
             'F': F,
             'pareto_pop': pareto_pop,
             'metrics': self.metrics,
-            'diagnostics': self.diagnostics
+            # 'diagnostics': self.diagnostics
         }
 
     def dominates(self, p, q):
         """Check if p dominates q"""
-        return all(p['cost'] <= q['cost']) and any(p['cost'] < q['cost'])
+        if p['constriant_violation'] > 0 and q['constriant_violation'] > 0:
+            return p['constriant_violation'] < q['constriant_violation']
+        elif p['constriant_violation'] > 0 and q['constriant_violation'] == 0:
+            return False
+        elif p['constriant_violation'] == 0 and q['constriant_violation'] > 0:
+            return True
+        elif p['constriant_violation'] == 0 and q['constriant_violation'] == 0:
+            return all(p['cost'] <= q['cost']) and any(p['cost'] < q['cost'])
 
     def non_dominated_sorting(self, pop):
         """Non-dominated sorting (unchanged from original)"""

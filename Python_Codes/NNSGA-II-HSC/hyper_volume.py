@@ -85,12 +85,13 @@ class Hypervolume3D:
         همه مقادیر باید بین 0 و 1 باشند
         """
         # بررسی اینکه همه نقاط dominated به reference point هستند
-        if np.any(pareto_front >= reference_point):
-            warnings.warn("برخی نقاط از reference point بدترند! Reference point تنظیم می‌شود.")
-            reference_point = np.max(pareto_front, axis=0) * 1.1
-            self.reference_point = reference_point
+        # if np.any(pareto_front > reference_point):
+        #     warnings.warn("برخی نقاط از reference point بدترند! Reference point تنظیم می‌شود.")
+        #     reference_point = np.max(pareto_front, axis=0) * 1.1
+        #     self.reference_point = reference_point
         
         normalized = pareto_front / reference_point
+        print(normalized)
         return normalized
     
     def _filter_dominated(self, pareto_front: np.ndarray) -> np.ndarray:

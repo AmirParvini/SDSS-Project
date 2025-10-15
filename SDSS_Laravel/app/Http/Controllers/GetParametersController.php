@@ -21,34 +21,29 @@ class GetParametersController extends Controller
      */
     public function index()
     {
-        if (Cache::has('pathes')) {
-            $pathes = Cache::get('pathes');
-            return response()->json(['pathes' => $pathes]);
-        } else {
-            Cache::forever('pathes', [
-                'idc_ec_path' => IDCtoEcPath::all(),
-                'da_h_path'   => DAtoHospitalPath::all(),
-                'da_ec_dist'   => DAtoEcDist::all(),
-                'da_tmc_path' => DAtoTmcPath::all()
-            ]);
-            return response()->json(['pathes' => [
+        // if (Cache::has('pathes')) {
+        //     $pathes = Cache::get('pathes');
+        //     return response()->json(['pathes' => $pathes]);
+        // } else {
+        //     Cache::forever('pathes', [
+        //         'idc_ec_path' => IDCtoEcPath::all(),
+        //         'da_h_path'   => DAtoHospitalPath::all(),
+        //         'da_ec_dist'   => DAtoEcDist::all(),
+        //         'da_tmc_path' => DAtoTmcPath::all()
+        //     ]);
+        //     return response()->json(['pathes' => [
+        //         'idc_ec_path' => IDCtoEcPath::all(),
+        //         'da_h_path'   => DAtoHospitalPath::all(),
+        //         'da_ec_dist'   => DAtoEcDist::all(),
+        //         'da_tmc_path' => DAtoTmcPath::all()
+        //     ]]);
+        // }
+        return response()->json(['pathes' => [
                 'idc_ec_path' => IDCtoEcPath::all(),
                 'da_h_path'   => DAtoHospitalPath::all(),
                 'da_ec_dist'   => DAtoEcDist::all(),
                 'da_tmc_path' => DAtoTmcPath::all()
             ]]);
-        }
-        // if (Cache::has('nodes')) {
-        //     $nodes = json_encode(['nodes' => Cache::get('nodes')]);
-        // } else {
-        //     $nodes = json_encode(['nodes' => [
-        //         'IDC' => IDC::all(),
-        //         'EC'   => EC::all(),
-        //         'DA'   => DamagedArea::all(),
-        //         'H' => Hospital::all(),
-        //         'TMC' => TMC::all()
-        //     ]]);
-        // }
     }
 
     /**

@@ -2,13 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist, pdist, squareform
 from hyper_volume import calculate_hypervolume_3d
-
+from pymoo.indicators.hv import HV
 class ConvergenceMetrics:
     """
     کلاس محاسبه شاخص‌های همگرایی برای الگوریتم‌های چندهدفه
     """
     
     def __init__(self):
+        self.normalized_hypervolume = []
+        self.normalized_spacing = []
+        self.normalized_spread = []
         self.hypervolume_history = []
         self.spacing_history = []
         self.spread_history = []
@@ -62,7 +65,7 @@ class ConvergenceMetrics:
     #         hv /= len(sorted_pf)
             
     #     return hv
-    def hypervolume(self, pareto_front, reference_point=None):
+    def hypervolume(self, pareto_front, reference_point):
         """
         محاسبه Hypervolume با الگوریتم WFG
         """
@@ -213,45 +216,64 @@ class ConvergenceMetrics:
         
         return igd
     
-    def update_metrics(self, pareto_pop, iteration, true_pareto_front=None):
-        """
-        به‌روزرسانی تمام شاخص‌ها در هر تکرار
-        
-        Parameters:
-        -----------
-        pareto_pop: list of individuals در پارتو فرانت فعلی
-        iteration: شماره تکرار فعلی
-        true_pareto_front: پارتو فرانت واقعی (اختیاری)
-        """
-        if len(pareto_pop) == 0:
-            return
-        
-        # استخراج مقادیر اهداف
-        pareto_front = np.array([ind['cost'] for ind in pareto_pop])
-        
-        # محاسبه شاخص‌ها
-        # hv = self.hypervolume(pareto_front)
-        sp = self.spacing(pareto_front)
-        spr = self.spread(pareto_front)
-        
-        # self.hypervolume_history.append(hv)
-        self.spacing_history.append(sp)
-        self.spread_history.append(spr)
-        self.n_pareto_history.append(len(pareto_pop))
-        
-        # میانگین و انحراف معیار اهداف
-        mean_obj = np.mean(pareto_front, axis=0)
-        std_obj = np.std(pareto_front, axis=0)
-        self.mean_objectives_history.append(mean_obj)
-        self.std_objectives_history.append(std_obj)
-        
-        # اگر true Pareto front در دسترس باشد
-        if true_pareto_front is not None:
-            gd = self.generational_distance(pareto_front, true_pareto_front)
-            igd = self.inverted_generational_distance(pareto_front, true_pareto_front)
-            self.gd_history.append(gd)
-            self.igd_history.append(igd)
-    
+    def update_metrics(self, pareto_pop_list, true_pareto_front=None):
+        max_cost = []
+        for p in pareto_pop_list:
+            pareto_front_list = [ind['cost'] for ind in p]
+            max_cost.append(np.max(pareto_front_list, axis=0))
+        refrence_point = np.max(max_cost, axis=0) * 1.1
+        hypervolume_history, spacing_history, spread_history = [], [], []
+        for pareto_pop in pareto_pop_list:
+            """
+            به‌روزرسانی تمام شاخص‌ها در هر تکرار
+            
+            Parameters:
+            -----------
+            pareto_pop: list of individuals در پارتو فرانت فعلی
+            iteration: شماره تکرار فعلی
+            true_pareto_front: پارتو فرانت واقعی (اختیاری)
+            """
+            if len(pareto_pop) == 0:
+                return
+            
+            # استخراج مقادیر اهداف
+            pareto_front = np.array([ind['cost'] for ind in pareto_pop])
+            
+            # محاسبه شاخص‌ها
+            hv = self.hypervolume(pareto_front, refrence_point)
+            sp = self.spacing(pareto_front)
+            spr = self.spread(pareto_front)
+            
+            hypervolume_history.append(hv)
+            spacing_history.append(sp)
+            spread_history.append(spr)
+            self.n_pareto_history.append(len(pareto_pop))
+            
+            # میانگین و انحراف معیار اهداف
+            mean_obj = np.mean(pareto_front, axis=0)
+            std_obj = np.std(pareto_front, axis=0)
+            self.mean_objectives_history.append(mean_obj)
+            self.std_objectives_history.append(std_obj)
+            
+            # اگر true Pareto front در دسترس باشد
+            if true_pareto_front is not None:
+                gd = self.generational_distance(pareto_front, true_pareto_front)
+                igd = self.inverted_generational_distance(pareto_front, true_pareto_front)
+                self.gd_history.append(gd)
+                self.igd_history.append(igd)
+        self.normalized_hypervolume = self.normalize_list(hypervolume_history)
+        self.normalized_spacing = self.normalize_list(spacing_history)
+        self.normalized_spread = self.normalize_list(spread_history)
+    def normalize_list(self, data_list):
+        """لیست ورودی را با استفاده از روش Min-Max به [0, 1] نرمال می کند."""
+        data_array = np.array(data_list)
+        data_min = data_array.min()
+        data_max = data_array.max()
+        if data_max == data_min:
+            return [0.0] * len(data_list) 
+        normalized_array = (data_array - data_min) / (data_max - data_min)
+        return normalized_array.tolist()
+
     def plot_convergence(self, save_path=None):
         """
         رسم نمودارهای همگرایی
@@ -260,49 +282,49 @@ class ConvergenceMetrics:
         fig, axes = plt.subplots(3, 2, figsize=(15, 12))
         fig.suptitle('Convergence Metrics Over Iterations', fontsize=16, fontweight='bold')
         
-        iterations = range(1, len(self.spacing_history) + 1)
+        iterations = range(1, len(self.normalized_spacing) + 1)
         
         # 1. Hypervolume
-        # ax = axes[0, 0]
-        # ax.plot(iterations, self.hypervolume_history, 'b-', linewidth=2, marker='o', markersize=4)
-        # ax.set_xlabel('Iteration', fontsize=11)
-        # ax.set_ylabel('Hypervolume', fontsize=11)
+        ax = axes[0, 0]
+        ax.plot(iterations, self.normalized_hypervolume, 'b-', linewidth=1, marker='o', markersize=4)
+        ax.set_xlabel('Iteration', fontsize=11)
+        ax.set_ylabel('Hypervolume', fontsize=11)
         # ax.set_title('Hypervolume Indicator\n(بیشتر = بهتر)', fontsize=12, fontweight='bold')
-        # ax.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.3)
         
         # 2. Spacing
         ax = axes[0, 1]
-        ax.plot(iterations, self.spacing_history, 'r-', linewidth=2, marker='s', markersize=4)
+        ax.plot(iterations, self.normalized_spacing, 'r-', linewidth=1, marker='s', markersize=4)
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Spacing', fontsize=11)
-        ax.set_title('Spacing Metric\n(کمتر = یکنواخت‌تر)', fontsize=12, fontweight='bold')
+        # ax.set_title('Spacing Metric\n(کمتر = یکنواخت‌تر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
         # 3. Spread
         ax = axes[1, 0]
-        ax.plot(iterations, self.spread_history, 'g-', linewidth=2, marker='^', markersize=4)
+        ax.plot(iterations, self.normalized_spread, 'g-', linewidth=1, marker='^', markersize=4)
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Spread (Delta)', fontsize=11)
-        ax.set_title('Spread Metric\n(کمتر = پوشش بهتر)', fontsize=12, fontweight='bold')
+        # ax.set_title('Spread Metric\n(کمتر = پوشش بهتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
         # 4. Number of Pareto Solutions
         ax = axes[1, 1]
-        ax.plot(iterations, self.n_pareto_history, 'm-', linewidth=2, marker='d', markersize=4)
+        ax.plot(iterations, self.n_pareto_history, 'm-', linewidth=1, marker='d', markersize=4)
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Number of Solutions', fontsize=11)
-        ax.set_title('Pareto Front Size\n(تعداد جواب‌های پارتو)', fontsize=12, fontweight='bold')
+        # ax.set_title('Pareto Front Size\n(تعداد جواب‌های پارتو)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
         # 5. Mean Objectives
         ax = axes[2, 0]
         mean_objectives = np.array(self.mean_objectives_history)
         for i in range(mean_objectives.shape[1]):
-            ax.plot(iterations, mean_objectives[:, i], linewidth=2, 
+            ax.plot(iterations, mean_objectives[:, i], linewidth=1, 
                    marker='o', markersize=3, label=f'F{i+1}')
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Mean Objective Value', fontsize=11)
-        ax.set_title('Mean of Objectives\n(میانگین توابع هدف)', fontsize=12, fontweight='bold')
+        # ax.set_title('Mean of Objectives\n(میانگین توابع هدف)', fontsize=12, fontweight='bold')
         ax.legend()
         ax.grid(True, alpha=0.3)
         
@@ -310,11 +332,11 @@ class ConvergenceMetrics:
         ax = axes[2, 1]
         std_objectives = np.array(self.std_objectives_history)
         for i in range(std_objectives.shape[1]):
-            ax.plot(iterations, std_objectives[:, i], linewidth=2, 
+            ax.plot(iterations, std_objectives[:, i], linewidth=1, 
                    marker='s', markersize=3, label=f'F{i+1}')
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Std of Objective Value', fontsize=11)
-        ax.set_title('Standard Deviation of Objectives\n(انحراف معیار توابع هدف)', fontsize=12, fontweight='bold')
+        # ax.set_title('Standard Deviation of Objectives\n(انحراف معیار توابع هدف)', fontsize=12, fontweight='bold')
         ax.legend()
         ax.grid(True, alpha=0.3)
         

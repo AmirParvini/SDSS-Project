@@ -2,5 +2,5 @@ import numpy as np
 import random
 from scipy.spatial.distance import cdist
 
-a = [1,2,3]
-a.extend(4,5)
+a = [[1,2,3],[4,1,6]]
+print(np.max(a, axis=0))
