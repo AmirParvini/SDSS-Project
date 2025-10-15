@@ -340,7 +340,7 @@ class Main():
             max_iter=40,
             pop_size=150,
             p_crossover=0.9,
-            p_mutation=0.01,
+            p_mutation=0.1,
             verbose=True,
             shelter_id = self.ec_id,
             distribution_center_id = self.idc_id,

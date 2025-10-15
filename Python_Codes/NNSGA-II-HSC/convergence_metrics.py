@@ -19,6 +19,7 @@ class ConvergenceMetrics:
         self.igd_history = []  # Inverted Generational Distance
         self.n_pareto_history = []
         self.mean_objectives_history = []
+        self.min_objectives_history = []
         self.std_objectives_history = []
         
     # def hypervolume(self, pareto_front, reference_point=None):
@@ -251,8 +252,10 @@ class ConvergenceMetrics:
             
             # میانگین و انحراف معیار اهداف
             mean_obj = np.mean(pareto_front, axis=0)
+            min_obj = np.min(pareto_front, axis=0)
             std_obj = np.std(pareto_front, axis=0)
             self.mean_objectives_history.append(mean_obj)
+            self.min_objectives_history.append(min_obj)
             self.std_objectives_history.append(std_obj)
             
             # اگر true Pareto front در دسترس باشد
@@ -279,7 +282,7 @@ class ConvergenceMetrics:
         رسم نمودارهای همگرایی
         """
         n_metrics = 6  # تعداد شاخص‌های اصلی
-        fig, axes = plt.subplots(3, 2, figsize=(15, 12))
+        fig, axes = plt.subplots(4, 2, figsize=(15, 12))
         fig.suptitle('Convergence Metrics Over Iterations', fontsize=16, fontweight='bold')
         
         iterations = range(1, len(self.normalized_spacing) + 1)
@@ -316,8 +319,20 @@ class ConvergenceMetrics:
         # ax.set_title('Pareto Front Size\n(تعداد جواب‌های پارتو)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
-        # 5. Mean Objectives
+        # 5. Min Objectives
         ax = axes[2, 0]
+        min_objectives = np.array(self.min_objectives_history)
+        for i in range(min_objectives.shape[1]):
+            ax.plot(iterations, min_objectives[:, i], linewidth=1, 
+                   marker='o', markersize=3, label=f'F{i+1}')
+        ax.set_xlabel('Iteration', fontsize=11)
+        ax.set_ylabel('Min Objective Value', fontsize=11)
+        # ax.set_title('Mean of Objectives\n(میانگین توابع هدف)', fontsize=12, fontweight='bold')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # 6. Mean Objectives
+        ax = axes[2, 1]
         mean_objectives = np.array(self.mean_objectives_history)
         for i in range(mean_objectives.shape[1]):
             ax.plot(iterations, mean_objectives[:, i], linewidth=1, 
@@ -328,8 +343,8 @@ class ConvergenceMetrics:
         ax.legend()
         ax.grid(True, alpha=0.3)
         
-        # 6. Std Objectives
-        ax = axes[2, 1]
+        # 7. Std Objectives
+        ax = axes[3, 0]
         std_objectives = np.array(self.std_objectives_history)
         for i in range(std_objectives.shape[1]):
             ax.plot(iterations, std_objectives[:, i], linewidth=1, 

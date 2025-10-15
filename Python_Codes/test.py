@@ -3,4 +3,4 @@ import random
 from scipy.spatial.distance import cdist
 
 a = [[1,2,3],[4,1,6]]
-print(np.max(a, axis=0))
+print(np.min(a, axis=0))

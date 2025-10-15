@@ -89,9 +89,7 @@ class Hypervolume3D:
         #     warnings.warn("برخی نقاط از reference point بدترند! Reference point تنظیم می‌شود.")
         #     reference_point = np.max(pareto_front, axis=0) * 1.1
         #     self.reference_point = reference_point
-        
         normalized = pareto_front / reference_point
-        print(normalized)
         return normalized
     
     def _filter_dominated(self, pareto_front: np.ndarray) -> np.ndarray:
