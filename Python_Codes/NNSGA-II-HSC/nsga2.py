@@ -378,6 +378,7 @@ class NSGA2_Humanitarian:
             'pop': pop,
             'F': F,
             'pareto_pop': pareto_pop,
+            'pareto_history': pareto_pop_list,
             'metrics': self.metrics,
             # 'diagnostics': self.diagnostics
         }

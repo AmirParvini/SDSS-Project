@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
+from matplotlib.widgets import Button
+import datetime
 from mpl_toolkits.mplot3d import Axes3D
 from nsga2 import NSGA2_Humanitarian
 from graph_download import GraphDownload
@@ -423,36 +426,93 @@ class Main():
         plt.tight_layout()
         plt.show()
 
-        # 3D Plot
-        fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection='3d')
+        # 3D Animated Pareto Front across generations
+        pareto_history = results.get('pareto_history', [])
+        costs_history = [np.array([ind['cost'] for ind in gen]) for gen in pareto_history]
+        # Compute stable axis limits across all generations
+        if len(costs_history) > 0:
+            all_costs = np.vstack([c for c in costs_history if c.size > 0]) if any(c.size > 0 for c in costs_history) else None
+        else:
+            all_costs = None
+        fig_anim = plt.figure(figsize=(12, 9))
+        ax_anim = fig_anim.add_subplot(111, projection='3d')
+        scat = ax_anim.scatter([], [], [], c='blue', s=50, alpha=0.6, edgecolors='black', label='Pareto Solutions')
+        ax_anim.set_xlabel('F1: Total da_ec_distance', fontsize=12)
+        ax_anim.set_ylabel('F2: Unmet Demand', fontsize=12)
+        ax_anim.set_zlabel('F3: Death Probability', fontsize=12)
+        ax_anim.set_title('3D Pareto Front (Animated by Generation)', fontsize=14)
+        ax_anim.grid(True, alpha=0.3)
+        if all_costs is not None and all_costs.size > 0:
+            x_min, x_max = np.min(all_costs[:, 0]), np.max(all_costs[:, 0])
+            y_min, y_max = np.min(all_costs[:, 1]), np.max(all_costs[:, 1])
+            z_min, z_max = np.min(all_costs[:, 2]), np.max(all_costs[:, 2])
+            ax_anim.set_xlim(x_min, x_max)
+            ax_anim.set_ylim(y_min, y_max)
+            ax_anim.set_zlim(z_min, z_max)
+        ax_anim.legend()
 
-        ax.scatter(pf_costs[:, 0], pf_costs[:, 1], pf_costs[:, 2], 
-                c='blue', s=50, alpha=0.6, edgecolors='black', label='Pareto Solutions')
+        # Animation control state
+        is_paused = {'value': False}
 
-        if len(pf_costs) > 0:
-            # Mark best solutions for each objective
-            best_cost_idx = np.argmin(pf_costs[:, 0])
-            ax.scatter(pf_costs[best_cost_idx, 0], pf_costs[best_cost_idx, 1], pf_costs[best_cost_idx, 2],
-                    c='red', s=150, marker='*', label='Min F1 (da_ec_distance)')
-            
-            best_demand_idx = np.argmin(pf_costs[:, 1])
-            ax.scatter(pf_costs[best_demand_idx, 0], pf_costs[best_demand_idx, 1], pf_costs[best_demand_idx, 2],
-                    c='green', s=150, marker='*', label='Min F2 (Unmet Demand)')
-            
-            best_death_idx = np.argmin(pf_costs[:, 2])
-            ax.scatter(pf_costs[best_death_idx, 0], pf_costs[best_death_idx, 1], pf_costs[best_death_idx, 2],
-                    c='orange', s=150, marker='*', label='Min F3 (Death Prob)')
+        def init():
+            scat._offsets3d = ([], [], [])
+            return (scat,)
 
-        ax.set_xlabel('F1: Total da_ec_distance', fontsize=12)
-        ax.set_ylabel('F2: Unmet Demand', fontsize=12)
-        ax.set_zlabel('F3: Death Probability', fontsize=12)
-        ax.set_title('3D Pareto Front - Humanitarian Logistics Optimization', fontsize=14)
-        ax.legend()
-        ax.grid(True, alpha=0.3)
+        def update(frame_idx):
+            if frame_idx < len(costs_history) and costs_history[frame_idx].size > 0:
+                frame_costs = costs_history[frame_idx]
+                xs, ys, zs = frame_costs[:, 0], frame_costs[:, 1], frame_costs[:, 2]
+                scat._offsets3d = (xs, ys, zs)
+                ax_anim.set_title(f'3D Pareto Front (Generation {frame_idx + 1}/{len(costs_history)})')
+            else:
+                scat._offsets3d = ([], [], [])
+            return (scat,)
 
-        plt.tight_layout()
-        plt.show()
+        if len(costs_history) > 0:
+            anim = FuncAnimation(fig_anim, update, init_func=init, frames=len(costs_history), interval=400, blit=False, repeat=True)
+
+            # Play/Pause button
+            btn_ax = fig_anim.add_axes([0.8, 0.02, 0.1, 0.05])
+            btn_playpause = Button(btn_ax, 'Play/Pause')
+
+            def on_playpause_clicked(event):
+                if is_paused['value']:
+                    anim.event_source.start()
+                    is_paused['value'] = False
+                else:
+                    anim.event_source.stop()
+                    is_paused['value'] = True
+
+            btn_playpause.on_clicked(on_playpause_clicked)
+
+            # Save button (tries GIF then MP4)
+            btn_save_ax = fig_anim.add_axes([0.67, 0.02, 0.1, 0.05])
+            btn_save = Button(btn_save_ax, 'Save')
+
+            def on_save_clicked(event):
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                # Try GIF with Pillow
+                try:
+                    gif_path = f'pareto_animation_{timestamp}.gif'
+                    writer = PillowWriter(fps=max(1, int(1000/anim.event_source.interval)))
+                    anim.save(gif_path, writer=writer)
+                    print(f'Saved GIF: {gif_path}')
+                    return
+                except Exception as e:
+                    print(f'GIF save failed: {e}')
+                # Try MP4 with ffmpeg
+                try:
+                    mp4_path = f'pareto_animation_{timestamp}.mp4'
+                    writer = FFMpegWriter(fps=max(1, int(1000/anim.event_source.interval)))
+                    anim.save(mp4_path, writer=writer)
+                    print(f'Saved MP4: {mp4_path}')
+                except Exception as e:
+                    print(f'MP4 save failed: {e}')
+
+            btn_save.on_clicked(on_save_clicked)
+
+            plt.tight_layout()
+            plt.show()
 
         # Display some statistics
         print("\n" + "="*50)
