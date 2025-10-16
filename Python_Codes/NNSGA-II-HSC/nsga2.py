@@ -228,8 +228,8 @@ class NSGA2_Humanitarian:
                 # else:
                 mutated[3][i][j] = max(0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1))
                 mutated[4][i][j] = np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1)
-        
-        # Part 6
+        mutated[3] = self.repair_probability_rows(mutated[3])
+        # Part 6 & 7
         for i in range(self.n_hospitals):
             j = random.randint(0, self.n_hospitals - 1)
             if mutated[5][i][j] == 0:
@@ -253,7 +253,7 @@ class NSGA2_Humanitarian:
                 # else:
                 mutated[5][i][k] = max(0, np.clip(mutated[5][i][k] + np.random.normal(0, 0.1), 0, 1))
                 mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
-        
+        mutated[5] = self.repair_probability_rows(mutated[5])
         return mutated
 
     def run(self, problem):
