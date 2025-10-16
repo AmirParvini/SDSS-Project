@@ -117,7 +117,14 @@ class Hypervolume3D:
     
     def _dominates(self, point1: np.ndarray, point2: np.ndarray) -> bool:
         """بررسی اینکه point1 بر point2 dominate می‌کند"""
-        return np.all(point1 <= point2) and np.any(point1 < point2)
+        if point1['constriant_violation'] > 0 and point2['constriant_violation'] > 0:
+            return point1['constriant_violation'] < point2['constriant_violation']
+        elif point1['constriant_violation'] > 0 and point2['constriant_violation'] == 0:
+            return False
+        elif point1['constriant_violation'] == 0 and point2['constriant_violation'] > 0:
+            return True
+        elif point1['constriant_violation'] == 0 and point2['constriant_violation'] == 0:
+            return all(point1['cost'] <= point2['cost']) and any(point1['cost'] < point2['cost'])
     
     # ================== WFG Algorithm ==================
     
