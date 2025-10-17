@@ -1,0 +1,40 @@
+{
+  "metrics": {
+    "F1_F2": {
+      "mean_tradeoff": 0.09089284656959633,
+      "std_tradeoff": 0.08134358814653046,
+      "max_tradeoff": 0.20238229185035858,
+      "min_tradeoff": 0.010597223903564516,
+      "median_tradeoff": 0.05969902395486588
+    },
+    "F1_F3": {
+      "mean_tradeoff": 0.07318412957404963,
+      "std_tradeoff": 0.0638779547169637,
+      "max_tradeoff": 0.16320101639997092,
+      "min_tradeoff": 0.02159467462328917,
+      "median_tradeoff": 0.0347566976988888
+    },
+    "F2_F3": {
+      "mean_tradeoff": 38.6174706102909,
+      "std_tradeoff": 51.85530387794458,
+      "max_tradeoff": 134.94781863097757,
+      "min_tradeoff": 0.18921722158536508,
+      "median_tradeoff": 3.2797927094092936
+    }
+  },
+  "n_knee_points": 1,
+  "best_tradeoff_solutions": [
+    {
+      "objectives": [
+        1,
+        2
+      ],
+      "tradeoff_rate": 134.94781863097757,
+      "point": [
+        6303.085691841035,
+        5.6088628658639745,
+        1775.1064143914073
+      ]
+    }
+  ]
+}
