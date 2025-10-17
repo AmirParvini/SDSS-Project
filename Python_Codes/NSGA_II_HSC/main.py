@@ -346,6 +346,7 @@ class Main():
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
+            elitism_rate=0.1,  # 10% elitism rate
             verbose=True,
             shelter_id = self.ec_id,
             distribution_center_id = self.idc_id,
@@ -368,19 +369,16 @@ class Main():
         # diagnostics.diagnose_problems()
         # diagnostics.plot_diagnostic_metrics(save_path='diagnostic_metrics.png')
         
-        # Plot Results
-        fig = plt.figure(figsize=(20, 5))
+        # Extract Pareto Front costs
+        pf_costs = np.array([ind['cost'] for ind in pareto_pop])
         
         # ================== تحلیل Trade-off ==================
         print("\n" + "="*60)
         print("Starting Trade-off Analysis...")
         print("="*60)
         
-        # دریافت Pareto Front
-        pf_costs = np.array([ind['cost'] for ind in pareto_pop])
-        
         if len(pf_costs) > 0:
-            # ایجاد شیء تحلیل trade-off            
+            # ایجاد شیء تحلیل trade-off
             tradeoff_analyzer = TradeoffAnalysis(pf_costs)
             
             # نمایش نمودارهای trade-off
@@ -429,7 +427,7 @@ class Main():
             
             # ایجاد نمودار اضافی: Trade-off Heatmap برای همه جفت توابع
             if pf_costs.shape[1] == 3:
-                fig, ax = plt.subplots(figsize=(8, 6))
+                fig_heatmap, ax = plt.subplots(figsize=(8, 6))
                 
                 # محاسبه میانگین trade-off برای هر جفت
                 metrics = tradeoff_analyzer.calculate_global_tradeoff_metrics()
@@ -444,7 +442,7 @@ class Main():
                 tradeoff_matrix = tradeoff_matrix + tradeoff_matrix.T
                 
                 # رسم heatmap
-                sns.heatmap(tradeoff_matrix, annot=True, fmt='.3f', 
+                sns.heatmap(tradeoff_matrix, annot=True, fmt='.3f',
                         xticklabels=['F1', 'F2', 'F3'],
                         yticklabels=['F1', 'F2', 'F3'],
                         cmap='YlOrRd', ax=ax)
@@ -454,7 +452,7 @@ class Main():
                 plt.savefig('tradeoff_heatmap.png', dpi=300, bbox_inches='tight')
                 plt.show()
             
-            # ذخیره نتایج trade-off در فایل            
+            # ذخیره نتایج trade-off در فایل
             tradeoff_results = {
                 'metrics': tradeoff_analyzer.calculate_global_tradeoff_metrics(),
                 'n_knee_points': len(knee_points) if knee_points else 0,
@@ -483,8 +481,8 @@ class Main():
         else:
             print("No Pareto optimal solutions found for trade-off analysis!")
             
-        # Extract Pareto Front costs
-        pf_costs = np.array([ind['cost'] for ind in pareto_pop])
+        # Plot Results
+        fig = plt.figure(figsize=(20, 5))
         # Plot 1: F1 vs F2
         ax1 = fig.add_subplot(131)
         sc1 = ax1.scatter(pf_costs[:, 0], pf_costs[:, 1], c='blue', s=50, alpha=0.6, edgecolors='black')

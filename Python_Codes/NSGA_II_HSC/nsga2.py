@@ -5,28 +5,43 @@ from convergence_metrics import ConvergenceMetrics
 from diagnostic_metrics import DiagnosticMetrics
 
 class NSGA2_Humanitarian:
-    """NSGA-II for humanitarian logistics optimization with custom chromosome structure"""
+    """
+    NSGA-II for humanitarian logistics optimization with custom chromosome structure
+    
+    Features:
+    - Multi-objective optimization for humanitarian logistics
+    - Custom chromosome structure for shelter, distribution, and medical facility allocation
+    - Elitism: preserves best solutions across generations
+    - Crowding distance for diversity maintenance
+    - Constraint handling for feasible solutions
+    """
 
     def __init__(self, shelter_id, distribution_center_id, damage_points_id, hospital_id,
-                temporary_medical_id, max_iter=100, pop_size=100, p_crossover=0.7, p_mutation=0.3, 
-                verbose=True):
+                temporary_medical_id, max_iter=100, pop_size=100, p_crossover=0.7, p_mutation=0.3,
+                elitism_rate=0.1, verbose=True):
         """
         Constructor for humanitarian logistics NSGA-II
         
         Parameters:
         -----------
-        n_shelters: Number of candidate shelter locations
-        n_distribution: Number of distribution centers
-        n_damage_points: Number of damage points
-        n_hospitals: Number of hospitals
-        n_temp_medical: Number of temporary medical centers
-        severe_injured: Array of severe injured count at each damage point
-        moderate_injured: Array of moderate injured count at each damage point
+        shelter_id: List of shelter IDs
+        distribution_center_id: List of distribution center IDs
+        damage_points_id: List of damage point IDs
+        hospital_id: List of hospital IDs
+        temporary_medical_id: List of temporary medical center IDs
+        max_iter: Maximum number of iterations (default: 100)
+        pop_size: Population size (default: 100)
+        p_crossover: Crossover probability (default: 0.7)
+        p_mutation: Mutation probability (default: 0.3)
+        elitism_rate: Percentage of elite individuals to preserve (default: 0.1)
+        verbose: Print iteration information (default: True)
         """
         self.max_iter = max_iter
         self.pop_size = pop_size
         self.p_crossover = p_crossover
         self.p_mutation = p_mutation
+        self.elitism_rate = elitism_rate
+        self.n_elite = max(1, int(elitism_rate * pop_size))  # حداقل یک فرد نخبه
         self.verbose = verbose
         
         # Problem dimensions
@@ -301,10 +316,18 @@ class NSGA2_Humanitarian:
         # Main loop
         pareto_pop_list = []
         for it in range(self.max_iter):
-            # Crossover
             print('iteration: ', it)
+            
+            # انتخاب افراد نخبه از نسل فعلی
+            elite_individuals = self.select_elite(pop, F)
+            
+            # محاسبه تعداد افراد جدید مورد نیاز (کل جمعیت منهای نخبگان)
+            n_new_individuals = self.pop_size - len(elite_individuals)
+            
+            # Crossover
             popc = []
-            for _ in range(len(pop)//2):
+            n_crossover_pairs = n_new_individuals // 2
+            for _ in range(n_crossover_pairs):
                 p1 = self.crowding_tournament_selection(pop)
                 p2 = self.crowding_tournament_selection(pop)
                 if random.uniform(0,1) < self.p_crossover:
@@ -313,34 +336,45 @@ class NSGA2_Humanitarian:
                     c2 = deepcopy(empty_individual)
                     c1['chromosome'] = c1_chrom
                     c2['chromosome'] = c2_chrom
-                    # c1['cost'] = cost_function(c1['chromosome'])
-                    # c2['cost'] = cost_function(c2['chromosome'])
                     popc.append(c1)
                     popc.append(c2)
                 else:
-                    popc.append(p1)
-                    popc.append(p2)
+                    popc.append(deepcopy(p1))
+                    popc.append(deepcopy(p2))
+            
+            # اگر تعداد فرد باقی‌مانده فرد باشد، یک فرد اضافی تولید کن
+            if len(popc) < n_new_individuals:
+                p = self.crowding_tournament_selection(pop)
+                popc.append(deepcopy(p))
             
             # Mutation
             popm = []
-            for _ in range(len(popc)):
-                p = popc[np.random.randint(self.pop_size)]
-                if random.uniform(0,1) < 0.2:
+            for i in range(len(popc)):
+                if random.uniform(0,1) < self.p_mutation:
                     m = deepcopy(empty_individual)
-                    m['chromosome'] = self.mutate(p['chromosome'])
-                    # m['cost'] = cost_function(m['chromosome'])
+                    m['chromosome'] = self.mutate(popc[i]['chromosome'])
                     popm.append(m)
                 else:
-                    popm.append(p)
-            # Merge populations
-            pop = pop + popm
-            chromosom_list = []
-            for p in pop:
-                chromosom_list.append(p['chromosome'])
-            costs, constriants_violation = cost_function(chromosom_list)
-            for idx, i in enumerate(costs):
-                pop[idx]['cost'] = np.array(i)
-                pop[idx]['constriant_violation'] = constriants_violation[idx]
+                    popm.append(popc[i])
+            
+            # ترکیب نخبگان با افراد جدید
+            pop = elite_individuals + popm
+            
+            # محاسبه cost برای افراد جدید (نخبگان قبلاً محاسبه شده‌اند)
+            new_chromosomes = []
+            for i in range(len(elite_individuals), len(pop)):
+                if pop[i]['cost'] is None:
+                    new_chromosomes.append(pop[i]['chromosome'])
+            
+            if new_chromosomes:
+                costs, constraints_violation = cost_function(new_chromosomes)
+                new_idx = 0
+                for i in range(len(elite_individuals), len(pop)):
+                    if pop[i]['cost'] is None:
+                        pop[i]['cost'] = np.array(costs[new_idx])
+                        pop[i]['constriant_violation'] = constraints_violation[new_idx]
+                        new_idx += 1
+            
             # Non-dominated sorting
             pop, F = self.non_dominated_sorting(pop)
             
@@ -350,7 +384,7 @@ class NSGA2_Humanitarian:
             # Sort population
             pop, F = self.sort_population(pop)
             
-            # Truncate
+            # Truncate (اگر لازم باشد)
             pop, F = self.truncate_population(pop, F)
             
             # اضافه کردن محاسبه metrics
@@ -366,6 +400,8 @@ class NSGA2_Humanitarian:
             # Display iteration info
             if self.verbose:
                 print(f'Iteration {it + 1}: Number of Pareto Members = {len(F[0])}')
+                print(f'   Elite individuals preserved: {len(elite_individuals)}')
+                print(f'   New individuals generated: {len(popm)}')
                 # if it > 0:
                     # print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
                     # print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
@@ -482,6 +518,40 @@ class NSGA2_Humanitarian:
             F[k] = [i for i in F[k] if i < pop_size]
         
         return pop, F
+    
+    def select_elite(self, pop, F):
+        """
+        انتخاب افراد نخبه از جمعیت فعلی
+        بهترین افراد از رتبه اول (Pareto front) انتخاب می‌شوند
+        """
+        elite = []
+        
+        # ابتدا تمام افراد رتبه اول را اضافه کن
+        if len(F) > 0 and len(F[0]) > 0:
+            pareto_front = [pop[i] for i in F[0]]
+            
+            # اگر تعداد افراد رتبه اول کمتر از تعداد نخبگان مورد نیاز است
+            if len(pareto_front) <= self.n_elite:
+                elite.extend(pareto_front)
+                remaining = self.n_elite - len(pareto_front)
+                
+                # از رتبه‌های بعدی نیز انتخاب کن
+                for rank in range(1, len(F)):
+                    if remaining <= 0:
+                        break
+                    rank_individuals = [pop[i] for i in F[rank]]
+                    # مرتب‌سازی بر اساس crowding distance
+                    rank_individuals.sort(key=lambda x: x['crowding_distance'], reverse=True)
+                    
+                    take = min(remaining, len(rank_individuals))
+                    elite.extend(rank_individuals[:take])
+                    remaining -= take
+            else:
+                # اگر تعداد افراد رتبه اول بیشتر از نیاز است، بهترین‌ها را انتخاب کن
+                pareto_front.sort(key=lambda x: x['crowding_distance'], reverse=True)
+                elite = pareto_front[:self.n_elite]
+        
+        return elite
     
     def crowding_tournament_selection(self, pop, tournament_size=2):
         """انتخاب با ترجیح rank کمتر و تنوع بیشتر"""
