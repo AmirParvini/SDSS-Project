@@ -715,5 +715,5 @@ class Main():
             # for i, (active, allocated) in enumerate(zip(chromosome[4], chromosome[7])):
             #     if active:
             #         print(f"  Temp Medical {i+1}: {allocated} patients")
-# m = Main()
-# m.main()
+m = Main()
+m.main()

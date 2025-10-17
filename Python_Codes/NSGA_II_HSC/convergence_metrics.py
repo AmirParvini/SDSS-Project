@@ -12,9 +12,11 @@ class ConvergenceMetrics:
         self.normalized_hypervolume = []
         self.normalized_spacing = []
         self.normalized_spread = []
+        self.normalized_diversity = []
         self.hypervolume_history = []
         self.spacing_history = []
         self.spread_history = []
+        self.diversity_history = []  # Diversity metric
         self.gd_history = []  # Generational Distance
         self.igd_history = []  # Inverted Generational Distance
         self.n_pareto_history = []
@@ -177,6 +179,45 @@ class ConvergenceMetrics:
 
         return numerator / denominator
     
+    def diversity(self, pareto_front):
+        """
+        محاسبه Diversity Metric
+        سنجش تنوع و پراکندگی جواب‌ها در فضای اهداف
+        مقدار بیشتر = تنوع بیشتر
+        
+        Parameters:
+        -----------
+        pareto_front: np.array of shape (n_solutions, n_objectives)
+        """
+        if len(pareto_front) <= 1:
+            return 0.0
+        
+        n_solutions, n_objectives = pareto_front.shape
+        
+        # نرمال‌سازی اهداف به [0, 1]
+        min_vals = np.min(pareto_front, axis=0)
+        max_vals = np.max(pareto_front, axis=0)
+        
+        # جلوگیری از تقسیم بر صفر
+        ranges = max_vals - min_vals
+        ranges[ranges == 0] = 1.0
+        
+        normalized_front = (pareto_front - min_vals) / ranges
+        
+        # محاسبه فاصله اقلیدسی بین تمام جفت نقاط
+        distances = pdist(normalized_front, metric='euclidean')
+        
+        # میانگین فاصله‌ها به عنوان شاخص تنوع
+        diversity_metric = np.mean(distances)
+        
+        # تنوع بر اساس انحراف معیار در هر بعد
+        std_diversity = np.mean(np.std(normalized_front, axis=0))
+        
+        # ترکیب دو معیار
+        combined_diversity = (diversity_metric + std_diversity) / 2.0
+        
+        return combined_diversity
+    
     def generational_distance(self, pareto_front, true_pareto_front):
         """
         محاسبه Generational Distance (GD)
@@ -223,7 +264,7 @@ class ConvergenceMetrics:
             pareto_front_list = [ind['cost'] for ind in p]
             max_cost.append(np.max(pareto_front_list, axis=0))
         refrence_point = np.max(max_cost, axis=0) * 1.1
-        hypervolume_history, spacing_history, spread_history = [], [], []
+        hypervolume_history, spacing_history, spread_history, diversity_history = [], [], [], []
         for pareto_pop in pareto_pop_list:
             """
             به‌روزرسانی تمام شاخص‌ها در هر تکرار
@@ -244,10 +285,12 @@ class ConvergenceMetrics:
             hv = self.hypervolume(pareto_front, refrence_point)
             sp = self.spacing(pareto_front)
             spr = self.spread(pareto_front)
+            div = self.diversity(pareto_front)
             
             hypervolume_history.append(hv)
             spacing_history.append(sp)
             spread_history.append(spr)
+            diversity_history.append(div)
             self.n_pareto_history.append(len(pareto_pop))
             
             # میانگین و انحراف معیار اهداف
@@ -267,6 +310,7 @@ class ConvergenceMetrics:
         self.normalized_hypervolume = self.normalize_list(hypervolume_history)
         self.normalized_spacing = self.normalize_list(spacing_history)
         self.normalized_spread = self.normalize_list(spread_history)
+        self.normalized_diversity = self.normalize_list(diversity_history)
     def normalize_list(self, data_list):
         """لیست ورودی را با استفاده از روش Min-Max به [0, 1] نرمال می کند."""
         data_array = np.array(data_list)
@@ -347,12 +391,20 @@ class ConvergenceMetrics:
         ax = axes[3, 0]
         std_objectives = np.array(self.std_objectives_history)
         for i in range(std_objectives.shape[1]):
-            ax.plot(iterations, std_objectives[:, i], linewidth=1, 
+            ax.plot(iterations, std_objectives[:, i], linewidth=1,
                    marker='s', markersize=3, label=f'F{i+1}')
         ax.set_xlabel('Iteration', fontsize=11)
         ax.set_ylabel('Std of Objective Value', fontsize=11)
         # ax.set_title('Standard Deviation of Objectives\n(انحراف معیار توابع هدف)', fontsize=12, fontweight='bold')
         ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # 8. Diversity
+        ax = axes[3, 1]
+        ax.plot(iterations, self.normalized_diversity, 'c-', linewidth=1, marker='*', markersize=4)
+        ax.set_xlabel('Iteration', fontsize=11)
+        ax.set_ylabel('Diversity', fontsize=11)
+        # ax.set_title('Diversity Metric\n(بیشتر = تنوع بیشتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -409,6 +461,12 @@ class ConvergenceMetrics:
             print(f"   Initial: {self.spread_history[0]:.6f}")
             print(f"   Final:   {self.spread_history[-1]:.6f}")
             print(f"   Improvement: {((self.spread_history[0] - self.spread_history[-1]) / self.spread_history[0] * 100):.2f}%")
+        
+        if len(self.diversity_history) > 0:
+            print(f"\n Diversity:")
+            print(f"   Initial: {self.diversity_history[0]:.6f}")
+            print(f"   Final:   {self.diversity_history[-1]:.6f}")
+            print(f"   Improvement: {((self.diversity_history[-1] - self.diversity_history[0]) / self.diversity_history[0] * 100):.2f}%")
         
         if len(self.n_pareto_history) > 0:
             print(f"\n🎯 Pareto Front Size:")
