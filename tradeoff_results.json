@@ -1,52 +1,27 @@
 {
   "metrics": {
     "F1_F2": {
-      "mean_tradeoff": 0.5361058085623959,
-      "std_tradeoff": 0.4917470298927791,
-      "max_tradeoff": 1.4524293741723924,
-      "min_tradeoff": 0.005093363955798959,
-      "median_tradeoff": 0.4422449622878802
+      "mean_tradeoff": 0.09688271441352159,
+      "std_tradeoff": 0.03704244335393269,
+      "max_tradeoff": 0.13609638667700377,
+      "min_tradeoff": 0.04719382640440478,
+      "median_tradeoff": 0.1073579301591562
     },
     "F1_F3": {
-      "mean_tradeoff": 1.3541090150143282,
-      "std_tradeoff": 0.9786488708108425,
-      "max_tradeoff": 3.1115025575126127,
-      "min_tradeoff": 0.23235569046309995,
-      "median_tradeoff": 1.3066616489245075
+      "mean_tradeoff": 1.4905750159551425,
+      "std_tradeoff": 0.4543628536108995,
+      "max_tradeoff": 1.8937095444889822,
+      "min_tradeoff": 0.8556714872929972,
+      "median_tradeoff": 1.7223440160834478
     },
     "F2_F3": {
-      "mean_tradeoff": 41.7108465367607,
-      "std_tradeoff": 40.89062189374703,
-      "max_tradeoff": 93.71966442300119,
-      "min_tradeoff": 0.5674075684566892,
-      "median_tradeoff": 36.27815707779245
+      "mean_tradeoff": 33.94480190776253,
+      "std_tradeoff": 19.798128379244766,
+      "max_tradeoff": 48.05564475983644,
+      "min_tradeoff": 5.946316797425676,
+      "median_tradeoff": 47.83244416602548
     }
   },
-  "n_knee_points": 2,
-  "best_tradeoff_solutions": [
-    {
-      "objectives": [
-        0,
-        1
-      ],
-      "tradeoff_rate": 1.4524293741723924,
-      "point": [
-        3863.8095786944696,
-        349.2088412506883,
-        1987.768582613069
-      ]
-    },
-    {
-      "objectives": [
-        0,
-        2
-      ],
-      "tradeoff_rate": 3.1115025575126127,
-      "point": [
-        2544.1667233229086,
-        11.514742195048111,
-        6093.840702104928
-      ]
-    }
-  ]
+  "n_knee_points": 0,
+  "best_tradeoff_solutions": []
 }

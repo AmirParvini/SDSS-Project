@@ -25,7 +25,7 @@ class Hypervolume3D:
         """
         self.reference_point = reference_point
         
-    def compute(self, pareto_front: np.ndarray, method: str = 'wfg') -> float:
+    def compute(self, pareto_fronts_list: np.ndarray, method: str = 'wfg') -> float:
         """
         محاسبه Hypervolume
         
@@ -38,41 +38,22 @@ class Hypervolume3D:
         --------
         hypervolume: مقدار hypervolume
         """
-        if len(pareto_front) == 0:
-            return 0.0
-            
-        if pareto_front.shape[1] != 3:
-            raise ValueError("این کلاس فقط برای مسائل 3-هدفه است")
-        
-        # تعیین reference point
-        if self.reference_point is None:
-            self.reference_point = self._auto_reference_point(pareto_front)
         
         # نرمال‌سازی
         # normalized_pf = self._normalize(pareto_front, self.reference_point)
                 
         # انتخاب روش محاسبه
         if method == 'wfg':
-            hv = self._wfg_algorithm(pareto_front)
+            hv = self._wfg_algorithm(pareto_fronts_list)
         elif method == 'inclusion_exclusion':
-            hv = self._inclusion_exclusion(pareto_front)
+            hv = self._inclusion_exclusion(pareto_fronts_list)
         elif method == 'monte_carlo':
-            hv = self._monte_carlo(pareto_front=pareto_front, ref_point=self.reference_point, n_samples=100000)
+            hv = self._monte_carlo(pareto_fronts_list=pareto_fronts_list, ref_point=self.reference_point, n_samples=100000)
         else:
             raise ValueError(f"روش نامعتبر: {method}")
         
         return hv
     
-    def _auto_reference_point(self, pareto_front: np.ndarray, margin: float = 0.1) -> np.ndarray:
-        """
-        محاسبه خودکار reference point
-        
-        Reference point باید بدترین از همه جواب‌ها باشد
-        margin: حاشیه اضافی (معمولاً 10%)
-        """
-        worst_point = np.max(pareto_front, axis=0)
-        reference = worst_point * (1.0 + margin)
-        return reference
     
     def _normalize(self, pareto_front: np.ndarray, reference_point: np.ndarray) -> np.ndarray:
         """
@@ -302,8 +283,8 @@ class Hypervolume3D:
     
     # ================== Monte Carlo Approximation ==================
     
-    def _monte_carlo(self, pareto_front: np.ndarray,ref_point: np.ndarray,
-                   ideal_point: np.ndarray = None, n_samples: int = 100000) -> float:
+    def _monte_carlo(self, pareto_fronts_list: np.ndarray,ref_point: np.ndarray,
+                   ideal_point: np.ndarray = None, n_samples: int = 100000) -> list:
         """
         تقریب Monte Carlo برای Hypervolume
         
@@ -320,38 +301,41 @@ class Hypervolume3D:
         --------
         تقریب hypervolume
         """
-        if pareto_front.size == 0:
-            return 0.0
+        # sample in the same cube
+        rnd = np.random.uniform(0.0, 1.0, size=(n_samples, np.array(pareto_fronts_list[0]).shape[1]))
         
         # 1) ideal point
         if ideal_point is None:
-            ideal_point = np.min(pareto_front, axis=0)
+            all_costs = [cost for pareto_front in pareto_fronts_list for cost in pareto_front]
+            ideal_point = np.min(all_costs, axis=0)
 
         # 2) guard: ref must dominate (be worse than) all points
         # if any ref <= ideal in a dim, expand it a bit
         span = ref_point - ideal_point
         span[span <= 0] = 1.0  # avoid zero/neg span
+        hv = []
+        
+        for pareto_front in pareto_fronts_list:
+            if len(pareto_front) == 0:
+                hv.append(0.0)
+                continue
+            # 3) normalize PF into [0,1]^3
+            pf_norm = (pareto_front - ideal_point) / span
+            pf_norm = np.clip(pf_norm, 0.0, 1.0)
 
-        # 3) normalize PF into [0,1]^3
-        pf_norm = (pareto_front - ideal_point) / span
-        pf_norm = np.clip(pf_norm, 0.0, 1.0)
-
-        # 4) sample in the same cube
-        rnd = np.random.uniform(0.0, 1.0, size=(n_samples, pf_norm.shape[1]))
-
-        # 5) dominance test (vectorized):
-        # a rnd point x is dominated if exists s in PF with s <= x (componentwise)
-        # shape tricks: compare all rnd to all pf
-        # pf_norm[None, :, :] -> (1, N, M); rnd[:, None, :] -> (S, 1, M)
-        dominated_by_any = np.all(pf_norm[None, :, :] <= rnd[:, None, :], axis=2).any(axis=1)
-
-        hv = dominated_by_any.mean()  # in [0,1]
-        return float(hv)
+            # 4) dominance test (vectorized):
+            # a rnd point x is dominated if exists s in PF with s <= x (componentwise)
+            # shape tricks: compare all rnd to all pf
+            # pf_norm[None, :, :] -> (1, N, M); rnd[:, None, :] -> (S, 1, M)
+            dominated_by_any = np.all(pf_norm[None, :, :] <= rnd[:, None, :], axis=2).any(axis=1)
+            hv.append(dominated_by_any.mean())  # in [0,1]
+            
+        return hv
 
 
 # ================== تابع کمکی برای استفاده آسان ==================
 
-def calculate_hypervolume_3d(pareto_front: np.ndarray, 
+def calculate_hypervolume_3d(pareto_fronts_list: np.ndarray, 
                              reference_point: Optional[np.ndarray] = None,
                              method: str = 'wfg') -> float:
     """
@@ -374,4 +358,4 @@ def calculate_hypervolume_3d(pareto_front: np.ndarray,
     >>> print(f"Hypervolume: {hv}")
     """
     hv_calculator = Hypervolume3D(reference_point)
-    return hv_calculator.compute(pareto_front, method=method)
+    return hv_calculator.compute(pareto_fronts_list, method=method)

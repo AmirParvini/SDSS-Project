@@ -69,16 +69,11 @@ class ConvergenceMetrics:
     #         hv /= len(sorted_pf)
             
     #     return hv
-    def hypervolume(self, pareto_front, reference_point):
-        """
-        محاسبه Hypervolume با الگوریتم WFG
-        """
-        if len(pareto_front) == 0:
-            return 0.0
-        
+    def hypervolume(self, pareto_fronts_list, reference_point):
+
         # استفاده از کلاس حرفه‌ای
         hv = calculate_hypervolume_3d(
-            pareto_front, 
+            pareto_fronts_list, 
             reference_point=reference_point,
             method='monte_carlo'  # دقیق‌ترین روش
         )
@@ -261,12 +256,15 @@ class ConvergenceMetrics:
     
     def update_metrics(self, pareto_pop_list, true_pareto_front=None):
         max_cost = []
+        pareto_fronts_list = []
         for p in pareto_pop_list:
             pareto_front_list = [ind['cost'] for ind in p]
+            pareto_fronts_list.append(pareto_front_list)
             max_cost.append(np.max(pareto_front_list, axis=0))
         refrence_point = np.max(max_cost, axis=0) * 1.1
-        hypervolume_history, spacing_history, spread_history, diversity_history = [], [], [], []
-        for pareto_pop in pareto_pop_list:
+        hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
+        spacing_history, spread_history, diversity_history = [], [], []
+        for pareto_pop in pareto_fronts_list:
             """
             به‌روزرسانی تمام شاخص‌ها در هر تکرار
             
@@ -281,14 +279,12 @@ class ConvergenceMetrics:
             
             # استخراج مقادیر اهداف
             pareto_front = np.array([ind['cost'] for ind in pareto_pop])
-            
+            normal_pareto_front = np.array([ind['normal_cost'] for ind in pareto_pop])
             # محاسبه شاخص‌ها
-            hv = self.hypervolume(pareto_front, refrence_point)
-            sp = self.spacing(pareto_front)
-            spr = self.spread(pareto_front)
+            sp = self.spacing(normal_pareto_front)
+            spr = self.spread(normal_pareto_front)
             div = self.diversity(pareto_front)
             
-            hypervolume_history.append(hv)
             spacing_history.append(sp)
             spread_history.append(spr)
             diversity_history.append(div)
@@ -309,8 +305,8 @@ class ConvergenceMetrics:
                 self.gd_history.append(gd)
                 self.igd_history.append(igd)
         self.normalized_hypervolume = deepcopy(hypervolume_history)
-        self.normalized_spacing = self.normalize_list(spacing_history)
-        self.normalized_spread = self.normalize_list(spread_history)
+        self.normalized_spacing = deepcopy(spacing_history)
+        self.normalized_spread = deepcopy(spread_history)
         self.normalized_diversity = self.normalize_list(diversity_history)
     def normalize_list(self, data_list):
         """لیست ورودی را با استفاده از روش Min-Max به [0, 1] نرمال می کند."""
