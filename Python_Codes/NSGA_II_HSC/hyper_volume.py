@@ -49,21 +49,19 @@ class Hypervolume3D:
             self.reference_point = self._auto_reference_point(pareto_front)
         
         # نرمال‌سازی
-        normalized_pf = self._normalize(pareto_front, self.reference_point)
+        # normalized_pf = self._normalize(pareto_front, self.reference_point)
                 
         # انتخاب روش محاسبه
         if method == 'wfg':
-            hv = self._wfg_algorithm(normalized_pf)
+            hv = self._wfg_algorithm(pareto_front)
         elif method == 'inclusion_exclusion':
-            hv = self._inclusion_exclusion(normalized_pf)
+            hv = self._inclusion_exclusion(pareto_front)
         elif method == 'monte_carlo':
-            hv = self._monte_carlo(normalized_pf, n_samples=100000)
+            hv = self._monte_carlo(pareto_front=pareto_front, ref_point=self.reference_point, n_samples=100000)
         else:
             raise ValueError(f"روش نامعتبر: {method}")
         
-        # de-normalize
-        volume_factor = np.prod(self.reference_point)
-        return hv * volume_factor
+        return hv
     
     def _auto_reference_point(self, pareto_front: np.ndarray, margin: float = 0.1) -> np.ndarray:
         """
@@ -304,7 +302,8 @@ class Hypervolume3D:
     
     # ================== Monte Carlo Approximation ==================
     
-    def _monte_carlo(self, pareto_front: np.ndarray, n_samples: int = 100000) -> float:
+    def _monte_carlo(self, pareto_front: np.ndarray,ref_point: np.ndarray,
+                   ideal_point: np.ndarray = None, n_samples: int = 100000) -> float:
         """
         تقریب Monte Carlo برای Hypervolume
         
@@ -321,26 +320,33 @@ class Hypervolume3D:
         --------
         تقریب hypervolume
         """
-        if len(pareto_front) == 0:
+        if pareto_front.size == 0:
             return 0.0
         
-        # تولید نقاط تصادفی در فضای [0, 1]^3
-        random_points = np.random.uniform(0, 1, size=(n_samples, 3))
-        
-        # شمارش نقاطی که توسط حداقل یک جواب dominate می‌شوند
-        dominated_count = 0
-        
-        for point in random_points:
-            # آیا این نقطه توسط حداقل یکی از جواب‌های pareto dominated می‌شود؟
-            is_dominated = np.any(np.all(pareto_front <= point, axis=1))
-            
-            if is_dominated:
-                dominated_count += 1
-        
-        # تخمین hypervolume
-        hypervolume = dominated_count / n_samples
-        
-        return hypervolume
+        # 1) ideal point
+        if ideal_point is None:
+            ideal_point = np.min(pareto_front, axis=0)
+
+        # 2) guard: ref must dominate (be worse than) all points
+        # if any ref <= ideal in a dim, expand it a bit
+        span = ref_point - ideal_point
+        span[span <= 0] = 1.0  # avoid zero/neg span
+
+        # 3) normalize PF into [0,1]^3
+        pf_norm = (pareto_front - ideal_point) / span
+        pf_norm = np.clip(pf_norm, 0.0, 1.0)
+
+        # 4) sample in the same cube
+        rnd = np.random.uniform(0.0, 1.0, size=(n_samples, pf_norm.shape[1]))
+
+        # 5) dominance test (vectorized):
+        # a rnd point x is dominated if exists s in PF with s <= x (componentwise)
+        # shape tricks: compare all rnd to all pf
+        # pf_norm[None, :, :] -> (1, N, M); rnd[:, None, :] -> (S, 1, M)
+        dominated_by_any = np.all(pf_norm[None, :, :] <= rnd[:, None, :], axis=2).any(axis=1)
+
+        hv = dominated_by_any.mean()  # in [0,1]
+        return float(hv)
 
 
 # ================== تابع کمکی برای استفاده آسان ==================

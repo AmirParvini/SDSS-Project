@@ -271,7 +271,8 @@ class Main():
         F2_normalized = [(f2 - min(F2)) / (max(F2) - min(F2)) for f2 in F2]
         F3_normalized = [(f3 - min(F3)) / (max(F3) - min(F3)) for f3 in F3]
         result_list_of_lists = [list(t) for t in zip(F1, F2, F3)]
-        return result_list_of_lists, constriant_violation
+        normalize_result_list_of_lists = [list(t) for t in zip(F1_normalized, F2_normalized, F3_normalized)]
+        return result_list_of_lists, constriant_violation, normalize_result_list_of_lists
 
 
     def allocate_population_under_capacity(self, da_ec: dict):

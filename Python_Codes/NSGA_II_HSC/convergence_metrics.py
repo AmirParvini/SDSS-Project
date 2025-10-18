@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist, pdist, squareform
 from hyper_volume import calculate_hypervolume_3d
 from pymoo.indicators.hv import HV
+from copy import deepcopy
 class ConvergenceMetrics:
     """
     کلاس محاسبه شاخص‌های همگرایی برای الگوریتم‌های چندهدفه
@@ -79,7 +80,7 @@ class ConvergenceMetrics:
         hv = calculate_hypervolume_3d(
             pareto_front, 
             reference_point=reference_point,
-            method='wfg'  # دقیق‌ترین روش
+            method='monte_carlo'  # دقیق‌ترین روش
         )
         
         return hv
@@ -307,7 +308,7 @@ class ConvergenceMetrics:
                 igd = self.inverted_generational_distance(pareto_front, true_pareto_front)
                 self.gd_history.append(gd)
                 self.igd_history.append(igd)
-        self.normalized_hypervolume = self.normalize_list(hypervolume_history)
+        self.normalized_hypervolume = deepcopy(hypervolume_history)
         self.normalized_spacing = self.normalize_list(spacing_history)
         self.normalized_spread = self.normalize_list(spread_history)
         self.normalized_diversity = self.normalize_list(diversity_history)

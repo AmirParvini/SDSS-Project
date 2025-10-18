@@ -286,6 +286,7 @@ class NSGA2_Humanitarian:
         empty_individual = {
             'chromosome': None,
             'cost': None,
+            'normal_cost': None,
             'rank': None,
             'crowding_distance': None,
             'constriant_violation': 0
@@ -299,9 +300,10 @@ class NSGA2_Humanitarian:
         chromosom_list = []
         for p in pop:
             chromosom_list.append(p['chromosome'])
-        costs, constriants_violation = cost_function(chromosom_list)
+        costs, constriants_violation, normal_cost = cost_function(chromosom_list)
         for idx, i in enumerate(costs):
             pop[idx]['cost'] = np.array(i)
+            pop[idx]['normal_cost'] = np.array(normal_cost[idx])
             pop[idx]['constriant_violation'] = constriants_violation[idx]
         
         # Non-dominated sorting
@@ -367,11 +369,12 @@ class NSGA2_Humanitarian:
                     new_chromosomes.append(pop[i]['chromosome'])
             
             if new_chromosomes:
-                costs, constraints_violation = cost_function(new_chromosomes)
+                costs, constraints_violation, normal_costs = cost_function(new_chromosomes)
                 new_idx = 0
                 for i in range(len(elite_individuals), len(pop)):
                     if pop[i]['cost'] is None:
                         pop[i]['cost'] = np.array(costs[new_idx])
+                        pop[i]['normal_cost'] = np.array(normal_costs[new_idx])
                         pop[i]['constriant_violation'] = constraints_violation[new_idx]
                         new_idx += 1
             
@@ -474,7 +477,7 @@ class NSGA2_Humanitarian:
         n_obj = len(pop[0]['cost'])
         
         for k in range(parto_count):
-            costs = np.array([pop[i]['cost'] for i in F[k]])
+            costs = np.array([pop[i]['normal_cost'] for i in F[k]])
             n = len(F[k])
             d = np.zeros((n, n_obj))
             
