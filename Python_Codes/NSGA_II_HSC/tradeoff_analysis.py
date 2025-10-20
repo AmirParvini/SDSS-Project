@@ -184,7 +184,7 @@ class TradeoffAnalysis:
         
         ax5.boxplot(all_rates, labels=labels, patch_artist=True)
         ax5.set_ylabel('Trade-off Rate (Absolute Value)')
-        ax5.set_title('2. Distribution of Pairwise Trade-off Rates')
+        ax5.set_title('2. Distribution of local_tradeoff_rate_knn')
         ax5.grid(axis='y', alpha=0.3)
         
         # --- ۳. نمودار مختصات موازی (Parallel Coordinates)

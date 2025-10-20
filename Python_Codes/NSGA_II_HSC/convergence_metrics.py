@@ -307,7 +307,7 @@ class ConvergenceMetrics:
         self.normalized_hypervolume = deepcopy(hypervolume_history)
         self.normalized_spacing = deepcopy(spacing_history)
         self.normalized_spread = deepcopy(spread_history)
-        self.normalized_diversity = self.normalize_list(diversity_history)
+        self.normalized_diversity = deepcopy(diversity_history)
     def normalize_list(self, data_list):
         """لیست ورودی را با استفاده از روش Min-Max به [0, 1] نرمال می کند."""
         data_array = np.array(data_list)

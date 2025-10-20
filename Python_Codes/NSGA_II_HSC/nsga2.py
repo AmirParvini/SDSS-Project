@@ -130,26 +130,97 @@ class NSGA2_Humanitarian:
 
         return chromosome
 
-    def repair_probability_rows(self, matrix):
-        rows, cols = matrix.shape
-        repaired_matrix = matrix.copy()
-
-        for i in range(rows):
-            # بررسی مجموع سطر
-            if np.sum(repaired_matrix[i, :]) == 0:
-                
-                num_active = random.randint(1, cols)
-                active_indices = random.sample(range(cols), num_active)
-                weights = [np.random.random() for _ in range(num_active)]
-                total = sum(weights)
-                
-                new_row = np.zeros(cols)
-                for idx, dest in enumerate(active_indices):
-                    new_row[dest] = weights[idx] / total
+    def chromosome_repair(self, chromosome):
+        """
+        Repair chromosome parts 1, 4, and 6
+        
+        Parameters:
+        -----------
+        chromosome: list
+            Complete chromosome to repair
+        
+        Returns:
+        --------
+        list: repaired chromosome
+        """
+        repaired_chromosome = deepcopy(chromosome)
+        
+        # تعمیر بخش 1: اگر همه ژن‌ها صفر باشند، حداقل یکی را غیر صفر کن
+        if all(gene == 0 for gene in repaired_chromosome[0]):
+            # انتخاب تصادفی یک یا چند پناهگاه برای فعال‌سازی
+            n_active = random.randint(1, self.n_shelters)
+            active_shelters = np.random.choice(self.n_shelters, n_active, replace=False)
+            
+            for idx in active_shelters:
+                repaired_chromosome[0][idx] = random.randint(1, self.n_distribution)
+        
+        # تعمیر بخش 4: ماتریس احتمال برای مجروحان شدید
+        if len(repaired_chromosome) > 3:
+            matrix = repaired_chromosome[3]
+            rows, cols = matrix.shape
+            
+            for i in range(rows):
+                # بررسی مجموع سطر
+                if np.sum(matrix[i, :]) == 0:
+                    num_active = random.randint(1, cols)
+                    active_indices = random.sample(range(cols), num_active)
+                    weights = [np.random.random() for _ in range(num_active)]
+                    total = sum(weights)
                     
-                repaired_matrix[i, :] = new_row
-                
-        return repaired_matrix
+                    for idx, dest in enumerate(active_indices):
+                        matrix[i][dest] = weights[idx] / total
+        
+        # تعمیر بخش 6: ماتریس احتمال برای مجروحان خفیف
+        if len(repaired_chromosome) > 5:
+            matrix = repaired_chromosome[5]
+            rows, cols = matrix.shape
+            
+            for i in range(rows):
+                # بررسی مجموع سطر
+                if np.sum(matrix[i, :]) == 0:
+                    num_active = random.randint(1, cols)
+                    active_indices = random.sample(range(cols), num_active)
+                    weights = [np.random.random() for _ in range(num_active)]
+                    total = sum(weights)
+                    
+                    for idx, dest in enumerate(active_indices):
+                        matrix[i][dest] = weights[idx] / total
+        
+        return repaired_chromosome
+    def order_crossover(self, parent1, parent2):
+        """
+        Order crossover for permutations to ensure no duplicates
+        """
+        size = len(parent1)
+        child1 = [None] * size
+        child2 = [None] * size
+        
+        # Select two random crossover points
+        start, end = sorted(random.sample(range(size), 2))
+        
+        # Copy the segment from parent1 to child1 and from parent2 to child2
+        child1[start:end+1] = parent1[start:end+1]
+        child2[start:end+1] = parent2[start:end+1]
+        
+        # Fill the remaining positions in child1 with elements from parent2 not in the copied segment
+        p2_idx = 0
+        for i in range(size):
+            if child1[i] is None:
+                while parent2[p2_idx] in child1[start:end+1]:
+                    p2_idx += 1
+                child1[i] = parent2[p2_idx]
+                p2_idx += 1
+        
+        # Fill the remaining positions in child2 with elements from parent1 not in the copied segment
+        p1_idx = 0
+        for i in range(size):
+            if child2[i] is None:
+                while parent1[p1_idx] in child2[start:end+1]:
+                    p1_idx += 1
+                child2[i] = parent1[p1_idx]
+                p1_idx += 1
+        
+        return child1, child2
     
     def crossover(self, parent1, parent2):
         """
@@ -169,17 +240,22 @@ class NSGA2_Humanitarian:
             child2[0] = deepcopy(parent2[0])
             child2[1] = deepcopy(parent2[1])
             
-        # Part 3
-        for i in range(self.n_shelters):
+        # Part 3: Use order crossover for damage points assignment (0 to n_damage_points)
+        if self.n_damage_points > 0:
+            part3_p1 = parent1[2][:self.n_damage_points]
+            part3_p2 = parent2[2][:self.n_damage_points]
+            child1_part3, child2_part3 = self.order_crossover(part3_p1, part3_p2)
+            child1[2][:self.n_damage_points] = child1_part3
+            child2[2][:self.n_damage_points] = child2_part3
+        # For the rest (n_damage_points to n_shelters), swap as before
+        for i in range(self.n_damage_points, self.n_shelters):
             if np.random.rand() < 0.5:
                 child1[2][i], child2[2][i] = child2[2][i], child1[2][i]
-        
+                
         # Part 4
         mask_matrix = np.random.rand(self.n_damage_points, self.n_hospitals) < 0.5
         child1[3][mask_matrix] = parent2[3][mask_matrix]
         child2[3][mask_matrix] = parent1[3][mask_matrix]
-        child1[3] = self.repair_probability_rows(child1[3])
-        child2[3] = self.repair_probability_rows(child2[3])
         
         # Part 5
         point1 = np.random.choice(range(1, self.n_damage_points))
@@ -191,8 +267,6 @@ class NSGA2_Humanitarian:
         mask_matrix = np.random.rand(self.n_damage_points, self.n_hospitals + self.n_temp_medical) < 0.5
         child1[5][mask_matrix] = parent2[5][mask_matrix]
         child2[5][mask_matrix] = parent1[5][mask_matrix]
-        child1[5] = self.repair_probability_rows(child1[5])
-        child2[5] = self.repair_probability_rows(child2[5])
                 
         # Part 7
         point1 = np.random.choice(range(1, self.n_damage_points))
@@ -200,6 +274,10 @@ class NSGA2_Humanitarian:
         child1[6][:point1, point2:point3], child2[6][:point1, point2:point3] = child2[6][:point1, point2:point3], child1[6][:point1, point2:point3]
         child1[6][point1:, :point2], child2[6][point1:, :point2] = child2[6][point1:, :point2], child1[6][point1:, :point2]
         child1[6][point1:, point3:], child2[6][point1:, point3:] = child2[6][point1:, point3:], child1[6][point1:, point3:]
+        
+        # تعمیر کروموزوم‌ها (بخش‌های 1، 4، و 6)
+        child1 = self.chromosome_repair(child1)
+        child2 = self.chromosome_repair(child2)
         
         return child1, child2
 
@@ -228,7 +306,10 @@ class NSGA2_Humanitarian:
         elif mutated[2][i] != 0 and i > self.n_damage_points:
             mutated[2][i] = 0
         elif mutated[2][i] != 0 and i < self.n_damage_points:
-            mutated[2][i] = random.choice(self.da_id)
+            j = [k for k in range(self.n_damage_points) if k != i]
+            j = random.choice(j)
+            mutated[2][i], mutated[2][j] = mutated[2][j], mutated[2][i]
+            
                 
         # Part 4 & 5
         for i in range(self.n_damage_points):
@@ -243,7 +324,7 @@ class NSGA2_Humanitarian:
                 # else:
                 mutated[3][i][j] = max(0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1))
                 mutated[4][i][j] = np.clip(mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1)
-        mutated[3] = self.repair_probability_rows(mutated[3])
+
         # Part 6 & 7
         for i in range(self.n_hospitals):
             j = random.randint(0, self.n_hospitals - 1)
@@ -268,7 +349,7 @@ class NSGA2_Humanitarian:
                 # else:
                 mutated[5][i][k] = max(0, np.clip(mutated[5][i][k] + np.random.normal(0, 0.1), 0, 1))
                 mutated[6][i][k] = max(0, np.clip(mutated[6][i][k] + np.random.normal(0, 0.1), 0, 1))
-        mutated[5] = self.repair_probability_rows(mutated[5])
+        mutated = self.chromosome_repair(mutated)
         return mutated
 
     def run(self, problem):
