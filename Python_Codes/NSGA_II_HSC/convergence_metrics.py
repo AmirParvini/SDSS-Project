@@ -264,7 +264,7 @@ class ConvergenceMetrics:
         refrence_point = np.max(max_cost, axis=0) * 1.1
         hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
         spacing_history, spread_history, diversity_history = [], [], []
-        for pareto_pop in pareto_fronts_list:
+        for pareto_pop in pareto_pop_list:
             """
             به‌روزرسانی تمام شاخص‌ها در هر تکرار
             

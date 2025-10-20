@@ -28,65 +28,46 @@ class TradeoffAnalysis:
         """نرمال‌سازی توابع هدف به بازه [0, 1]"""
         scaler = MinMaxScaler()
         return scaler.fit_transform(self.pareto_front)
-    
-    # def calculate_pairwise_tradeoff(self, obj1_idx=0, obj2_idx=1):
-    #     """
-    #     محاسبه نرخ trade-off بین دو تابع هدف
-        
-    #     Returns:
-    #     --------
-    #     tradeoff_rates: آرایه‌ای از نرخ‌های trade-off بین نقاط متوالی
-    #     """
-    #     # مرتب‌سازی بر اساس تابع هدف اول
-    #     sorted_indices = np.argsort(self.pareto_front[:, obj1_idx])
-    #     sorted_front = self.pareto_front[sorted_indices]
-        
-    #     tradeoff_rates = []
-    #     for i in range(len(sorted_front) - 1):
-    #         delta_f1 = sorted_front[i+1, obj1_idx] - sorted_front[i, obj1_idx]
-    #         delta_f2 = sorted_front[i+1, obj2_idx] - sorted_front[i, obj2_idx]
-            
-    #         if delta_f1 != 0:
-    #             rate = abs(delta_f2 / delta_f1)
-    #             tradeoff_rates.append(rate)
-    #         else:
-    #             tradeoff_rates.append(np.inf)
-                
-    #     return np.array(tradeoff_rates), sorted_front
-    def calculate_pairwise_tradeoff(self, i, j):
-        """
-        محاسبه نرخ مبادله (Trade-off Rate) جفتی بین اهداف i و j.
-        Trade-off Rate = ΔFj / ΔFi
-        """
-        # 1. مرتب‌سازی بر اساس هدف i
-        # np.lexsort بر اساس آخرین ستون (i) مرتب می‌کند
-        sorted_indices = np.lexsort((self.pareto_front[:, j], self.pareto_front[:, i]))
-        sorted_front = self.pareto_front[sorted_indices]
-        
-        # 2. محاسبه دلتاها
-        delta_Fi = np.diff(sorted_front[:, i])
-        delta_Fj = np.diff(sorted_front[:, j])
-        
-        # 3. محاسبه نرخ مبادله
-        # جلوگیری از تقسیم بر صفر (زمانی که دلتا Fi صفر باشد)
-        # در این حالت نرخ مبادله بی‌نهایت است.
-        with np.errstate(divide='ignore', invalid='ignore'):
-            # اطمینان از اینکه فقط برای راه‌حل‌هایی که F_i در جهت مطلوب تغییر کرده، نرخ را محاسبه کنیم.
-            # برای حداقل‌سازی، دلتای منفی در F_i و دلتای مثبت در F_j انتظار می‌رود (Trade-off)
-            rates = np.abs(delta_Fj / delta_Fi)
-            rates[delta_Fi == 0] = np.inf
-            # اگر دو هدف در یک جهت تغییر کنند (یعنی همسو باشند)، نرخ را صفر یا نادیده می‌گیریم
-            # اگرچه در تحلیل مبادله فقط نقاط مجاور در جبهه پرتو را بررسی می‌کنیم.
 
-        return rates, sorted_front[:-1] # rates یک عنصر کمتر از sorted_front دارد
-    
+    def local_tradeoff_rate_knn(self, i, j, k, n_neighbors=6, bandwidth=None):
+        """
+        خروجی: نرخ مبادله‌ی شرطی dFj/dFi | Fk (به‌صورت موضعی برای هر نقطه)
+        """
+        from sklearn.neighbors import NearestNeighbors
+        import numpy as np
+
+        X = self.pareto_front[:, [i, k]].astype(float)
+        y = self.pareto_front[:, j].astype(float)
+
+        # نرمال‌سازی ستونی (اختیاری ولی توصیه می‌شود)
+        X = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0) + 1e-12)
+        y = (y - y.min()) / (y.max() - y.min() + 1e-12)
+
+        n_max_neighbors = len(self.pareto_front) - 1
+        k_to_use = min(n_neighbors, n_max_neighbors)
+        nbrs = NearestNeighbors(n_neighbors = k_to_use).fit(np.c_[X, y])
+        idxs = nbrs.kneighbors(n_neighbors = k_to_use, return_distance=False)
+
+        betas = np.full(len(self.pareto_front), np.nan)
+        for t, neigh in enumerate(idxs):
+            Xt = np.c_[np.ones(len(neigh)), X[neigh]]   # [1, Fi, Fk]
+            yt = y[neigh]
+            # وزن‌دهی اختیاری بر اساس فاصله در فضای (Fi,Fj,Fk)
+            # اینجا ساده: OLS
+            try:
+                beta = np.linalg.lstsq(Xt, yt, rcond=None)[0]  # [b0, b_i, b_k]
+                betas[t] = beta[1]  # dFj/dFi | Fk
+            except np.linalg.LinAlgError:
+                pass
+        return betas  # آرایه‌ای از نرخ‌های موضعی
+
     def calculate_global_tradeoff_metrics(self):
         """محاسبه معیارهای کلی trade-off برای تمام جفت توابع هدف"""
         metrics = {}
         
         for i in range(self.n_objectives):
             for j in range(i+1, self.n_objectives):
-                rates, _ = self.calculate_pairwise_tradeoff(i, j)
+                rates = self.local_tradeoff_rate_knn(i, j, k=(3 - i - j))
                 rates_finite = rates[rates != np.inf]
                 
                 if len(rates_finite) > 0:
@@ -112,8 +93,7 @@ class TradeoffAnalysis:
         
         for i in range(self.n_objectives):
             for j in range(i+1, self.n_objectives):
-                rates, sorted_front = self.calculate_pairwise_tradeoff(i, j)
-                
+                rates = self.local_tradeoff_rate_knn(i, j, k=(3 - i - j))
                 if len(rates) > 2:
                     mean_rate = np.mean(rates[rates != np.inf])
                     std_rate = np.std(rates[rates != np.inf])
@@ -124,7 +104,7 @@ class TradeoffAnalysis:
                                 'solution_idx': idx,
                                 'objectives': (i, j),
                                 'tradeoff_rate': rate,
-                                'point': sorted_front[idx]
+                                # 'point': sorted_front[idx]
                             })
                             
         return knee_points
@@ -197,7 +177,7 @@ class TradeoffAnalysis:
         labels = []
         
         for i, j in obj_pairs:
-            rates, _ = self.calculate_pairwise_tradeoff(i, j)
+            rates = self.local_tradeoff_rate_knn(i, j, k=(3 - i - j))
             finite_rates = rates[rates != np.inf]
             all_rates.append(finite_rates)
             labels.append(f'ΔF{j+1}/ΔF{i+1}')
@@ -295,26 +275,3 @@ def integrate_tradeoff_analysis(main_instance):
     tradeoff_analyzer.print_tradeoff_summary()
     
     return tradeoff_analyzer
-
-
-# مثال استفاده مستقل (برای تست)
-if __name__ == "__main__":
-    # ایجاد داده‌های نمونه Pareto Front
-    np.random.seed(42)
-    
-    # شبیه‌سازی Pareto Front برای 3 تابع هدف
-    n_solutions = 50
-    
-    # ایجاد نقاط Pareto (با trade-off منفی بین توابع)
-    f1 = np.sort(np.random.uniform(100, 1000, n_solutions))
-    f2 = 2000 - 1.5 * f1 + np.random.normal(0, 50, n_solutions)
-    f3 = 0.1 + 0.0008 * f1 + np.random.normal(0, 0.01, n_solutions)
-    
-    pareto_front = np.column_stack([f1, f2, f3])
-    
-    # تحلیل trade-off
-    analyzer = TradeoffAnalysis(pareto_front)
-    
-    # نمایش نتایج
-    analyzer.plot_tradeoff_analysis()
-    analyzer.print_tradeoff_summary()
