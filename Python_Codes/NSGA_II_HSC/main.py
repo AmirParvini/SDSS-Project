@@ -343,7 +343,7 @@ class Main():
 
         # Initialize Algorithm with problem dimensions
         alg = NSGA2_Humanitarian(
-            max_iter=40,
+            max_iter=50,
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
@@ -379,52 +379,9 @@ class Main():
         print("="*60)
         
         if len(pf_costs) > 0:
-            # ایجاد شیء تحلیل trade-off
+            
             tradeoff_analyzer = TradeoffAnalysis(pf_costs)
-            
-            # نمایش نمودارهای trade-off
-            tradeoff_analyzer.plot_tradeoff_analysis(save_path='tradeoff_analysis.png')
-            
-            # نمایش نقاط زانو (بهترین trade-off)
-            tradeoff_analyzer.plot_knee_points()
-            
-            # چاپ خلاصه آماری trade-off
-            tradeoff_analyzer.print_tradeoff_summary()
-            
-            # یافتن بهترین راه‌حل‌ها بر اساس trade-off
-            knee_points = tradeoff_analyzer.find_knee_points(threshold=1.5)
-            
-            if knee_points:
-                print("\n" + "="*60)
-                print("Best Trade-off Solutions (Knee Points):")
-                print("="*60)
-                
-                for i, knee in enumerate(knee_points[:3]):  # نمایش 3 راه‌حل برتر
-                    obj_idx1, obj_idx2 = knee['objectives']
-                    print(f"\nKnee Solution {i+1}:")
-                    print(f"  Trade-off between F{obj_idx1+1} and F{obj_idx2+1}")
-                    print(f"  Trade-off Rate: {knee['tradeoff_rate']:.4f}")
-                    print(f"  Objective Values:")
-                    print(f"    F1 (Distance): {knee['point'][0]:.2f}")
-                    print(f"    F2 (Unmet Demand): {knee['point'][1]:.2f}")
-                    if len(knee['point']) > 2:
-                        print(f"    F3 (Death Probability): {knee['point'][2]:.4f}")
-            
-            # محاسبه و نمایش سهم hypervolume
-            # contributions = tradeoff_analyzer.calculate_hypervolume_contribution()
-            # best_contributors_idx = np.argsort(contributions)[-5:]  # 5 راه‌حل با بیشترین سهم
-            
-            print("\n" + "="*60)
-            print("Top 5 Solutions by Hypervolume Contribution:")
-            print("="*60)
-            
-            # for rank, idx in enumerate(best_contributors_idx[::-1], 1):
-            #     print(f"\nRank {rank} - Solution {idx}:")
-            #     print(f"  Hypervolume Contribution: {contributions[idx]:.4f}")
-            #     print(f"  F1: {pf_costs[idx, 0]:.2f}")
-            #     print(f"  F2: {pf_costs[idx, 1]:.2f}")
-            #     if pf_costs.shape[1] > 2:
-            #         print(f"  F3: {pf_costs[idx, 2]:.4f}")
+            tradeoff_analyzer.integrate_tradeoff_analysis()
             
             # ایجاد نمودار اضافی: Trade-off Heatmap برای همه جفت توابع
             if pf_costs.shape[1] == 3:
@@ -452,35 +409,6 @@ class Main():
                 plt.tight_layout()
                 plt.savefig('tradeoff_heatmap.png', dpi=300, bbox_inches='tight')
                 plt.show()
-            
-            # ذخیره نتایج trade-off در فایل
-            tradeoff_results = {
-                'metrics': tradeoff_analyzer.calculate_global_tradeoff_metrics(),
-                'n_knee_points': len(knee_points) if knee_points else 0,
-                'best_tradeoff_solutions': []
-            }
-            
-            if knee_points:
-                for knee in knee_points[:5]:
-                    tradeoff_results['best_tradeoff_solutions'].append({
-                        'objectives': [int(knee['objectives'][0]), int(knee['objectives'][1])],
-                        'tradeoff_rate': float(knee['tradeoff_rate']),
-                        'point': knee['point'].tolist()
-                    })
-            
-            with open('tradeoff_results.json', 'w') as f:
-                json.dump(tradeoff_results, f, indent=2)
-            
-            print("\n" + "="*60)
-            print("Trade-off analysis completed!")
-            print("Results saved to:")
-            print("  - tradeoff_analysis.png")
-            print("  - tradeoff_heatmap.png")
-            print("  - tradeoff_results.json")
-            print("="*60)
-        
-        else:
-            print("No Pareto optimal solutions found for trade-off analysis!")
             
         # Plot Results
         fig = plt.figure(figsize=(20, 5))
