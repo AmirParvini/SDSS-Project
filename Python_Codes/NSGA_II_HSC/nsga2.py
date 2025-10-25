@@ -3,6 +3,9 @@ from copy import deepcopy
 import random
 from convergence_metrics import ConvergenceMetrics
 from diagnostic_metrics import DiagnosticMetrics
+from crossover_methods import CrossoverMethods
+from mutation_methods import MutationMethods
+from selection_methods import SelectionMethods
 
 class NSGA2_Humanitarian:
     """
@@ -52,6 +55,51 @@ class NSGA2_Humanitarian:
         self.n_damage_points = len(damage_points_id)
         self.n_hospitals = len(hospital_id)
         self.n_temp_medical = len(temporary_medical_id)
+        
+        self.crossover_methods = {
+            '1': CrossoverMethods.one_point_crossover_list,
+            '2': CrossoverMethods.two_point_crossover_list,
+            '3': CrossoverMethods.uniform_crossover_list,
+            '4': CrossoverMethods.order_crossover_list,
+            '5': CrossoverMethods.arithmetic_crossover_list,
+            '6': CrossoverMethods.blend_crossover_list,
+            '7': CrossoverMethods.one_point_crossover_matrix,
+            '8': CrossoverMethods.two_point_crossover_matrix,
+            '9': CrossoverMethods.uniform_crossover_matrix,
+            '10': CrossoverMethods.block_crossover_matrix,
+            '11': CrossoverMethods.row_wise_crossover_matrix,
+            '12': CrossoverMethods.arithmetic_crossover_matrix,
+            '13': CrossoverMethods.multi_point_crossover_list,
+            '14': CrossoverMethods.partially_mapped_crossover,
+            '15': CrossoverMethods.simulated_binary_crossover
+        }
+        self.mutation_methods = {
+            '1': MutationMethods.bit_flip_mutation_list,
+            '2': MutationMethods.swap_mutation_list,
+            '3': MutationMethods.inversion_mutation_list,
+            '4': MutationMethods.scramble_mutation_list,
+            '5': MutationMethods.insertion_mutation_list,
+            '6': MutationMethods.displacement_mutation_list,
+            '7': MutationMethods.gaussian_mutation_list,
+            '8': MutationMethods.uniform_mutation_list,
+            '9': MutationMethods.polynomial_mutation_list,
+            '10': MutationMethods.boundary_mutation_list,
+            '11': MutationMethods.random_element_mutation_matrix,
+            '12': MutationMethods.gaussian_mutation_matrix,
+            '13': MutationMethods.row_mutation_matrix,
+            '14': MutationMethods.column_mutation_matrix,
+            '15': MutationMethods.block_mutation_matrix,
+            '16': MutationMethods.creep_mutation_matrix
+        }
+        self.selection_methods = {
+            '1': SelectionMethods.select_cbt,
+            '2': SelectionMethods.select_k_tournament,
+            '3': SelectionMethods.select_ff,
+            '4': SelectionMethods.select_rank_roulette,
+            '5': SelectionMethods.select_rbt,
+            '6': SelectionMethods.select_adt,
+            '7': SelectionMethods.select_epsilon_dt
+        }
         
         self.metrics = ConvergenceMetrics()
         self.diagnostics = DiagnosticMetrics()
@@ -233,12 +281,6 @@ class NSGA2_Humanitarian:
         point = random.choice(range(1, self.n_shelters))
         child1[0][:point], child2[0][:point] = child2[0][:point], child1[0][:point]
         child1[1][:point], child2[1][:point] = child2[1][:point], child1[1][:point]
-        if sum(bool(x) for x in child1[0]) == 0:
-            child1[0] = deepcopy(parent1[0])
-            child1[1] = deepcopy(parent2[1])
-        if sum(bool(x) for x in child2[0]) == 0:
-            child2[0] = deepcopy(parent2[0])
-            child2[1] = deepcopy(parent2[1])
             
         # Part 3: Use order crossover for damage points assignment (0 to n_damage_points)
         if self.n_damage_points > 0:
