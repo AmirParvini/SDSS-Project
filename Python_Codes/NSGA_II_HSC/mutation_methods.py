@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from copy import deepcopy
-from typing import List, Union
+from typing import List
 
 class MutationMethods:
     """

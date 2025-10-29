@@ -3,20 +3,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 from matplotlib.widgets import Button
 import datetime
-from mpl_toolkits.mplot3d import Axes3D
 from nsga2 import NSGA2_Humanitarian
-from graph_download import GraphDownload
-from pgsql_connector import PgsqlConnector
 import requests
 from collections import defaultdict
 import math
-from geopy.distance import geodesic
 import copy
 import itertools
-from convergence_metrics import ConvergenceMetrics
 from tradeoff_analysis import TradeoffAnalysis  # فایل کلاس TradeoffAnalysis
 import seaborn as sns
-import json
 
 
 class Main():
@@ -342,6 +336,14 @@ class Main():
         }
 
         # Initialize Algorithm with problem dimensions
+        from ai_config import get_ai_config, print_config_status
+        
+        # نمایش وضعیت تنظیمات AI
+        print_config_status()
+        
+        # دریافت تنظیمات AI
+        ai_config = get_ai_config()
+        
         alg = NSGA2_Humanitarian(
             max_iter=50,
             pop_size=150,
@@ -353,13 +355,13 @@ class Main():
             distribution_center_id = self.idc_id,
             damage_points_id = self.da_id,
             hospital_id = self.h_id,
-            temporary_medical_id = self.tmc_id
+            temporary_medical_id = self.tmc_id,
+            openrouter_api_key=ai_config['api_key'],
+            use_ai_optimization=ai_config['use_optimization']
         )
 
         # Solve the Problem
         results = alg.run(problem)
-        pop = results['pop']
-        F = results['F']
         pareto_pop = results['pareto_pop']
         metrics = results['metrics'] 
         # diagnostics = results['diagnostics']
@@ -414,7 +416,6 @@ class Main():
         fig = plt.figure(figsize=(20, 5))
         # Plot 1: F1 vs F2
         ax1 = fig.add_subplot(131)
-        sc1 = ax1.scatter(pf_costs[:, 0], pf_costs[:, 1], c='blue', s=50, alpha=0.6, edgecolors='black')
         ax1.grid(True, alpha=0.3)
         ax1.set_xlabel('F1: Total da_ec_distance', fontsize=12)
         ax1.set_ylabel('F2: Unmet Demand', fontsize=12)
@@ -431,7 +432,6 @@ class Main():
 
         # Plot 2: F1 vs F3
         ax2 = fig.add_subplot(132)
-        sc2 = ax2.scatter(pf_costs[:, 0], pf_costs[:, 2], c='blue', s=50, alpha=0.6, edgecolors='black')
         ax2.grid(True, alpha=0.3)
         ax2.set_xlabel('F1: Total da_ec_distance', fontsize=12)
         ax2.set_ylabel('F3: Death Probability', fontsize=12)
@@ -448,7 +448,6 @@ class Main():
 
         # Plot 3: F2 vs F3
         ax3 = fig.add_subplot(133)
-        sc3 = ax3.scatter(pf_costs[:, 1], pf_costs[:, 2], c='blue', s=50, alpha=0.6, edgecolors='black')
         ax3.grid(True, alpha=0.3)
         ax3.set_xlabel('F2: Unmet Demand', fontsize=12)
         ax3.set_ylabel('F3: Death Probability', fontsize=12)

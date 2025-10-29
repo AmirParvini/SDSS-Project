@@ -38,12 +38,16 @@ class GetParametersController extends Controller
         //         'da_tmc_path' => DAtoTmcPath::all()
         //     ]]);
         // }
-        return response()->json(['pathes' => [
-                'idc_ec_path' => IDCtoEcPath::all(),
-                'da_h_path'   => DAtoHospitalPath::all(),
-                'da_ec_dist'   => DAtoEcDist::all(),
-                'da_tmc_path' => DAtoTmcPath::all()
-            ]]);
+        try {
+            return response()->json(['pathes' => [
+                    'idc_ec_path' => IDCtoEcPath::all(),
+                    'da_h_path'   => DAtoHospitalPath::all(),
+                    'da_ec_dist'   => DAtoEcDist::all(),
+                    'da_tmc_path' => DAtoTmcPath::all()
+                ]]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**

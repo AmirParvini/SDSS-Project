@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from copy import deepcopy
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 class CrossoverMethods:
     """
@@ -537,14 +537,25 @@ class CrossoverMethods:
         
         # ایجاد mapping
         def fill_child(child, parent_main, parent_other, p1, p2):
+            # Create the mapping between the crossover segments: parent_other[i] -> parent_main[i]
+            # This mapping is used to resolve conflicts in the outside sections.
+            mapping_dict = {}
+            for i in range(p1, p2 + 1):
+                mapping_dict[parent_other[i]] = parent_main[i]
+                
             for i in range(size):
+                # Only process elements outside the crossover segment
                 if i < p1 or i > p2:
-                    value = parent_main[i]
-                    # اگر value در بخش میانی child وجود دارد
-                    while value in child[p1:p2+1]:
-                        # پیدا کردن جایگزین
-                        idx = parent_main[p1:p2+1].index(value) + p1
-                        value = parent_other[idx]
+                    # Get the gene from the corresponding position in the other parent
+                    value = parent_other[i]
+                    
+                    # Resolve conflicts using the mapping chain
+                    # If 'value' is present in the main parent's middle segment (which is copied to the child), 
+                    # we must replace it using the mapping rule.
+                    while value in mapping_dict:
+                        value = mapping_dict[value] # Follow the chain: A -> B, if B is the conflict, use A's partner
+                        
+                    # Place the final resolved value into the child
                     child[i] = value
         
         fill_child(child1, parent2, parent1, point1, point2)

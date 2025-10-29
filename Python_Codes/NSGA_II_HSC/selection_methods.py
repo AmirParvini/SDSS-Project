@@ -1,20 +1,20 @@
 import math
 import random
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
+
 
 class SelectionMethods:
-    
     def __init__(self) -> None:
         pass
-    
+
     Individual = Dict[str, object]
 
     # --------- Utilities ---------
 
-    def is_feasible(ind: Individual) -> bool:
+    def is_feasible(self, ind: Individual) -> bool:
         return float(ind.get("constraint_violation", 0.0)) <= 0.0
 
-    def better_by_rank_crowding(a: Individual, b: Individual) -> Individual:
+    def better_by_rank_crowding(self, a: Individual, b: Individual) -> Individual:
         """NSGA-II criterion: lower rank wins; tie-break by higher crowding."""
         ra, rb = int(a["rank"]), int(b["rank"])
         if ra != rb:
@@ -38,31 +38,31 @@ class SelectionMethods:
                 return a if va < vb else b
         return None  # need other tie-breaker
 
-    def euclidean(x: List[float], y: List[float]) -> float:
+    def euclidean(self, x: List[float], y: List[float]) -> float:
         return math.sqrt(sum((xi - yi) ** 2 for xi, yi in zip(x, y)))
 
     def distance_to_refs(self, cost: List[float], refs: List[List[float]]) -> float:
         """Distance to nearest reference point (smaller = closer به مرجع)."""
         return min(self.euclidean(cost, r) for r in refs) if refs else 0.0
 
-    def dominates_epsilon(a: Individual, b: Individual, eps: float = 0.0) -> bool:
+    def dominates_epsilon(self, a: Individual, b: Individual, eps: float = 0.0) -> bool:
         """ε-dominance (minimization). a ε-dominates b?"""
         A = a["cost"]
         B = b["cost"]
         assert isinstance(A, (list, tuple)) and isinstance(B, (list, tuple))
         # a is no worse than b + eps in all, and strictly better by >= eps in at least one
-        no_worse = all(Ai <= Bi + eps for Ai, Bi in zip(A, B)) 
+        no_worse = all(Ai <= Bi + eps for Ai, Bi in zip(A, B))
         strictly_better = any(Ai < Bi - eps for Ai, Bi in zip(A, B))
         return no_worse and strictly_better
 
     # --------- 1) Crowded Binary Tournament (CBT) ---------
-    def select_cbt(self, pop: List[Individual]) -> Individual:
+    def crowded_binary_tournament(self, pop: List[Individual]) -> Individual:
         """Standard NSGA-II crowded binary tournament (rank -> crowding)."""
         a, b = random.sample(pop, 2)
-        # (بدون توجه به قیود؛ اگر می‌خواهید قید را دخیل کنید از select_ff یا select_cbt_feas استفاده کنید)
+        # (بدون توجه به قیود؛ اگر می‌خواهید قید را دخیل کنید از feasibility_first_tournament یا crowded_binary_tournament_feasible استفاده کنید)
         return self.better_by_rank_crowding(a, b)
 
-    def select_cbt_feas(self, pop: List[Individual]) -> Individual:
+    def crowded_binary_tournament_feasible(self, pop: List[Individual]) -> Individual:
         """CBT با قاعده امکان‌پذیری به‌عنوان پیش‌فیلتر."""
         a, b = random.sample(pop, 2)
         by_feas = self.feasibility_rule(a, b)
@@ -71,7 +71,9 @@ class SelectionMethods:
         return self.better_by_rank_crowding(a, b)
 
     # --------- 2) Adaptive k-Tournament (A-kT) ---------
-    def select_k_tournament(self, pop: List[Individual], k: int = 2, use_feas: bool = False) -> Individual:
+    def adaptive_k_tournament(
+        self, pop: List[Individual], k: int = 2, use_feas: bool = False
+    ) -> Individual:
         """Tournament of size k; comparator = NSGA-II; optionally feasibility-first."""
         contenders = random.sample(pop, k)
         best = contenders[0]
@@ -85,7 +87,9 @@ class SelectionMethods:
         return best
 
     # --------- 3) Feasibility-First Tournament (FF) ---------
-    def select_ff(self, pop: List[Individual], k: int = 2) -> Individual:
+    def feasibility_first_tournament(
+        self, pop: List[Individual], k: int = 2
+    ) -> Individual:
         """Feasible-first; among ties use NSGA-II criterion."""
         contenders = random.sample(pop, k)
         # Partition
@@ -99,7 +103,10 @@ class SelectionMethods:
         # no feasible: pick with smallest violation, tie-break NSGA-II
         best = contenders[0]
         for c in contenders[1:]:
-            va, vb = float(best["constraint_violation"]), float(c["constraint_violation"])
+            va, vb = (
+                float(best["constraint_violation"]),
+                float(c["constraint_violation"]),
+            )
             if vb < va:
                 best = c
             elif vb == va:
@@ -108,7 +115,7 @@ class SelectionMethods:
 
     # --------- 4) Rank-Based Stochastic (roulette + SUS) ---------
 
-    def rank_weights(pop: List[Individual], power: float = 1.0) -> List[float]:
+    def rank_weights(self, pop: List[Individual], power: float = 1.0) -> List[float]:
         """
         Weight ~ 1 / (rank^power). rank=1 → وزن بزرگتر.
         برای جلوگیری از بی‌نهایت: از max(rank,1) استفاده می‌شود.
@@ -119,7 +126,9 @@ class SelectionMethods:
             return [1.0 / len(pop)] * len(pop)
         return [w / s for w in ws]
 
-    def select_rank_roulette(self, pop: List[Individual], power: float = 1.0) -> Individual:
+    def rank_based_roulette(
+        self, pop: List[Individual], power: float = 1.0
+    ) -> Individual:
         """یک والد با وزن‌دهی مبتنی بر rank انتخاب می‌کند (roulette)."""
         ps = self.rank_weights(pop, power=power)
         r = random.random()
@@ -130,9 +139,8 @@ class SelectionMethods:
                 return ind
         return pop[-1]
 
-    def sus_pick_indices(prob: List[float], n: int) -> List[int]:
+    def sus_pick_indices(self, prob: List[float], n: int) -> List[int]:
         """Stochastic Universal Sampling روی توزیع prob."""
-        N = len(prob)
         cum = [0.0]
         s = 0.0
         for p in prob:
@@ -143,23 +151,28 @@ class SelectionMethods:
         picks = []
         i, acc = 0, start
         for _ in range(n):
-            while acc > cum[i+1]:
+            while acc > cum[i + 1]:
                 i += 1
             picks.append(i)
             acc += step
         return picks
-    
-    def select_rank_sus(self, pop: List[Individual], n: int, power: float = 1.0) -> List[Individual]:
+
+    def rank_based_sus(
+        self, pop: List[Individual], n: int, power: float = 1.0
+    ) -> List[Individual]:
         """برمی‌گرداند n والد با SUS (برای ساخت mating pool دسته‌ای)."""
         ps = self.rank_weights(pop, power=power)
         idxs = self.sus_pick_indices(ps, n)
         return [pop[i] for i in idxs]
 
     # --------- 5) Reference-Biased Tournament (RBT) ---------
-    def select_rbt(self, pop: List[Individual],
-                refs: List[List[float]],
-                k: int = 2,
-                tau: float = 1.0) -> Individual:
+    def reference_biased_tournament(
+        self,
+        pop: List[Individual],
+        refs: List[List[float]],
+        k: int = 2,
+        tau: float = 1.0,
+    ) -> Individual:
         """
         CBT با بایاس به سمت نقاط مرجع (extremes).
         معیار: rank بهتر → اگر برابر، فاصله تا مرجع کوچکتر (به وزن exp(-d/tau)) → سپس crowding.
@@ -194,13 +207,18 @@ class SelectionMethods:
         return best
 
     # --------- 6) Age-Diversity Tournament (ADT) ---------
-    def select_adt(self, pop: List[Individual], k: int = 2, prefer_younger: bool = True) -> Individual:
+    def age_diversity_tournament(
+        self, pop: List[Individual], k: int = 2, prefer_younger: bool = True
+    ) -> Individual:
         """
         CBT با پاداش سن کم/زیاد. نیاز به کلید اختیاری 'age' (نسل از تولد).
         اگر نباشد، age=0 فرض می‌شود.
         """
         contenders = random.sample(pop, k)
-        def get_age(ind): return int(ind.get("age", 0))
+
+        def get_age(ind):
+            return int(ind.get("age", 0))
+
         best = contenders[0]
         for c in contenders[1:]:
             # rank first
@@ -229,7 +247,9 @@ class SelectionMethods:
         return best
 
     # --------- 7) ε-Dominance Tournament (ε-DT) ---------
-    def select_epsilon_dt(self, pop: List[Individual], k: int = 2, eps: float = 0.0) -> Individual:
+    def epsilon_dominance_tournament(
+        self, pop: List[Individual], k: int = 2, eps: float = 0.0
+    ) -> Individual:
         """
         Tournament با قضاوت ε-dominance. اگر هیچ‌کس دیگری را ε-dominate نکند،
         می‌افتد روی NSGA-II (rank→crowding).
@@ -248,49 +268,53 @@ class SelectionMethods:
 
     # --------- Master: build mating pool ---------
 
-    def select_one(self, pop: List[Individual],
-                method: str,
-                **kwargs) -> Individual:
+    def select_one(self, pop: List[Individual], method: str, **kwargs) -> Individual:
         method = method.lower()
-        if method == "cbt":
-            return self.select_cbt(pop)
-        if method == "cbt_feas":
-            return self.select_cbt_feas(pop)
-        if method in ("kt", "a-kt", "k_tournament"):
+        if method in ("cbt", "crowded_binary_tournament"):
+            return self.crowded_binary_tournament(pop)
+        if method in ("cbt_feas", "crowded_binary_tournament_feasible"):
+            return self.crowded_binary_tournament_feasible(pop)
+        if method in ("kt", "a-kt", "k_tournament", "adaptive_k_tournament"):
             k = int(kwargs.get("k", 2))
             use_feas = bool(kwargs.get("use_feas", False))
-            return self.select_k_tournament(pop, k=k, use_feas=use_feas)
-        if method in ("ff", "feasibility_first"):
+            return self.adaptive_k_tournament(pop, k=k, use_feas=use_feas)
+        if method in ("ff", "feasibility_first", "feasibility_first_tournament"):
             k = int(kwargs.get("k", 2))
-            return self.select_ff(pop, k=k)
-        if method in ("rbs", "rank_roulette"):
+            return self.feasibility_first_tournament(pop, k=k)
+        if method in ("rbs", "rank_roulette", "rank_based_roulette"):
             power = float(kwargs.get("power", 1.0))
-            return self.select_rank_roulette(pop, power=power)
-        if method in ("rbt", "reference_biased"):
+            return self.rank_based_roulette(pop, power=power)
+        if method in ("rbt", "reference_biased", "reference_biased_tournament"):
             refs = kwargs.get("refs", [])
             k = int(kwargs.get("k", 2))
             tau = float(kwargs.get("tau", 1.0))
-            return self.select_rbt(pop, refs=refs, k=k, tau=tau)
-        if method in ("adt", "age_diversity"):
+            return self.reference_biased_tournament(pop, refs=refs, k=k, tau=tau)
+        if method in ("adt", "age_diversity", "age_diversity_tournament"):
             k = int(kwargs.get("k", 2))
             prefer_younger = bool(kwargs.get("prefer_younger", True))
-            return self.select_adt(pop, k=k, prefer_younger=prefer_younger)
-        if method in ("edt", "epsilon_dt", "epsilon-dt"):
+            return self.age_diversity_tournament(
+                pop, k=k, prefer_younger=prefer_younger
+            )
+        if method in (
+            "edt",
+            "epsilon_dt",
+            "epsilon-dt",
+            "epsilon_dominance_tournament",
+        ):
             k = int(kwargs.get("k", 2))
             eps = float(kwargs.get("eps", 0.0))
-            return self.select_epsilon_dt(pop, k=k, eps=eps)
+            return self.epsilon_dominance_tournament(pop, k=k, eps=eps)
         raise ValueError(f"Unknown selection method: {method}")
 
-    def select_mating_pool(self, pop: List[Individual],
-                        n_parents: int,
-                        method: str,
-                        **kwargs) -> List[Individual]:
+    def select_mating_pool(
+        self, pop: List[Individual], n_parents: int, method: str, **kwargs
+    ) -> List[Individual]:
         """
         اگر method == 'sus' یا 'rbs_sus' از SUS برای n والد استفاده می‌شود.
         در غیر این صورت n بار select_one صدا زده می‌شود.
         """
         method_l = method.lower()
-        if method_l in ("sus", "rbs_sus", "rank_sus"):
+        if method_l in ("sus", "rbs_sus", "rank_sus", "rank_based_sus"):
             power = float(kwargs.get("power", 1.0))
-            return self.select_rank_sus(pop, n=n_parents, power=power)
+            return self.rank_based_sus(pop, n=n_parents, power=power)
         return [self.select_one(pop, method=method, **kwargs) for _ in range(n_parents)]
