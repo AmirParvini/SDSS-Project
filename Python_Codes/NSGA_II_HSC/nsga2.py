@@ -1025,6 +1025,7 @@ class NSGA2_Humanitarian:
         pop = None
         F = None
         pareto_pop_list = []
+        all_pop_list = []  # Store entire population history
         start_it = 0
         if resume and os.path.exists(checkpoint_path):
             try:
@@ -1034,6 +1035,7 @@ class NSGA2_Humanitarian:
                 pop = state.get("pop")
                 F = state.get("F")
                 pareto_pop_list = state.get("pareto_history", [])
+                all_pop_list = state.get("all_pop_history", [])
                 # Restore histories and operators if present
                 self.metrics_history = state.get("metrics_history", [])
                 if "current_methods" in state:
@@ -1219,6 +1221,7 @@ class NSGA2_Humanitarian:
             # اضافه کردن محاسبه metrics
             pareto_pop = [pop[i] for i in F[0]]
             pareto_pop_list.append(deepcopy(pareto_pop))
+            all_pop_list.append(deepcopy(pop))  # Store entire population
             # self.diagnostics.update_all_metrics(
             # population=pop,
             # pareto_pop=pareto_pop,
@@ -1246,6 +1249,7 @@ class NSGA2_Humanitarian:
                     "pop": pop,
                     "F": F,
                     "pareto_history": pareto_pop_list,
+                    "all_pop_history": all_pop_list,
                     "metrics_history": self.metrics_history,
                     "current_methods": self.current_methods,
                     "hypervolume_manager": self.hypervolume_manager,
@@ -1279,7 +1283,7 @@ class NSGA2_Humanitarian:
         final_hypervolumes = self.hypervolume_manager.calculate_final_hypervolumes()
 
         # به‌روزرسانی metrics با هایپرولیوم نهایی
-        self.metrics.update_metrics(pareto_pop_list)
+        self.metrics.update_metrics(pareto_pop_list, all_pop_list=all_pop_list)
         self.metrics.hypervolume_history = final_hypervolumes
 
         # نمایش خلاصه هایپرولیوم
@@ -1528,14 +1532,9 @@ class NSGA2_Humanitarian:
                 np.mean(crowding_distances) if crowding_distances else 0.0
             )
 
-            # تنوع جمعیت (فاصله میانگین بین راه‌حل‌ها)
-            if len(pareto_costs) > 1:
-                distances = []
-                for i in range(len(pareto_costs)):
-                    for j in range(i + 1, len(pareto_costs)):
-                        dist = np.linalg.norm(pareto_costs[i] - pareto_costs[j])
-                        distances.append(dist)
-                metrics["diversity"] = np.mean(distances) if distances else 0.0
+            # محاسبه تنوع جمعیت با استفاده از متد diversity در convergence_metrics.py
+            if hasattr(self.metrics, "diversity"):
+                metrics["diversity"] = self.metrics.diversity(pareto_costs)
             else:
                 metrics["diversity"] = 0.0
         else:
@@ -1551,9 +1550,21 @@ class NSGA2_Humanitarian:
                 }
             )
 
+        # محاسبه min_obj, mean_obj, std_obj از کل جمعیت
+        if len(pop) > 0:
+            all_pop_costs = np.array([ind["cost"] for ind in pop])
+            metrics["mean_objectives"] = np.mean(all_pop_costs, axis=0).tolist()
+            metrics["min_objectives"] = np.min(all_pop_costs, axis=0).tolist()
+            metrics["std_objectives"] = np.std(all_pop_costs, axis=0).tolist()
+        else:
+            metrics["mean_objectives"] = [0.0, 0.0, 0.0]
+            metrics["min_objectives"] = [0.0, 0.0, 0.0]
+            metrics["std_objectives"] = [0.0, 0.0, 0.0]
+
         # شاخص‌های اضافی
         metrics["generation"] = generation
         metrics["population_size"] = len(pop)
+        metrics["elitism_rate"] = self.elitism_rate  # اضافه کردن نرخ نخبه‌گرایی
         # آمار بخشی (section_stats) طبق Prompt 2
         section_stats = self.compute_section_stats(pop)
         metrics["section_stats"] = section_stats
@@ -1683,6 +1694,19 @@ class NSGA2_Humanitarian:
                     break
             if not found:
                 print(f"⚠️ Invalid selection method: {selection_method_name}")
+
+        # به‌روزرسانی نرخ نخبه‌گرایی
+        if "elitism_rate" in rec:
+            new_elitism_rate = rec["elitism_rate"]
+            # اعتبارسنجی: باید بین 0.05 تا 0.3 باشد
+            if 0.05 <= new_elitism_rate <= 0.3:
+                self.elitism_rate = new_elitism_rate
+                # محاسبه مجدد تعداد نخبگان
+                self.n_elite = max(1, int(self.elitism_rate * self.pop_size))
+                if self.verbose:
+                    print(f"🔄 Elitism rate updated: {self.elitism_rate:.4f} ({self.elitism_rate * 100:.1f}% → {self.n_elite} elite individuals)")
+            else:
+                print(f"⚠️ Invalid elitism_rate: {new_elitism_rate}. Must be between 0.05 and 0.3. Keeping current value: {self.elitism_rate:.4f}")
 
         # نمایش تحلیل AI
         if "analysis" in recommendations:

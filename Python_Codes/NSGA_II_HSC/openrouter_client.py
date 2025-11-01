@@ -39,16 +39,6 @@ class OpenRouterClient:
         self.problem_description = None
         self.chromosome_structure = None
 
-    def set_problem_description(self, problem_info: Dict[str, Any]):
-        """
-        تنظیم اطلاعات مسئله برای ارسال به AI
-
-        Parameters:
-        -----------
-        problem_info: دیکشنری شامل اطلاعات مسئله
-        """
-        self.problem_description = problem_info
-
     def _format_metrics_history(self, history: list) -> str:
         """
         فرمت کردن تاریخچه شاخص‌ها برای نمایش در prompt
@@ -73,6 +63,14 @@ class OpenRouterClient:
             formatted += f"  - Pareto solutions: {metrics.get('pareto_count', 0)}\n"
             formatted += f"  - Avg crowding distance: {metrics.get('avg_crowding_distance', 0):.6f}\n"
             formatted += f"  - Diversity: {metrics.get('diversity', 0):.6f}\n"
+            formatted += f"  - Elitism rate: {metrics.get('elitism_rate', 0):.4f}\n"
+            # اضافه کردن آمار اهداف از کل جمعیت
+            mean_obj = metrics.get('mean_objectives', [0, 0, 0])
+            min_obj = metrics.get('min_objectives', [0, 0, 0])
+            std_obj = metrics.get('std_objectives', [0, 0, 0])
+            formatted += f"  - Mean objectives: F1={mean_obj[0]:.6f}, F2={mean_obj[1]:.6f}, F3={mean_obj[2]:.6f}\n"
+            formatted += f"  - Min objectives: F1={min_obj[0]:.6f}, F2={min_obj[1]:.6f}, F3={min_obj[2]:.6f}\n"
+            formatted += f"  - Std objectives: F1={std_obj[0]:.6f}, F2={std_obj[1]:.6f}, F3={std_obj[2]:.6f}\n"
 
         return formatted
 
@@ -119,6 +117,7 @@ Focus on:
 - Global crossover probability and mutation probability
 - Per-gene (inner) mutation rate if applicable
 - A single selection method
+- Elitism rate (elitism_rate): percentage of best individuals to preserve (0.05 to 0.3, typically 0.1-0.2)
 - Short analysis text (why you chose these operators, and what triggers should change them in the future)
  - Per-part probabilities (optional): crossover_part_probability, mutation_part_probability
 Be concise but include a technical justification (1–3 sentences) for each major choice.
@@ -209,6 +208,7 @@ Available Methods:
 what you will receive and how to use it:
 Every 5 generations I will provide you a metrics payload containing:
 - Global metrics per generation: Hypervolume (HV), Spacing, Spread, Number of Pareto solutions, Average crowding distance, Population diversity
+- Population objective statistics: Mean, Min, and Standard deviation of objectives (F1, F2, F3) calculated from the entire population of each generation
 - Section-state (for each part or section): variance (for continuous parts/matrices) or entropy/uniqueness (for discrete/permutation parts))
 - Operator performance stats for the last interval (usage ratios and success rates per operator), if available
 Use the variance/entropy of each chromosome segment to identify which segments are convergent or still widely dispersed:
@@ -220,7 +220,7 @@ The data you need to analyze and based on that, suggest the things I wanted for 
 * Performance Metrics History (from generation 0 to {generation}):
 * Current generation: {generation}
 * Metrics History (Metric history from the first run of the algorithm to the current run):
-{metrics_history}
+{self._format_metrics_history(metrics_history)}
 * History of methods and their possibilities: {current_methods.get("history", {})}
 * Latest Generation Metrics:
 - Hypervolume (HV): {metrics.get("hypervolume", 0):.6f}
@@ -229,7 +229,12 @@ The data you need to analyze and based on that, suggest the things I wanted for 
 - Number of Pareto solutions: {metrics.get("pareto_count", 0)}
 - Average crowding distance: {metrics.get("avg_crowding_distance", 0):.6f}
 - Population diversity: {metrics.get("diversity", 0):.6f}
+- Elitism rate: {metrics.get("elitism_rate", 0):.4f} ({metrics.get("elitism_rate", 0) * 100:.1f}% of population preserved as elite)
 - variance/entropy of parts: {metrics.get("section_stats", {})}
+- Population objective statistics (from entire population):
+  * Mean objectives: F1={metrics.get("mean_objectives", [0,0,0])[0]:.6f}, F2={metrics.get("mean_objectives", [0,0,0])[1]:.6f}, F3={metrics.get("mean_objectives", [0,0,0])[2]:.6f}
+  * Min objectives: F1={metrics.get("min_objectives", [0,0,0])[0]:.6f}, F2={metrics.get("min_objectives", [0,0,0])[1]:.6f}, F3={metrics.get("min_objectives", [0,0,0])[2]:.6f}
+  * Std objectives: F1={metrics.get("std_objectives", [0,0,0])[0]:.6f}, F2={metrics.get("std_objectives", [0,0,0])[1]:.6f}, F3={metrics.get("std_objectives", [0,0,0])[2]:.6f}
 
 Why section statistics (entropy/variance) matter:
 - Entropy (for discrete & permutation parts) measures how many distinct allele values exist and how balanced their frequencies are. Low entropy → most individuals share the same allele(s) → risk of premature convergence on that decision subspace.
@@ -240,9 +245,10 @@ Behavioral rules & constraints:
 - If any continuous/matrix part has extremely low variance (e.g., variance < 1e-4) recommend aggressive continuous mutations (polynomial_mutation_list or gaussian_mutation_matrix) and higher crossover disruption for that section.
 - Prefer feasibility_first_tournament or epsilon_dominance_tournament when feasibility ratio is low or constraints are tight.
 - Prefer age_diversity_tournament or reference_biased_tournament to maintain diversity if diversity metric drops below 0.25.
+- Elitism rate: The percentage of best individuals preserved from generation to generation (range: 0.05 to 0.3, typically 0.1-0.2). Lower values (0.05-0.1) increase exploration but may slow convergence. Higher values (0.2-0.3) preserve more good solutions but may reduce diversity. Adjust based on convergence speed and diversity metrics.
 
 
-Provide your response in the following JSON format:
+Provide your response in the following JSON format (Try not to use capital letters in the keys of this output):
 ```json
 {{
     "analysis": "Brief analysis of current situation and recommendations",
@@ -291,6 +297,7 @@ Provide your response in the following JSON format:
                     }}
             }},
         "selection_method": "selection_method_name",
+        "elitism_rate": 0.1
     }}
 }}
 ```

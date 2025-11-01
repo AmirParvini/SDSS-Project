@@ -215,8 +215,8 @@ class CrossoverMethods:
         
         alpha = np.clip(alpha, 0, 1)
         
-        child1 = [alpha * p1 + (1 - alpha) * p2 for p1, p2 in zip(parent1, parent2)]
-        child2 = [(1 - alpha) * p1 + alpha * p2 for p1, p2 in zip(parent1, parent2)]
+        child1 = [np.clip(alpha * p1 + (1 - alpha) * p2, 0, 1) for p1, p2 in zip(parent1, parent2)]
+        child2 = [np.clip((1 - alpha) * p1 + alpha * p2, 0, 1) for p1, p2 in zip(parent1, parent2)]
         
         return child1, child2
     
@@ -254,8 +254,8 @@ class CrossoverMethods:
             low = min_val - alpha * d
             high = max_val + alpha * d
             
-            child1.append(random.uniform(low, high))
-            child2.append(random.uniform(low, high))
+            child1.append(np.clip(random.uniform(low, high), 0, 1))
+            child2.append(np.clip(random.uniform(low, high), 0, 1))
         
         return child1, child2
     
@@ -458,8 +458,8 @@ class CrossoverMethods:
         
         alpha = np.clip(alpha, 0, 1)
         
-        child1 = alpha * parent1 + (1 - alpha) * parent2
-        child2 = (1 - alpha) * parent1 + alpha * parent2
+        child1 = np.clip(alpha * parent1 + (1 - alpha) * parent2, 0, 1)
+        child2 = np.clip((1 - alpha) * parent1 + alpha * parent2, 0, 1)
         
         return child1, child2
     
@@ -598,8 +598,8 @@ class CrossoverMethods:
             c1 = 0.5 * ((1 + beta) * p1 + (1 - beta) * p2)
             c2 = 0.5 * ((1 - beta) * p1 + (1 + beta) * p2)
             
-            child1.append(c1)
-            child2.append(c2)
+            child1.append(np.clip(c1, 0, 1))
+            child2.append(np.clip(c2, 0, 1))
         
         return child1, child2
 

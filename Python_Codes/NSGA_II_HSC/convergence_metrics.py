@@ -271,17 +271,22 @@ class ConvergenceMetrics:
         
         return igd
     
-    def update_metrics(self, pareto_pop_list, true_pareto_front=None):
+    def update_metrics(self, pareto_pop_list, true_pareto_front=None, all_pop_list=None):
         max_cost = []
         pareto_fronts_list = []
-        for p in pareto_pop_list:
-            pareto_front_list = [ind['cost'] for ind in p]
+        for pp in pareto_pop_list:
+            pareto_front_list = [ind['cost'] for ind in pp]
             pareto_fronts_list.append(pareto_front_list)
             max_cost.append(np.max(pareto_front_list, axis=0))
         refrence_point = np.max(max_cost, axis=0) * 1.1
         hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
         spacing_history, spread_history, diversity_history = [], [], []
-        for pareto_pop in pareto_pop_list:
+        
+        # اگر all_pop_list ارائه نشده باشد، از pareto_pop_list استفاده می‌کنیم (backward compatibility)
+        if all_pop_list is None:
+            all_pop_list = pareto_pop_list
+        
+        for idx, pareto_pop in enumerate(pareto_pop_list):
             """
             به‌روزرسانی تمام شاخص‌ها در هر تکرار
             
@@ -292,22 +297,22 @@ class ConvergenceMetrics:
             true_pareto_front: پارتو فرانت واقعی (اختیاری)
             """
             if len(pareto_pop) == 0:
-                return
+                continue
             
-            # استخراج مقادیر اهداف
-            pareto_front = np.array([ind['cost'] for ind in pareto_pop])
+            # استخراج مقادیر اهداف برای پارتو فرانت (برای spacing, spread)
             normal_pareto_front = np.array([ind['normal_cost'] for ind in pareto_pop])
-            # محاسبه شاخص‌ها
+            # محاسبه شاخص‌های پارتو
             sp = self.spacing(normal_pareto_front)
             spr = self.spread(normal_pareto_front)
-            div = self.diversity(pareto_front)
             
             spacing_history.append(sp)
             spread_history.append(spr)
-            diversity_history.append(div)
             self.n_pareto_history.append(len(pareto_pop))
             
-            # میانگین و انحراف معیار اهداف
+            # استخراج مقادیر اهداف از جبهه پارتو
+            pareto_front = np.array([ind['cost'] for ind in pareto_pop])
+            
+            # محاسبه mean_obj، min_obj، std_obj از جبهه پارتو (برای نمودارها)
             mean_obj = np.mean(pareto_front, axis=0)
             min_obj = np.min(pareto_front, axis=0)
             std_obj = np.std(pareto_front, axis=0)
@@ -315,8 +320,25 @@ class ConvergenceMetrics:
             self.min_objectives_history.append(min_obj)
             self.std_objectives_history.append(std_obj)
             
+            # محاسبه diversity از کل جمعیت
+            if idx < len(all_pop_list):
+                all_pop = all_pop_list[idx]
+                if len(all_pop) > 0:
+                    all_pop_front = np.array([ind['cost'] for ind in all_pop])
+                    div = self.diversity(all_pop_front)
+                    diversity_history.append(div)
+                else:
+                    # اگر جمعیت خالی است، از پارتو استفاده کن
+                    div = self.diversity(pareto_front)
+                    diversity_history.append(div)
+            else:
+                # اگر all_pop_list کوتاه‌تر است، از pareto استفاده کن
+                div = self.diversity(pareto_front)
+                diversity_history.append(div)
+            
             # اگر true Pareto front در دسترس باشد
             if true_pareto_front is not None:
+                pareto_front = np.array([ind['cost'] for ind in pareto_pop])
                 gd = self.generational_distance(pareto_front, true_pareto_front)
                 igd = self.inverted_generational_distance(pareto_front, true_pareto_front)
                 self.gd_history.append(gd)

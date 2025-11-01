@@ -244,10 +244,8 @@ class MutationMethods:
             if random.random() < mutation_rate:
                 # اضافه کردن نویز گاوسی
                 mutated[i] += np.random.normal(0, sigma)
-                
                 # اعمال محدودیت
-                if bounds is not None:
-                    mutated[i] = np.clip(mutated[i], bounds[0], bounds[1])
+                mutated[i] = np.clip(mutated[i], bounds[0], bounds[1])
         
         return mutated
     
