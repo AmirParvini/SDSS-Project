@@ -147,32 +147,49 @@ class ConvergenceMetrics:
     #     spread_metric = numerator / denominator
         
     #     return spread_metric
-    def spread(self, pareto_front):
+    def spread(self, pareto_front, reference_extremes=None):
         """
-        Spread (Δ) metric for multi-objective fronts
-        Smaller = better diversity and coverage
+        Compute Spread (Delta) metric.
+        pareto_front: array-like shape (n_points, n_objectives) - assumed numeric
+        reference_extremes: optional tuple (ref_first, ref_last) each shape (n_objectives,)
+                            If provided, used to compute d_f and d_l (distance from extremes).
+                            If None, assumes pareto_front is normalized to [0,1] and uses
+                            zero-vector and one-vector as reference extremes.
+        Returns: float in [0,1] (smaller = better diversity)
         """
-        n = len(pareto_front)
-        if n <= 2:
+        pf = np.asarray(pareto_front, dtype=float)
+        n = pf.shape[0]
+        if n < 2:
             return 1.0
 
-        # فاصله بین تمام نقاط
-        D = cdist(pareto_front, pareto_front)
-        np.fill_diagonal(D, np.inf)
+        # Sort by the first objective (common practical choice)
+        order = np.argsort(pf[:, 0])
+        pf_sorted = pf[order]
 
-        # فاصله‌های مینیمم بین همسایه‌ها
-        d_i = np.min(D, axis=1)
-        d_mean = np.mean(d_i)
+        # distances between consecutive points
+        diffs = np.diff(pf_sorted, axis=0)              # shape (n-1, m)
+        d = np.linalg.norm(diffs, axis=1)               # d_i for i=1..n-1 (consecutive distances)
+        if d.size == 0:
+            return 1.0
+        d_mean = d.mean()
 
-        # دو نقطه‌ی انتهایی (دورترین از هم)
-        D_full = squareform(pdist(pareto_front))
-        i, j = np.unravel_index(np.argmax(D_full), D_full.shape)
-        d_f = np.linalg.norm(pareto_front[i] - pareto_front[j])
+        # compute d_f and d_l (distance from first/last obtained to reference extremes)
+        if reference_extremes is not None:
+            ref_first = np.asarray(reference_extremes[0], dtype=float)
+            ref_last  = np.asarray(reference_extremes[1], dtype=float)
+        else:
+            # assume normalized in [0,1]
+            ref_first = np.zeros(pf.shape[1], dtype=float)
+            ref_last  = np.ones(pf.shape[1], dtype=float)
 
-        # Spread metric
-        numerator = d_f + np.sum(np.abs(d_i - d_mean))
-        denominator = d_f + (n - 1) * d_mean
+        d_f = np.linalg.norm(pf_sorted[0] - ref_first)
+        d_l = np.linalg.norm(pf_sorted[-1] - ref_last)
 
+        numerator = d_f + d_l + np.sum(np.abs(d - d_mean))
+        denominator = d_f + d_l + (n - 1) * d_mean
+        # avoid division by zero (degenerate case)
+        if denominator == 0.0:
+            return 0.0
         return numerator / denominator
     
     def diversity(self, pareto_front):
@@ -335,6 +352,7 @@ class ConvergenceMetrics:
         ax.set_ylabel('Hypervolume', fontsize=11)
         # ax.set_title('Hypervolume Indicator\n(بیشتر = بهتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
         
         # 2. Spacing
         ax = axes[0, 1]
@@ -343,6 +361,7 @@ class ConvergenceMetrics:
         ax.set_ylabel('Spacing', fontsize=11)
         # ax.set_title('Spacing Metric\n(کمتر = یکنواخت‌تر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
         
         # 3. Spread
         ax = axes[1, 0]
@@ -351,6 +370,7 @@ class ConvergenceMetrics:
         ax.set_ylabel('Spread (Delta)', fontsize=11)
         # ax.set_title('Spread Metric\n(کمتر = پوشش بهتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
         
         # 4. Number of Pareto Solutions
         ax = axes[1, 1]
@@ -403,13 +423,14 @@ class ConvergenceMetrics:
         ax.set_ylabel('Diversity', fontsize=11)
         # ax.set_title('Diversity Metric\n(بیشتر = تنوع بیشتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
         
         plt.tight_layout()
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
         
-        plt.show()
+        plt.show(block=True)
         
         # اگر GD و IGD محاسبه شده باشند، نمودار جداگانه
         if len(self.gd_history) > 0:
@@ -431,7 +452,7 @@ class ConvergenceMetrics:
             plt.tight_layout()
             if save_path:
                 plt.savefig(save_path.replace('.png', '_distance.png'), dpi=300, bbox_inches='tight')
-            plt.show()
+            plt.show(block=True)
     
     def print_summary(self):
         """

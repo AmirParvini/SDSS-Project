@@ -410,7 +410,7 @@ class Main():
                 ax.set_title('Mean Trade-off Rates Between Objectives')
                 plt.tight_layout()
                 plt.savefig('tradeoff_heatmap.png', dpi=300, bbox_inches='tight')
-                plt.show()
+                plt.show(block=True)
             
         # Plot Results
         fig = plt.figure(figsize=(20, 5))
@@ -463,7 +463,7 @@ class Main():
             ax3.legend()
 
         plt.tight_layout()
-        plt.show()
+        plt.show(block=True)
 
         # 3D Animated Pareto Front across generations
         pareto_history = results.get('pareto_history', [])
@@ -551,7 +551,7 @@ class Main():
             btn_save.on_clicked(on_save_clicked)
 
             plt.tight_layout()
-            plt.show()
+            plt.show(block=True)
 
         # Display some statistics
         print("\n" + "="*50)

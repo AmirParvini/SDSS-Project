@@ -221,7 +221,7 @@ class MutationMethods:
     
     @staticmethod
     def gaussian_mutation_list(individual: List[float], mutation_rate: float = 0.1,
-                               sigma: float = 0.1, bounds: tuple = None) -> List[float]:
+                               sigma: float = 0.1, bounds: tuple = (0.0, 1.0)) -> List[float]:
         """
         Gaussian Mutation برای مقادیر پیوسته
         

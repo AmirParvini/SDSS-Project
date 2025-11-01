@@ -91,19 +91,19 @@ def print_config_status():
     """
     نمایش وضعیت تنظیمات
     """
-    print("🔧 وضعیت تنظیمات AI Optimization:")
-    print(f"   API Key: {'✅ تنظیم شده' if OPENROUTER_API_KEY and OPENROUTER_API_KEY != 'your-api-key-here' else '❌ تنظیم نشده'}")
+    print("🔧 AI Optimization Configuration Status:")
+    print(f"   API Key: {'✅ Set' if OPENROUTER_API_KEY and OPENROUTER_API_KEY != 'your-api-key-here' else '❌ Not Set'}")
     print(f"   AI Model: {AI_MODEL}")
-    print(f"   AI Optimization: {'✅ فعال' if USE_AI_OPTIMIZATION else '❌ غیرفعال'}")
-    print(f"   Update Interval: هر {AI_UPDATE_INTERVAL} نسل")
-    print(f"   Verbose Mode: {'✅ فعال' if VERBOSE_AI else '❌ غیرفعال'}")
+    print(f"   AI Optimization: {'✅ Enabled' if USE_AI_OPTIMIZATION else '❌ Disabled'}")
+    print(f"   Update Interval: Every {AI_UPDATE_INTERVAL} generations")
+    print(f"   Verbose Mode: {'✅ Enabled' if VERBOSE_AI else '❌ Disabled'}")
     
     if is_ai_ready():
-        print("\n🎉 AI Optimization آماده استفاده است!")
+        print("\n🎉 AI Optimization is ready to use!")
     else:
-        print("\n⚠️ برای فعال‌سازی AI Optimization:")
-        print("   1. API key واقعی OpenRouter را در OPENROUTER_API_KEY قرار دهید")
-        print("   2. USE_AI_OPTIMIZATION را True کنید")
+        print("\n⚠️ To enable AI Optimization:")
+        print("   1. Set your actual OpenRouter API key in OPENROUTER_API_KEY")
+        print("   2. Set USE_AI_OPTIMIZATION to True")
 
 if __name__ == "__main__":
     print_config_status()

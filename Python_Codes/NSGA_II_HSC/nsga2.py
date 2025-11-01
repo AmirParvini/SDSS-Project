@@ -98,9 +98,55 @@ class NSGA2_Humanitarian:
                 "part7": "default",
             },
             "selection_method": "default",
-            "crossover_probability": p_crossover,
-            "mutation_probability": p_mutation,
+            "global_crossover_probability": p_crossover,
+            "global_mutation_probability": p_mutation,
             "mutation_inner_rate": 0.1,
+            "crossover_part_probability": {
+                "part1": None,
+                "part2": None,
+                "part3_p1": None,
+                "part3_p2": None,
+                "part4": None,
+                "part5": None,
+                "part6": None,
+                "part7": None,
+            },
+            "mutation_part_probability": {
+                "part1": None,
+                "part2": None,
+                "part3_p1": None,
+                "part3_p2": None,
+                "part4": None,
+                "part5": None,
+                "part6": None,
+                "part7": None,
+            },
+            "history": {
+                "crossover_history":{
+                    "part1": [],
+                "part2": [],
+                "part3_p1": [],
+                "part3_p2": [],
+                "part4": [],
+                "part5": [],
+                "part6": [],
+                "part7": [],
+                    },
+                    "mutation_history":{
+                        "part1": [],
+                        "part2": [],
+                        "part3_p1": [],
+                        "part3_p2": [],
+                        "part4": [],
+                        "part5": [],
+                        "part6": [],
+                        "part7": [],
+                    },
+                    "selection_history": [],
+                    "global_crossover_probability_history": [],
+                    "global_mutation_probability_history": [],
+                    "mutation_inner_rate_history": [],
+                }
         }
 
         # Problem dimensions
@@ -193,6 +239,67 @@ class NSGA2_Humanitarian:
 
         # برای ذخیره تاریخچه شاخص‌ها
         self.metrics_history = []
+        # آمار بخشی نسل به نسل
+        self.section_stats_history = []
+
+    def _entropy(self, values):
+        arr = np.array(values).flatten()
+        if arr.size == 0:
+            return 0.0
+        unique, counts = np.unique(arr, return_counts=True)
+        p = counts / counts.sum()
+        # جلوگیری از log(0)
+        p = p[p > 0]
+        return float(-np.sum(p * np.log(p + 1e-12)))
+
+    def _variance(self, values):
+        arr = np.array(values).astype(float).flatten()
+        if arr.size == 0:
+            return 0.0
+        return float(np.var(arr))
+
+    def compute_section_stats(self, pop):
+        """
+        محاسبه آمار بخشی (entropy/variance) فقط برای هر بخش/سکشن (بدون نرخ تعمیر)
+        """
+        if not pop:
+            return {}
+        # جمع‌آوری مقادیر
+        part1_vals, part2_vals = [], []
+        part3_p1_vals, part3_p2_vals = [], []
+        part4_vals, part5_vals, part6_vals, part7_vals = [], [], [], []
+        for ind in pop:
+            chrom = ind["chromosome"]
+            if chrom is None:
+                continue
+            part1_vals.extend(chrom[0])
+            part2_vals.extend(chrom[1])
+            part3_p1_vals.extend(chrom[2][: self.n_damage_points])
+            if self.n_shelters > self.n_damage_points:
+                part3_p2_vals.extend(chrom[2][self.n_damage_points :])
+            part4_vals.extend(chrom[3].flatten())
+            part5_vals.extend(chrom[4].flatten())
+            part6_vals.extend(chrom[5].flatten())
+            part7_vals.extend(chrom[6].flatten())
+        section_stats = {
+            "part1": {
+                "entropy": self._entropy(part1_vals),
+            },
+            "part2": {"variance": self._variance(part2_vals)},
+            "part3_p1": {"entropy": self._entropy(part3_p1_vals)},
+            "part3_p2": {
+                "entropy": self._entropy(part3_p2_vals),
+            },
+            "part4": {
+                "variance": self._variance(part4_vals),
+            },
+            "part5": {"variance": self._variance(part5_vals)},
+            "part6": {
+                "variance": self._variance(part6_vals),
+            },
+            "part7": {"variance": self._variance(part7_vals)},
+        }
+        return section_stats
 
     def create_random_chromosome(self):
         """
@@ -527,308 +634,371 @@ class NSGA2_Humanitarian:
 
     def crossover_per_part(self, parent1, parent2):
         """
-        Crossover per-part with AI-selected methods for each part
+        Crossover per-part with AI-selected methods for each part, considering per-part probability
         """
         child1 = deepcopy(parent1)
         child2 = deepcopy(parent2)
+        cpp = self.current_methods.get("crossover_part_probability", {})
+
+        def get_prob(part):
+            p = cpp.get(part)
+            return float(p) if p is not None else 1.0
 
         # Part 1
-        part1_method = self.current_methods["crossover_methods"]["part1"]
-        if part1_method != "default" and part1_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part1_method](parent1[0], parent2[0])
-            child1[0] = c1
-            child2[0] = c2
+        if np.random.rand() < get_prob("part1"):
+            part1_method = self.current_methods["crossover_methods"]["part1"]
+            if part1_method != "default" and part1_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part1_method](parent1[0], parent2[0])
+                child1[0] = c1
+                child2[0] = c2
+            else:
+                point = random.choice(range(1, self.n_shelters))
+                child1[0][:point], child2[0][:point] = (
+                    child2[0][:point],
+                    child1[0][:point],
+                )
         else:
-            # استفاده از روش پیش‌فرض
-            point = random.choice(range(1, self.n_shelters))
-            child1[0][:point], child2[0][:point] = child2[0][:point], child1[0][:point]
+            child1[0] = deepcopy(parent1[0])
+            child2[0] = deepcopy(parent2[0])
 
         # Part 2
-        part2_method = self.current_methods["crossover_methods"]["part2"]
-        if part2_method != "default" and part2_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part2_method](parent1[1], parent2[1])
-            child1[1] = c1
-            child2[1] = c2
+        if np.random.rand() < get_prob("part2"):
+            part2_method = self.current_methods["crossover_methods"]["part2"]
+            if part2_method != "default" and part2_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part2_method](parent1[1], parent2[1])
+                child1[1] = c1
+                child2[1] = c2
+            else:
+                point = random.choice(range(1, self.n_shelters))
+                child1[1][:point], child2[1][:point] = (
+                    child2[1][:point],
+                    child1[1][:point],
+                )
         else:
-            # استفاده از روش پیش‌فرض
-            point = random.choice(range(1, self.n_shelters))
-            child1[1][:point], child2[1][:point] = child2[1][:point], child1[1][:point]
+            child1[1] = deepcopy(parent1[1])
+            child2[1] = deepcopy(parent2[1])
 
-        # Part 3 Section 1 (permutation part: indices 0 to n_damage_points-1)
-        part3_p1_method = self.current_methods["crossover_methods"]["part3_p1"]
-        if part3_p1_method != "default" and part3_p1_method in self.crossover_methods:
-            p3_p1 = parent1[2][: self.n_damage_points]
-            p3_p2 = parent2[2][: self.n_damage_points]
-            c1, c2 = self.crossover_methods[part3_p1_method](p3_p1, p3_p2)
-            child1[2][: self.n_damage_points] = c1
-            child2[2][: self.n_damage_points] = c2
+        # Part 3 Section 1
+        if np.random.rand() < get_prob("part3_p1"):
+            part3_p1_method = self.current_methods["crossover_methods"]["part3_p1"]
+            if (
+                part3_p1_method != "default"
+                and part3_p1_method in self.crossover_methods
+            ):
+                p3_p1 = parent1[2][: self.n_damage_points]
+                p3_p2 = parent2[2][: self.n_damage_points]
+                c1, c2 = self.crossover_methods[part3_p1_method](p3_p1, p3_p2)
+                child1[2][: self.n_damage_points] = c1
+                child2[2][: self.n_damage_points] = c2
+            else:
+                if self.n_damage_points > 0:
+                    part3_p1 = parent1[2][: self.n_damage_points]
+                    part3_p2 = parent2[2][: self.n_damage_points]
+                    child1_part3, child2_part3 = self.order_crossover(
+                        part3_p1, part3_p2
+                    )
+                    child1[2][: self.n_damage_points] = child1_part3
+                    child2[2][: self.n_damage_points] = child2_part3
         else:
-            # استفاده از روش پیش‌فرض (order crossover)
-            if self.n_damage_points > 0:
-                part3_p1 = parent1[2][: self.n_damage_points]
-                part3_p2 = parent2[2][: self.n_damage_points]
-                child1_part3, child2_part3 = self.order_crossover(part3_p1, part3_p2)
-                child1[2][: self.n_damage_points] = child1_part3
-                child2[2][: self.n_damage_points] = child2_part3
+            child1[2][: self.n_damage_points] = deepcopy(
+                parent1[2][: self.n_damage_points]
+            )
+            child2[2][: self.n_damage_points] = deepcopy(
+                parent2[2][: self.n_damage_points]
+            )
+
+        # Part 3 Section 2
+        if np.random.rand() < get_prob("part3_p2"):
+            part3_p2_method = self.current_methods["crossover_methods"]["part3_p2"]
+            if (
+                part3_p2_method != "default"
+                and part3_p2_method in self.crossover_methods
+            ):
+                p3_p1_sec2 = parent1[2][self.n_damage_points :]
+                p3_p2_sec2 = parent2[2][self.n_damage_points :]
+                c1_sec2, c2_sec2 = self.crossover_methods[part3_p2_method](
+                    p3_p1_sec2, p3_p2_sec2
+                )
+                child1[2][self.n_damage_points :] = c1_sec2
+                child2[2][self.n_damage_points :] = c2_sec2
+            else:
                 for i in range(self.n_damage_points, self.n_shelters):
                     if np.random.rand() < 0.5:
                         child1[2][i], child2[2][i] = child2[2][i], child1[2][i]
-
-        # Part 3 Section 2 (free assignment: indices n_damage_points to n_shelters-1)
-        part3_p2_method = self.current_methods["crossover_methods"]["part3_p2"]
-        if part3_p2_method != "default" and part3_p2_method in self.crossover_methods:
-            p3_p1_sec2 = parent1[2][self.n_damage_points :]
-            p3_p2_sec2 = parent2[2][self.n_damage_points :]
-            c1_sec2, c2_sec2 = self.crossover_methods[part3_p2_method](
-                p3_p1_sec2, p3_p2_sec2
-            )
-            child1[2][self.n_damage_points :] = c1_sec2
-            child2[2][self.n_damage_points :] = c2_sec2
         else:
-            # استفاده از روش پیش‌فرض (swap randomly)
-            for i in range(self.n_damage_points, self.n_shelters):
-                if np.random.rand() < 0.5:
-                    child1[2][i], child2[2][i] = child2[2][i], child1[2][i]
+            child1[2][self.n_damage_points :] = deepcopy(
+                parent1[2][self.n_damage_points :]
+            )
+            child2[2][self.n_damage_points :] = deepcopy(
+                parent2[2][self.n_damage_points :]
+            )
 
         # Part 4
-        part4_method = self.current_methods["crossover_methods"]["part4"]
-        if part4_method != "default" and part4_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part4_method](parent1[3], parent2[3])
-            child1[3] = np.array(c1).reshape(parent1[3].shape)
-            child2[3] = np.array(c2).reshape(parent2[3].shape)
+        if np.random.rand() < get_prob("part4"):
+            part4_method = self.current_methods["crossover_methods"]["part4"]
+            if part4_method != "default" and part4_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part4_method](parent1[3], parent2[3])
+                child1[3] = np.array(c1).reshape(parent1[3].shape)
+                child2[3] = np.array(c2).reshape(parent2[3].shape)
+            else:
+                mask_matrix = (
+                    np.random.rand(self.n_damage_points, self.n_hospitals) < 0.5
+                )
+                child1[3][mask_matrix] = parent2[3][mask_matrix]
+                child2[3][mask_matrix] = parent1[3][mask_matrix]
         else:
-            # استفاده از روش پیش‌فرض
-            mask_matrix = np.random.rand(self.n_damage_points, self.n_hospitals) < 0.5
-            child1[3][mask_matrix] = parent2[3][mask_matrix]
-            child2[3][mask_matrix] = parent1[3][mask_matrix]
+            child1[3] = deepcopy(parent1[3])
+            child2[3] = deepcopy(parent2[3])
 
         # Part 5
-        part5_method = self.current_methods["crossover_methods"]["part5"]
-        if part5_method != "default" and part5_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part5_method](parent1[4], parent2[4])
-            child1[4] = np.array(c1).reshape(parent1[4].shape)
-            child2[4] = np.array(c2).reshape(parent2[4].shape)
+        if np.random.rand() < get_prob("part5"):
+            part5_method = self.current_methods["crossover_methods"]["part5"]
+            if part5_method != "default" and part5_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part5_method](parent1[4], parent2[4])
+                child1[4] = np.array(c1).reshape(parent1[4].shape)
+                child2[4] = np.array(c2).reshape(parent2[4].shape)
+            else:
+                point1 = np.random.choice(range(1, self.n_damage_points))
+                point2 = np.random.choice(range(1, self.n_hospitals))
+                child1[4][:point1, :point2], child2[4][:point1, :point2] = (
+                    child2[4][:point1, :point2],
+                    child1[4][:point1, :point2],
+                )
+                child1[4][point1:, point2:], child2[4][point1:, point2:] = (
+                    child2[4][point1:, point2:],
+                    child1[4][point1:, point2:],
+                )
         else:
-            # استفاده از روش پیش‌فرض
-            point1 = np.random.choice(range(1, self.n_damage_points))
-            point2 = np.random.choice(range(1, self.n_hospitals))
-            child1[4][:point1, :point2], child2[4][:point1, :point2] = (
-                child2[4][:point1, :point2],
-                child1[4][:point1, :point2],
-            )
-            child1[4][point1:, point2:], child2[4][point1:, point2:] = (
-                child2[4][point1:, point2:],
-                child1[4][point1:, point2:],
-            )
+            child1[4] = deepcopy(parent1[4])
+            child2[4] = deepcopy(parent2[4])
 
         # Part 6
-        part6_method = self.current_methods["crossover_methods"]["part6"]
-        if part6_method != "default" and part6_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part6_method](parent1[5], parent2[5])
-            child1[5] = np.array(c1).reshape(parent1[5].shape)
-            child2[5] = np.array(c2).reshape(parent2[5].shape)
-        else:
-            # استفاده از روش پیش‌فرض
-            mask_matrix = (
-                np.random.rand(
-                    self.n_damage_points, self.n_hospitals + self.n_temp_medical
+        if np.random.rand() < get_prob("part6"):
+            part6_method = self.current_methods["crossover_methods"]["part6"]
+            if part6_method != "default" and part6_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part6_method](parent1[5], parent2[5])
+                child1[5] = np.array(c1).reshape(parent1[5].shape)
+                child2[5] = np.array(c2).reshape(parent2[5].shape)
+            else:
+                mask_matrix = (
+                    np.random.rand(
+                        self.n_damage_points, self.n_hospitals + self.n_temp_medical
+                    )
+                    < 0.5
                 )
-                < 0.5
-            )
-            child1[5][mask_matrix] = parent2[5][mask_matrix]
-            child2[5][mask_matrix] = parent1[5][mask_matrix]
+                child1[5][mask_matrix] = parent2[5][mask_matrix]
+                child2[5][mask_matrix] = parent1[5][mask_matrix]
+        else:
+            child1[5] = deepcopy(parent1[5])
+            child2[5] = deepcopy(parent2[5])
 
         # Part 7
-        part7_method = self.current_methods["crossover_methods"]["part7"]
-        if part7_method != "default" and part7_method in self.crossover_methods:
-            c1, c2 = self.crossover_methods[part7_method](parent1[6], parent2[6])
-            child1[6] = np.array(c1).reshape(parent1[6].shape)
-            child2[6] = np.array(c2).reshape(parent2[6].shape)
+        if np.random.rand() < get_prob("part7"):
+            part7_method = self.current_methods["crossover_methods"]["part7"]
+            if part7_method != "default" and part7_method in self.crossover_methods:
+                c1, c2 = self.crossover_methods[part7_method](parent1[6], parent2[6])
+                child1[6] = np.array(c1).reshape(parent1[6].shape)
+                child2[6] = np.array(c2).reshape(parent2[6].shape)
+            else:
+                point1 = np.random.choice(range(1, self.n_damage_points))
+                point2, point3 = sorted(
+                    random.sample(range(1, self.n_hospitals + self.n_temp_medical), k=2)
+                )
+                child1[6][:point1, point2:point3], child2[6][:point1, point2:point3] = (
+                    child2[6][:point1, point2:point3],
+                    child1[6][:point1, point2:point3],
+                )
+                child1[6][point1:, :point2], child2[6][point1:, :point2] = (
+                    child2[6][point1:, :point2],
+                    child1[6][point1:, :point2],
+                )
+                child1[6][point1:, point3:], child2[6][point1:, point3:] = (
+                    child2[6][point1:, point3:],
+                    child1[6][point1:, point3:],
+                )
         else:
-            # استفاده از روش پیش‌فرض
-            point1 = np.random.choice(range(1, self.n_damage_points))
-            point2, point3 = sorted(
-                random.sample(range(1, self.n_hospitals + self.n_temp_medical), k=2)
-            )
-            child1[6][:point1, point2:point3], child2[6][:point1, point2:point3] = (
-                child2[6][:point1, point2:point3],
-                child1[6][:point1, point2:point3],
-            )
-            child1[6][point1:, :point2], child2[6][point1:, :point2] = (
-                child2[6][point1:, :point2],
-                child1[6][point1:, :point2],
-            )
-            child1[6][point1:, point3:], child2[6][point1:, point3:] = (
-                child2[6][point1:, point3:],
-                child1[6][point1:, point3:],
-            )
+            child1[6] = deepcopy(parent1[6])
+            child2[6] = deepcopy(parent2[6])
 
         # تعمیر کروموزوم‌ها
         child1 = self.chromosome_repair(child1)
         child2 = self.chromosome_repair(child2)
-
         return child1, child2
 
     def mutate_per_part(self, chromosome):
         """
-        Mutation per-part with AI-selected methods for each part
+        Mutation per-part with AI-selected methods for each part, considering per-part probability
         """
         mutated = deepcopy(chromosome)
+        mpp = self.current_methods.get("mutation_part_probability", {})
+
+        def get_prob(part):
+            p = mpp.get(part)
+            return float(p) if p is not None else 1.0
 
         # Part 1
-        part1_method = self.current_methods["mutation_methods"]["part1"]
-        if part1_method != "default" and part1_method in self.mutation_methods:
-            mutated[0] = self.mutation_methods[part1_method](chromosome[0])
-        else:
-            # استفاده از روش پیش‌فرض
-            i = np.random.randint(0, self.n_shelters)
-            if mutated[0][i] == 0:
-                mutated[0][i] = random.randint(1, self.n_distribution)
+        if np.random.rand() < get_prob("part1"):
+            part1_method = self.current_methods["mutation_methods"]["part1"]
+            if part1_method != "default" and part1_method in self.mutation_methods:
+                mutated[0] = self.mutation_methods[part1_method](chromosome[0])
             else:
-                mutated[0][i] = random.randint(1, self.n_distribution)
+                i = np.random.randint(0, self.n_shelters)
+                if mutated[0][i] == 0:
+                    mutated[0][i] = random.randint(1, self.n_distribution)
+                else:
+                    mutated[0][i] = random.randint(1, self.n_distribution)
+        # else: keep unchanged
 
         # Part 2
-        part2_method = self.current_methods["mutation_methods"]["part2"]
-        if part2_method != "default" and part2_method in self.mutation_methods:
-            inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
-            # اگر متد نرخ داخلی بپذیرد آن را پاس بده
-            try:
-                mutated[1] = self.mutation_methods[part2_method](
-                    chromosome[1], mutation_rate=inner_rate
-                )
-            except TypeError:
-                mutated[1] = self.mutation_methods[part2_method](chromosome[1])
-        else:
-            # استفاده از روش پیش‌فرض
-            i = np.random.randint(0, self.n_shelters)
-            while mutated[1][i] == 0:
+        if np.random.rand() < get_prob("part2"):
+            part2_method = self.current_methods["mutation_methods"]["part2"]
+            if part2_method != "default" and part2_method in self.mutation_methods:
+                inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
+                try:
+                    mutated[1] = self.mutation_methods[part2_method](
+                        chromosome[1], mutation_rate=inner_rate
+                    )
+                except TypeError:
+                    mutated[1] = self.mutation_methods[part2_method](chromosome[1])
+            else:
                 i = np.random.randint(0, self.n_shelters)
-            mutated[1][i] = max(
-                0, np.clip(mutated[1][i] + np.random.normal(0, 0.1), 0, 1)
-            )
+                while mutated[1][i] == 0:
+                    i = np.random.randint(0, self.n_shelters)
+                mutated[1][i] = max(
+                    0, np.clip(mutated[1][i] + np.random.normal(0, 0.1), 0, 1)
+                )
+        # else: keep unchanged
 
-        # Part 3 Section 1 (permutation part: indices 0 to n_damage_points-1)
-        part3_p1_method = self.current_methods["mutation_methods"]["part3_p1"]
-        if part3_p1_method != "default" and part3_p1_method in self.mutation_methods:
-            mutated_p1 = self.mutation_methods[part3_p1_method](
-                chromosome[2][: self.n_damage_points]
-            )
-            mutated[2][: self.n_damage_points] = mutated_p1
-        else:
-            # استفاده از روش پیش‌فرض (swap mutation)
-            if self.n_damage_points > 1:
-                i = np.random.randint(0, self.n_damage_points)
-                j = [k for k in range(self.n_damage_points) if k != i]
-                j = random.choice(j)
-                mutated[2][i], mutated[2][j] = mutated[2][j], mutated[2][i]
+        # Part 3 Section 1
+        if np.random.rand() < get_prob("part3_p1"):
+            part3_p1_method = self.current_methods["mutation_methods"]["part3_p1"]
+            if (
+                part3_p1_method != "default"
+                and part3_p1_method in self.mutation_methods
+            ):
+                mutated_p1 = self.mutation_methods[part3_p1_method](
+                    chromosome[2][: self.n_damage_points]
+                )
+                mutated[2][: self.n_damage_points] = mutated_p1
+            else:
+                if self.n_damage_points > 1:
+                    i = np.random.randint(0, self.n_damage_points)
+                    j = [k for k in range(self.n_damage_points) if k != i]
+                    j = random.choice(j)
+                    mutated[2][i], mutated[2][j] = mutated[2][j], mutated[2][i]
+        # else: keep unchanged
 
-        # Part 3 Section 2 (free assignment: indices n_damage_points to n_shelters-1)
-        part3_p2_method = self.current_methods["mutation_methods"]["part3_p2"]
-        if part3_p2_method != "default" and part3_p2_method in self.mutation_methods:
-            mutated_p2 = self.mutation_methods[part3_p2_method](
-                chromosome[2][self.n_damage_points :]
-            )
-            mutated[2][self.n_damage_points :] = mutated_p2
-        else:
-            # استفاده از روش پیش‌فرض
-            if self.n_shelters > self.n_damage_points:
-                i = np.random.randint(self.n_damage_points, self.n_shelters)
-                if mutated[2][i] == 0:
-                    mutated[2][i] = random.choice(self.da_id)
+        # Part 3 Section 2
+        if np.random.rand() < get_prob("part3_p2"):
+            part3_p2_method = self.current_methods["mutation_methods"]["part3_p2"]
+            if (
+                part3_p2_method != "default"
+                and part3_p2_method in self.mutation_methods
+            ):
+                mutated_p2 = self.mutation_methods[part3_p2_method](
+                    chromosome[2][self.n_damage_points :]
+                )
+                mutated[2][self.n_damage_points :] = mutated_p2
+            else:
+                if self.n_shelters > self.n_damage_points:
+                    i = np.random.randint(self.n_damage_points, self.n_shelters)
+                    if mutated[2][i] == 0:
+                        mutated[2][i] = random.choice(self.da_id)
+                    else:
+                        mutated[2][i] = 0
+        # else: keep unchanged
+
+        # The below (matrix) parts are left unchanged if skip, not forcibly mutated.
+        # Parts 4,5,6,7:
+        for part_idx, part_key in zip(
+            range(3, 7), ["part4", "part5", "part6", "part7"]
+        ):
+            if np.random.rand() < get_prob(part_key):
+                method = self.current_methods["mutation_methods"][part_key]
+                if method != "default" and method in self.mutation_methods:
+                    inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
+                    try:
+                        mutated_flat = self.mutation_methods[method](
+                            chromosome[part_idx], mutation_rate=inner_rate
+                        )
+                    except TypeError:
+                        mutated_flat = self.mutation_methods[method](
+                            chromosome[part_idx]
+                        )
+                    mutated[part_idx] = np.array(mutated_flat).reshape(
+                        chromosome[part_idx].shape
+                    )
                 else:
-                    mutated[2][i] = 0
-
-        # Parts 4-7: apply to matrices
-        part4_method = self.current_methods["mutation_methods"]["part4"]
-        part5_method = self.current_methods["mutation_methods"]["part5"]
-        part6_method = self.current_methods["mutation_methods"]["part6"]
-        part7_method = self.current_methods["mutation_methods"]["part7"]
-
-        if part4_method != "default" and part4_method in self.mutation_methods:
-            inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
-            try:
-                mutated_flat = self.mutation_methods[part4_method](
-                    chromosome[3], mutation_rate=inner_rate
-                )
-            except TypeError:
-                mutated_flat = self.mutation_methods[part4_method](chromosome[3])
-            mutated[3] = np.array(mutated_flat).reshape(chromosome[3].shape)
-
-        if part5_method != "default" and part5_method in self.mutation_methods:
-            inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
-            try:
-                mutated_flat = self.mutation_methods[part5_method](
-                    chromosome[4], mutation_rate=inner_rate
-                )
-            except TypeError:
-                mutated_flat = self.mutation_methods[part5_method](chromosome[4])
-            mutated[4] = np.array(mutated_flat).reshape(chromosome[4].shape)
-
-        if part6_method != "default" and part6_method in self.mutation_methods:
-            inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
-            try:
-                mutated_flat = self.mutation_methods[part6_method](
-                    chromosome[5], mutation_rate=inner_rate
-                )
-            except TypeError:
-                mutated_flat = self.mutation_methods[part6_method](chromosome[5])
-            mutated[5] = np.array(mutated_flat).reshape(chromosome[5].shape)
-
-        if part7_method != "default" and part7_method in self.mutation_methods:
-            inner_rate = self.current_methods.get("mutation_inner_rate", 0.1)
-            try:
-                mutated_flat = self.mutation_methods[part7_method](
-                    chromosome[6], mutation_rate=inner_rate
-                )
-            except TypeError:
-                mutated_flat = self.mutation_methods[part7_method](chromosome[6])
-            mutated[6] = np.array(mutated_flat).reshape(chromosome[6].shape)
-
-        # اعمال روش پیش‌فرض برای قسمت‌های 4-7 اگر روش خاصی انتخاب نشده
-        if part4_method == "default":
-            for i in range(self.n_damage_points):
-                j = random.randint(0, self.n_hospitals - 1)
-                if mutated[3][i][j] == 0:
-                    mutated[3][i][j] = random.uniform(0.1, 0.5)
-                else:
-                    mutated[3][i][j] = max(
-                        0, np.clip(mutated[3][i][j] + np.random.normal(0, 0.1), 0, 1)
-                    )
-
-        if part5_method == "default":
-            for i in range(self.n_damage_points):
-                j = random.randint(0, self.n_hospitals - 1)
-                if mutated[4][i][j] > 0:
-                    mutated[4][i][j] = np.clip(
-                        mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1
-                    )
-
-        if part6_method == "default":
-            for i in range(self.n_damage_points):
-                j = random.randint(0, self.n_hospitals + self.n_temp_medical - 1)
-                if mutated[5][i][j] == 0:
-                    mutated[5][i][j] = random.uniform(0, 0.2)
-                else:
-                    mutated[5][i][j] = max(
-                        0, np.clip(mutated[5][i][j] + np.random.normal(0, 0.1), 0, 1)
-                    )
-                if mutated[6][i][j] > 0:
-                    mutated[6][i][j] = max(
-                        0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1)
-                    )
-
-        if part7_method == "default":
-            for i in range(self.n_damage_points):
-                j = random.randint(0, self.n_hospitals + self.n_temp_medical - 1)
-                if mutated[6][i][j] > 0:
-                    mutated[6][i][j] = max(
-                        0, np.clip(mutated[6][i][j] + np.random.normal(0, 0.1), 0, 1)
-                    )
-                if mutated[5][i][j] > 0:
-                    mutated[5][i][j] = max(
-                        0, np.clip(mutated[5][i][j] + np.random.normal(0, 0.1), 0, 1)
-                    )
-
+                    # Use vanilla default(s) as in old code
+                    if part_key == "part4":
+                        for i in range(self.n_damage_points):
+                            j = random.randint(0, self.n_hospitals - 1)
+                            if mutated[3][i][j] == 0:
+                                mutated[3][i][j] = random.uniform(0.1, 0.5)
+                            else:
+                                mutated[3][i][j] = max(
+                                    0,
+                                    np.clip(
+                                        mutated[3][i][j] + np.random.normal(0, 0.1),
+                                        0,
+                                        1,
+                                    ),
+                                )
+                    elif part_key == "part5":
+                        for i in range(self.n_damage_points):
+                            j = random.randint(0, self.n_hospitals - 1)
+                            if mutated[4][i][j] > 0:
+                                mutated[4][i][j] = np.clip(
+                                    mutated[4][i][j] + np.random.normal(0, 0.1), 0, 1
+                                )
+                    elif part_key == "part6":
+                        for i in range(self.n_damage_points):
+                            j = random.randint(
+                                0, self.n_hospitals + self.n_temp_medical - 1
+                            )
+                            if mutated[5][i][j] == 0:
+                                mutated[5][i][j] = random.uniform(0, 0.2)
+                            else:
+                                mutated[5][i][j] = max(
+                                    0,
+                                    np.clip(
+                                        mutated[5][i][j] + np.random.normal(0, 0.1),
+                                        0,
+                                        1,
+                                    ),
+                                )
+                            if mutated[6][i][j] > 0:
+                                mutated[6][i][j] = max(
+                                    0,
+                                    np.clip(
+                                        mutated[6][i][j] + np.random.normal(0, 0.1),
+                                        0,
+                                        1,
+                                    ),
+                                )
+                    elif part_key == "part7":
+                        for i in range(self.n_damage_points):
+                            j = random.randint(
+                                0, self.n_hospitals + self.n_temp_medical - 1
+                            )
+                            if mutated[6][i][j] > 0:
+                                mutated[6][i][j] = max(
+                                    0,
+                                    np.clip(
+                                        mutated[6][i][j] + np.random.normal(0, 0.1),
+                                        0,
+                                        1,
+                                    ),
+                                )
+                            if mutated[5][i][j] > 0:
+                                mutated[5][i][j] = max(
+                                    0,
+                                    np.clip(
+                                        mutated[5][i][j] + np.random.normal(0, 0.1),
+                                        0,
+                                        1,
+                                    ),
+                                )
         mutated = self.chromosome_repair(mutated)
         return mutated
 
@@ -839,7 +1009,7 @@ class NSGA2_Humanitarian:
         # Extract problem info
         cost_function = problem["cost_function"]
         checkpoint_path = problem.get("checkpoint_path", "nsga2_checkpoint.pkl")
-        resume = bool(problem.get("resume", True))
+        resume = bool(problem.get("resume", False))
 
         # Empty individual
         empty_individual = {
@@ -1058,9 +1228,10 @@ class NSGA2_Humanitarian:
 
             # Display iteration info
             if self.verbose:
-                print(f"Iteration {it + 1}: Number of Pareto Members = {len(F[0])}")
-                print(f"   Elite individuals preserved: {len(elite_individuals)}")
-                print(f"   New individuals generated: {len(popm)}")
+                print(f"\nIteration {it + 1}:")
+                print(f"    Number of Pareto Members = {len(F[0])}")
+                print(f"    Elite individuals preserved: {len(elite_individuals)}")
+                print(f"    New individuals generated: {len(popm)}")
                 # if it > 0:
                 # print(f'   Hypervolume: {self.metrics.hypervolume_history[-1]:.6f}')
                 # print(f'   Spacing: {self.metrics.spacing_history[-1]:.6f}')
@@ -1373,6 +1544,7 @@ class NSGA2_Humanitarian:
                 {
                     "hypervolume": 0.0,
                     "spacing": 0.0,
+                    "spread": 0.0,
                     "pareto_count": 0,
                     "avg_crowding_distance": 0.0,
                     "diversity": 0.0,
@@ -1382,9 +1554,9 @@ class NSGA2_Humanitarian:
         # شاخص‌های اضافی
         metrics["generation"] = generation
         metrics["population_size"] = len(pop)
-
-        # اضافه کردن تاریخچه کامل شاخص‌ها
-        metrics["history"] = self.metrics_history
+        # آمار بخشی (section_stats) طبق Prompt 2
+        section_stats = self.compute_section_stats(pop)
+        metrics["section_stats"] = section_stats
 
         return metrics
 
@@ -1401,9 +1573,9 @@ class NSGA2_Humanitarian:
             return
 
         rec = recommendations["recommendations"]
-
+        # self.current_methods = deepcopy(rec)
         # به‌روزرسانی متدهای ترکیب برای هر بخش
-        if "crossover" in rec:
+        if "crossover_methods" in rec:
             for part in [
                 "part1",
                 "part2",
@@ -1414,8 +1586,8 @@ class NSGA2_Humanitarian:
                 "part6",
                 "part7",
             ]:
-                if part in rec["crossover"]:
-                    method_name = rec["crossover"][part]
+                if part in rec["crossover_methods"]:
+                    method_name = rec["crossover_methods"][part]
                     # پیدا کردن کلید متد (شماره آن در dictionary)
                     found = False
                     for key, method in self.crossover_methods.items():
@@ -1427,20 +1599,26 @@ class NSGA2_Humanitarian:
                             found = True
                             if self.verbose:
                                 print(
-                                    f"🔄 Crossover method for {part} updated: {method_name}"
+                                    f"🔄 Crossover method for {part} updated: {method_name}, probability: {rec['crossover_methods']['crossover_part_probability'][part]}"
                                 )
                             break
                     if not found:
                         print(f"⚠️ Invalid crossover method for {part}: {method_name}")
 
-            if "probability" in rec["crossover"]:
-                self.p_crossover = rec["crossover"]["probability"]
-                self.current_methods["crossover_probability"] = self.p_crossover
+            if "global_crossover_probability" in rec["crossover_methods"]:
+                self.p_crossover = rec["crossover_methods"]["global_crossover_probability"]
+                self.current_methods["global_crossover_probability"] = self.p_crossover
                 if self.verbose:
                     print(f"🔄 Crossover probability updated: {self.p_crossover}")
+            if "crossover_part_probability" in rec["crossover_methods"]:
+                self.current_methods["crossover_part_probability"] = rec["crossover_methods"][
+                    "crossover_part_probability"
+                ]
+                if self.verbose:
+                    print("🔄 Crossover part probabilities updated")
 
         # به‌روزرسانی متدهای جهش برای هر بخش
-        if "mutation" in rec:
+        if "mutation_methods" in rec:
             for part in [
                 "part1",
                 "part2",
@@ -1451,8 +1629,8 @@ class NSGA2_Humanitarian:
                 "part6",
                 "part7",
             ]:
-                if part in rec["mutation"]:
-                    method_name = rec["mutation"][part]
+                if part in rec["mutation_methods"]:
+                    method_name = rec["mutation_methods"][part]
                     # پیدا کردن کلید متد (شماره آن در dictionary)
                     found = False
                     for key, method in self.mutation_methods.items():
@@ -1464,29 +1642,35 @@ class NSGA2_Humanitarian:
                             found = True
                             if self.verbose:
                                 print(
-                                    f"🔄 Mutation method for {part} updated: {method_name}"
+                                    f"🔄 Mutation method for {part} updated: {method_name}, probability: {rec['mutation_methods']['mutation_part_probability'][part]}"
                                 )
                             break
                     if not found:
                         print(f"⚠️ Invalid mutation method for {part}: {method_name}")
 
-            if "probability" in rec["mutation"]:
-                self.p_mutation = rec["mutation"]["probability"]
-                self.current_methods["mutation_probability"] = self.p_mutation
+            if "global_mutation_probability" in rec["mutation_methods"]:
+                self.p_mutation = rec["mutation_methods"]["global_mutation_probability"]
+                self.current_methods["global_mutation_probability"] = self.p_mutation
                 if self.verbose:
                     print(f"🔄 Mutation probability updated: {self.p_mutation}")
-            if "mutation_rate" in rec["mutation"]:
-                self.current_methods["mutation_inner_rate"] = rec["mutation"][
-                    "mutation_rate"
+            if "mutation_rate" in rec["mutation_methods"]:
+                self.current_methods["mutation_inner_rate"] = rec["mutation_methods"][
+                    "mutation_inner_rate"
                 ]
                 if self.verbose:
                     print(
                         f"🔄 Inner mutation_rate updated: {self.current_methods['mutation_inner_rate']}"
                     )
+            if "mutation_part_probability" in rec["mutation_methods"]:
+                self.current_methods["mutation_part_probability"] = rec["mutation_methods"][
+                    "mutation_part_probability"
+                ]
+                if self.verbose:
+                    print("🔄 Mutation part probabilities updated")
 
         # به‌روزرسانی متد انتخاب
-        if "selection" in rec:
-            selection_method_name = rec["selection"]["method"]
+        if "selection_method" in rec:
+            selection_method_name = rec["selection_method"]
             # پیدا کردن کلید متد (شماره آن در dictionary)
             found = False
             for key, method in self.selection_methods.items():
@@ -1525,7 +1709,7 @@ class NSGA2_Humanitarian:
 
         try:
             recommendations = self.openrouter_client.get_recommendations(
-                generation, metrics, self.current_methods
+                generation, metrics, self.current_methods, self.metrics_history
             )
 
             if recommendations:

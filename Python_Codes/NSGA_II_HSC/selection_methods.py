@@ -1,6 +1,7 @@
 import math
 import random
 from typing import List, Dict, Optional
+import numpy as np
 
 
 class SelectionMethods:
@@ -49,7 +50,7 @@ class SelectionMethods:
         """ε-dominance (minimization). a ε-dominates b?"""
         A = a["cost"]
         B = b["cost"]
-        assert isinstance(A, (list, tuple)) and isinstance(B, (list, tuple))
+        assert isinstance(A, (np.ndarray)) and isinstance(B, (np.ndarray))
         # a is no worse than b + eps in all, and strictly better by >= eps in at least one
         no_worse = all(Ai <= Bi + eps for Ai, Bi in zip(A, B))
         strictly_better = any(Ai < Bi - eps for Ai, Bi in zip(A, B))
