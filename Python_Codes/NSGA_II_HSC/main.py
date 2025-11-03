@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 from matplotlib.widgets import Button
 import datetime
-from nsga2 import NSGA2_Humanitarian
+from llm_nsga2 import LLM_NSGA2_Humanitarian
 import requests
 from collections import defaultdict
 import math
@@ -344,7 +344,7 @@ class Main():
         # دریافت تنظیمات AI
         ai_config = get_ai_config()
         
-        alg = NSGA2_Humanitarian(
+        alg = LLM_NSGA2_Humanitarian(
             max_iter=50,
             pop_size=150,
             p_crossover=0.9,
@@ -641,5 +641,6 @@ class Main():
             # for i, (active, allocated) in enumerate(zip(chromosome[4], chromosome[7])):
             #     if active:
             #         print(f"  Temp Medical {i+1}: {allocated} patients")
-m = Main()
-m.main()
+if __name__ == "__main__":
+    m = Main()
+    m.main()
