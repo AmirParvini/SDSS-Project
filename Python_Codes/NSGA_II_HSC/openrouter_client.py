@@ -3,7 +3,6 @@ import json
 import time
 from typing import Dict, Any, Optional
 
-
 class OpenRouterClient:
     """
     کلاینت برای ارتباط با OpenRouter API برای بهبود الگوریتم NSGA-II
@@ -38,6 +37,152 @@ class OpenRouterClient:
         # ذخیره اطلاعات مسئله برای استفاده در درخواست‌های بعدی
         self.problem_description = None
         self.chromosome_structure = None
+
+    def create_init_pop_prompt(self, pop_size: int, dims: Dict[str, int]) -> str:
+        """
+        Build a strict prompt asking the model to generate an initial population.
+
+        dims must include: n_shelters, n_distribution, n_damage_points, n_hospitals, n_temp_medical.
+        """
+        n_shelters = dims["n_shelters"]
+        n_distribution = dims["n_distribution"]
+        n_damage_points = dims["n_damage_points"]
+        n_hospitals = dims["n_hospitals"]
+        n_temp_medical = dims["n_temp_medical"]
+
+        prompt = f"""
+You are generating the INITIAL POPULATION for an NSGA-II run on a humanitarian logistics problem. Your goal is to create a **feasible, diverse, and well-seeded initial population** that respects all structural and logical constraints of the chromosome design.
+Return a SINGLE JSON object with a key "population" that is a list of length {pop_size}.
+Each item is a 7-part chromosome with the EXACT structure below.
+
+Chromosome parts and strict shapes:
+1) part1 (length={n_shelters}): integer list in [0,{n_distribution}] where 0 means shelter not selected and 1..{n_distribution} is the distribution center ID.
+2) part2 (length={n_shelters}): float list in [0,1] for flow ratios.
+3) part3 (length={n_shelters}): integer list. Indices 0..{n_damage_points-1} must be a permutation of the {n_damage_points} distinct damage point IDs drawn from the following set: REPLACE_WITH_DA_IDS. Indices {n_damage_points}..{n_shelters-1} can be any element from the same ID set (duplicates allowed).
+4) part4 (shape={n_damage_points}x{n_hospitals}): float matrix ≥0 with at least one positive per row; rows need not be normalized.
+5) part5 (shape={n_damage_points}x{n_hospitals}): float matrix in [0,1].
+6) part6 (shape={n_damage_points}x{n_hospitals + n_temp_medical}): float matrix ≥0 with at least one positive per row; rows need not be normalized.
+7) part7 (shape={n_damage_points}x{n_hospitals + n_temp_medical}): float matrix in [0,1].
+
+Follow these design principles strictly:
+
+1️⃣ **Feasibility first**
+- Every chromosome must fully satisfy all problem constraints (capacity, flow balance, assignment rules, logical structure).
+- If a generated chromosome violates a constraint, repair it immediately (e.g., normalize rows, reassign excess, fix duplicates, ensure each row has at least one positive value).
+- At least 80% of the population should be feasible from the start.
+
+2️⃣ **High diversity**
+- Use stratified sampling:
+  - For continuous variables → use Latin Hypercube or Sobol sampling in [0,1].
+  - For discrete or categorical variables → sample uniformly while avoiding duplicates.
+  - For permutation sections → use Fisher–Yates shuffling plus a few heuristic orderings.
+- Remove any near-identical individuals (Euclidean or Hamming distance threshold).
+- Include boundary and mid-range individuals to cover the decision space broadly.
+
+3️⃣ **Intelligent seeding**
+- Insert a few heuristic individuals derived from the problem logic, e.g.:
+  - “Minimum-distance” or “nearest assignment”
+  - “Capacity-balanced” or “min-unmet-demand”
+  - “Uniform distribution of flows”
+- Include at least one “extreme” solution per objective (favoring one objective strongly while ignoring others) to ensure corner coverage on the Pareto front.
+
+4️⃣ **Structure-aware generation**
+- For each chromosome section:
+  - **Binary/multiclass selection part:** ensure valid selection counts and diversity.
+  - **Continuous ratio/matrix part:** ensure ≥0 and normalized where required.
+  - **Permutation part:** guarantee valid ordering of IDs.
+  - **Matrix sections (e.g., flows):** each row must contain at least one positive entry.
+
+5️⃣ **Controlled randomness and reproducibility**
+- Use a fixed random seed for consistency.
+- Population size: between 50–200 (or about 4–10× number of decision variables).
+
+6️⃣ **Quality check before evolution**
+- Evaluate all objectives for the initial population.
+- Print the percentage of feasible individuals and diversity metrics (spread/spacing).
+- If diversity < threshold or feasibility < 60%, resample and repair again.
+
+Hard constraints:
+- Respect all lengths and shapes exactly.
+- Use only numeric values (no null/NaN/strings).
+- Keep values within the specified ranges.
+
+Output format (no extra text):
+{{
+  "population": [
+    {{
+      "part1": [ints...],
+      "part2": [floats...],
+      "part3": [ints...],
+      "part4": [[floats...], ...],
+      "part5": [[floats...], ...],
+      "part6": [[floats...], ...],
+      "part7": [[floats...], ...]
+    }},
+    ... {pop_size} items total ...
+  ]
+}}
+"""
+        return prompt
+
+    def parse_init_population(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Extract a JSON object that contains a key "population" (list of chromosomes).
+        """
+        try:
+            message = response.get("choices", [{}])[0].get("message", {})
+            content = message.get("content", "")
+            if isinstance(content, list):
+                content = "\n".join([str(part.get("text", part)) for part in content])
+            elif not isinstance(content, str):
+                content = str(content)
+
+            import re
+            import json
+
+            fenced = re.findall(r"```json\s*(\{[\s\S]*?\})\s*```", content)
+            candidates = []
+            if fenced:
+                candidates.extend(fenced)
+            # try raw content as well
+            candidates.append(content)
+
+            for cand in candidates:
+                try:
+                    obj = json.loads(cand)
+                    if isinstance(obj, dict) and isinstance(obj.get("population"), list):
+                        return obj
+                except json.JSONDecodeError:
+                    continue
+            return None
+        except Exception:
+            return None
+
+    def get_initial_population(self, pop_size: int, dims: Dict[str, int], da_ids: list[int], max_retries: int = 3) -> Optional[list]:
+        """
+        Request an initial population from the AI. Returns a list of chromosome dicts
+        or None on failure.
+        """
+        # Build prompt with actual DA IDs injected
+        print('get_initial_population...')
+        base_prompt = self.create_init_pop_prompt(pop_size, dims)
+        ids_str = ",".join(str(x) for x in da_ids)
+        prompt = base_prompt.replace("REPLACE_WITH_DA_IDS", f"{{{ids_str}}}")
+        
+        print('send_request...')
+        response = self.send_request(prompt)
+        if response is None:
+            return None
+
+        print('parse_init_population...')
+        parsed = self.parse_init_population(response)
+        if not parsed:
+            return None
+
+        population = parsed.get("population")
+        if not isinstance(population, list):
+            return None
+        return population
 
     def _format_metrics_history(self, history: list) -> str:
         """
@@ -104,7 +249,7 @@ The run configuration and problem scale (population size, number of generations,
 
 <Role>
 You are an expert advisor (algorithm designer / adaptive operator selector) for multi-objective evolutionary algorithms, specialized in NSGA-II and adaptive operator control.
-Your job is to analyze periodic performance and section-wise diversity diagnostics and recommend **per-section** crossover, mutation, and a selection method — plus tuned probabilities — for the next 5 generations.
+Your job is to analyze periodic performance and section-wise diversity diagnostics and recommend **per-section** crossover, mutation, and a selection method — plus tuned probabilities — for the next 10 generations.
 Your recommendations should be actionable (method names are drawn from the available-method lists) and justified by the diagnostics (e.g., low variance or entropy → increase exploration on that section).
 <Role>
 
@@ -121,7 +266,7 @@ Focus on:
 - Short analysis text (why you chose these operators, and what triggers should change them in the future)
  - Per-part probabilities (optional): crossover_part_probability, mutation_part_probability
 Be concise but include a technical justification (1–3 sentences) for each major choice.
-When reasoning about which operator to prefer for a part, use the part data type: discrete/permutation (Parts 1 & Part 3 section 1), continuous (Part 2), matrix-continuous (Parts 4–7), and the special two-section layout of Part 3.
+When reasoning about which operator to prefer for a part, use the part data type: discrete/permutation (parts 1 & Part 3 section 1), continuous (Part 2), matrix-continuous (parts 4–7), and the special two-section layout of Part 3.
 <Instruction>
 
 <Specification>
@@ -142,7 +287,7 @@ Chromosome Structure (7 parts):
     1. The length of Part 1, Part 2, and Part 3 = number_of_candidate_shelters.
     2. Rows of Part 4 and Part 5 = number_of_damage_points; columns = number_of_hospitals.
     3. Rows of Part 6 and Part 7 = number_of_damage_points; columns = number_of_hospitals + number_of_candidate_temporary_med_centers.
-Parts:
+parts:
 1. Part 1: Distribution center assignment to shelters (integer list) — discrete categorical (0..N_centers)
 2. Part 2: Flow values from distribution centers (float list in [0,1]) — continuous
 3. Part 3: Damage point to shelter assignment (integer list)
@@ -157,39 +302,39 @@ Parts:
 
 Available Methods:
 15 different Crossover Methods:
-- one_point_crossover_list    (compatible only for Part 1, Part 2, Part 3 Section 2)
-- two_point_crossover_list    (compatible only for Part 1, Part 2, Part 3 Section 2)
-- multi_point_crossover_list  (compatible only for Part 1, Part 2, Part 3 Section 2)
-- uniform_crossover_list      (compatible only for Part 1, Part 2, Part 3 Section 2)
-- order_crossover_list        (compatible only for Part 3 Section 1)
-- partially_mapped_crossover  (compatible only for Part 3 Section 1)
-- arithmetic_crossover_list   (compatible only for Part 2)
-- blend_crossover_list        (compatible only for Part 2)
-- one_point_crossover_matrix  (compatible only for Parts 4, 5, 6, 7)
-- two_point_crossover_matrix  (compatible only for Parts 4, 5, 6, 7)
-- uniform_crossover_matrix    (compatible only for Parts 4, 5, 6, 7)
-- block_crossover_matrix      (compatible only for Parts 4, 5, 6, 7)
-- row_wise_crossover_matrix   (compatible only for Parts 4, 5, 6, 7)
-- arithmetic_crossover_matrix (compatible only for Parts 4, 5, 6, 7)
-- simulated_binary_crossover  (compatible only for Part 2)
+- one_point_crossover_list    (compatible only for part1, part2, section2 of part3)
+- two_point_crossover_list    (compatible only for part1, part2, section2 of part3)
+- multi_point_crossover_list  (compatible only for part1, part2, section2 of part3)
+- uniform_crossover_list      (compatible only for part1, part2, section2 of part3)
+- order_crossover_list        (compatible only for section1 of part3)
+- partially_mapped_crossover  (compatible only for section1 of part3)
+- arithmetic_crossover_list   (compatible only for part2)
+- blend_crossover_list        (compatible only for part2)
+- one_point_crossover_matrix  (compatible only for parts 4, 5, 6, 7)
+- two_point_crossover_matrix  (compatible only for parts 4, 5, 6, 7)
+- uniform_crossover_matrix    (compatible only for parts 4, 5, 6, 7)
+- block_crossover_matrix      (compatible only for parts 4, 5, 6, 7)
+- row_wise_crossover_matrix   (compatible only for parts 4, 5, 6, 7)
+- arithmetic_crossover_matrix (compatible only for parts 4, 5, 6, 7)
+- simulated_binary_crossover  (compatible only for part2)
 
 16 different Mutation Methods:
-- bit_flip_mutation_list         (compatible only for Part 1)
-- swap_mutation_list             (compatible only for Part 1, Part 3 Section 1, Part 3 Section 2)
-- inversion_mutation_list        (compatible only for Part 1, Part 3 Section 1, Part 3 Section 2)
-- scramble_mutation_list         (compatible only for Part 1, Part 3 Section 1, Part 3 Section 2)
-- insertion_mutation_list        (compatible only for Part 1, Part 3 Section 1, Part 3 Section 2)
-- displacement_mutation_list     (compatible only for Part 1, Part 3 Section 1, Part 3 Section 2)
-- gaussian_mutation_list         (compatible only for Part 2)
-- uniform_mutation_list          (compatible only for Part 2)
-- polynomial_mutation_list       (compatible only for Part 2)
-- boundary_mutation_list         (compatible only for Part 2)
-- random_element_mutation_matrix (compatible only for Parts 4, 5, 6, 7)
-- gaussian_mutation_matrix       (compatible only for Parts 4, 5, 6, 7)
-- row_mutation_matrix            (compatible only for Parts 4, 5, 6, 7)
-- column_mutation_matrix         (compatible only for Parts 4, 5, 6, 7)
-- block_mutation_matrix          (compatible only for Parts 4, 5, 6, 7)
-- creep_mutation_matrix          (compatible only for Parts 4, 5, 6, 7)
+- bit_flip_mutation_list         (compatible only for part1)
+- swap_mutation_list             (compatible only for part1, section1 of part3, section2 of part3)
+- inversion_mutation_list        (compatible only for part1, section1 of part3, section2 of part3)
+- scramble_mutation_list         (compatible only for part1, section1 of part3, section2 of part3)
+- insertion_mutation_list        (compatible only for part1, section1 of part3, section2 of part3)
+- displacement_mutation_list     (compatible only for part1, section1 of part3, section2 of part3)
+- gaussian_mutation_list         (compatible only for part2)
+- uniform_mutation_list          (compatible only for part2)
+- polynomial_mutation_list       (compatible only for part2)
+- boundary_mutation_list         (compatible only for part2)
+- random_element_mutation_matrix (compatible only for parts 4, 5, 6, 7)
+- gaussian_mutation_matrix       (compatible only for parts 4, 5, 6, 7)
+- row_mutation_matrix            (compatible only for parts 4, 5, 6, 7)
+- column_mutation_matrix         (compatible only for parts 4, 5, 6, 7)
+- block_mutation_matrix          (compatible only for parts 4, 5, 6, 7)
+- creep_mutation_matrix          (compatible only for parts 4, 5, 6, 7)
 
 7 different Selection Methods:
 - crowded_binary_tournament
@@ -200,13 +345,13 @@ Available Methods:
 - age_diversity_tournament
 - epsilon_dominance_tournament
 
-*Be sure to select the merge and mutate methods for each section if they are compatible.*
+*Be sure to select the crossover and mutate methods for each section if they are compatible.*
 <Specification>
 
 
 <Performance>
 what you will receive and how to use it:
-Every 5 generations I will provide you a metrics payload containing:
+Every 10 generations I will provide you a metrics payload containing:
 - Global metrics per generation: Hypervolume (HV), Spacing, Spread, Number of Pareto solutions, Average crowding distance, Population diversity
 - Population objective statistics: Mean, Min, and Standard deviation of objectives (F1, F2, F3) calculated from the entire population of each generation
 - Section-state (for each part or section): variance (for continuous parts/matrices) or entropy/uniqueness (for discrete/permutation parts))
@@ -216,7 +361,7 @@ Use the variance/entropy of each chromosome segment to identify which segments a
 - High variance/entropy → indicates wide exploration or noise → favor exploitative, smoothing operators for that section.
 <Performance>
 
-The data you need to analyze and based on that, suggest the things I wanted for the next 5 generations:
+The data you need to analyze and based on that, suggest the things I wanted for the next 10 generations:
 * Performance Metrics History (from generation 0 to {generation}):
 * Current generation: {generation}
 * Metrics History (Metric history from the first run of the algorithm to the current run):

@@ -35,12 +35,14 @@ class LLM_NSGA2_Humanitarian:
         temporary_medical_id,
         max_iter=100,
         pop_size=100,
-        p_crossover=0.7,
-        p_mutation=0.3,
+        p_crossover=0.9,
+        p_mutation=0.1,
         elitism_rate=0.1,
         verbose=True,
         openrouter_api_key=None,
-        use_ai_optimization=False,
+        use_ai_optimization=True,
+        llm_iter = 5,
+        use_llm_init_pop=True,
     ):
         """
         Constructor for humanitarian logistics NSGA-II
@@ -69,6 +71,8 @@ class LLM_NSGA2_Humanitarian:
         self.n_elite = max(1, int(elitism_rate * pop_size))  # حداقل یک فرد نخبه
         self.verbose = verbose
         self.use_ai_optimization = use_ai_optimization
+        self.use_llm_init_pop = bool(use_llm_init_pop)
+        self.llm_iter = llm_iter
 
         # تنظیم OpenRouter Client
         self.openrouter_client = None
@@ -241,6 +245,88 @@ class LLM_NSGA2_Humanitarian:
         self.metrics_history = []
         # آمار بخشی نسل به نسل
         self.section_stats_history = []
+
+    def _validate_and_convert_chromosome(self, item):
+        """
+        Validate a chromosome dict from AI and convert to the internal format:
+        [list, list, list, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        Returns None if invalid.
+        """
+        try:
+            # part1
+            p1 = list(item["part1"]) if isinstance(item.get("part1"), list) else None
+            if p1 is None or len(p1) != self.n_shelters:
+                return None
+            if any((not isinstance(x, (int, float))) or (x < 0) or (x > self.n_distribution) for x in p1):
+                return None
+            p1 = [int(round(x)) for x in p1]
+
+            # part2
+            p2 = list(item["part2"]) if isinstance(item.get("part2"), list) else None
+            if p2 is None or len(p2) != self.n_shelters:
+                return None
+            p2 = [float(min(1.0, max(0.0, x))) for x in p2]
+
+            # part3
+            p3 = list(item["part3"]) if isinstance(item.get("part3"), list) else None
+            if p3 is None or len(p3) != self.n_shelters:
+                return None
+            p3 = [int(x) for x in p3]
+            # basic sanity: first section should be permutation of DA ids
+            prefix = p3[: self.n_damage_points]
+            if sorted(prefix) != sorted(self.da_id):
+                return None
+
+            # matrices
+            import numpy as np
+            # part4
+            p4 = item.get("part4")
+            if not (isinstance(p4, list) and len(p4) == self.n_damage_points):
+                return None
+            p4_arr = np.array(p4, dtype=float)
+            if p4_arr.shape != (self.n_damage_points, self.n_hospitals):
+                return None
+            # each row has at least one positive
+            if not all(np.any(row > 0) for row in p4_arr):
+                return None
+
+            # part5
+            p5 = item.get("part5")
+            if not (isinstance(p5, list) and len(p5) == self.n_damage_points):
+                return None
+            p5_arr = np.array(p5, dtype=float)
+            if p5_arr.shape != (self.n_damage_points, self.n_hospitals):
+                return None
+            p5_arr = np.clip(p5_arr, 0.0, 1.0)
+            # enforce mask where p4>0 => p5 can be >0, else 0
+            p5_arr[p4_arr == 0] = 0.0
+
+            # part6
+            p6 = item.get("part6")
+            if not (isinstance(p6, list) and len(p6) == self.n_damage_points):
+                return None
+            p6_arr = np.array(p6, dtype=float)
+            if p6_arr.shape != (self.n_damage_points, self.n_hospitals + self.n_temp_medical):
+                return None
+            if not all(np.any(row > 0) for row in p6_arr):
+                return None
+
+            # part7
+            p7 = item.get("part7")
+            if not (isinstance(p7, list) and len(p7) == self.n_damage_points):
+                return None
+            p7_arr = np.array(p7, dtype=float)
+            if p7_arr.shape != (self.n_damage_points, self.n_hospitals + self.n_temp_medical):
+                return None
+            p7_arr = np.clip(p7_arr, 0.0, 1.0)
+            p7_arr[p6_arr == 0] = 0.0
+
+            chrom = [p1, p2, p3, p4_arr, p5_arr, p6_arr, p7_arr]
+            # final light repair
+            chrom = self.chromosome_repair(chrom)
+            return chrom
+        except Exception:
+            return None
 
     def _entropy(self, values):
         arr = np.array(values).flatten()
@@ -1009,7 +1095,7 @@ class LLM_NSGA2_Humanitarian:
         # Extract problem info
         cost_function = problem["cost_function"]
         checkpoint_path = problem.get("checkpoint_path", "llm_nsga2_checkpoint.pkl")
-        resume = bool(problem.get("resume", False))
+        resume = bool(problem.get("resume", True))
 
         # Empty individual
         empty_individual = {
@@ -1050,8 +1136,57 @@ class LLM_NSGA2_Humanitarian:
                 pop = None
         if pop is None:
             pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
-            for i in range(self.pop_size):
-                pop[i]["chromosome"] = self.create_random_chromosome()
+            # Try AI-generated initial population first if enabled
+            ai_init_ok = False
+            if self.use_llm_init_pop and self.openrouter_client:
+                dims = {
+                    "n_shelters": self.n_shelters,
+                    "n_distribution": self.n_distribution,
+                    "n_damage_points": self.n_damage_points,
+                    "n_hospitals": self.n_hospitals,
+                    "n_temp_medical": self.n_temp_medical,
+                }
+                try:
+                    ai_pop = self.openrouter_client.get_initial_population(self.pop_size, dims, self.da_id)
+                except Exception:
+                    ai_pop = None
+                if isinstance(ai_pop, list) and len(ai_pop) > 0:
+                    filled = 0
+                    for item in ai_pop:
+                        chrom = self._validate_and_convert_chromosome(item)
+                        if chrom is not None and filled < self.pop_size:
+                            pop[filled]["chromosome"] = chrom
+                            filled += 1
+                    # fill remaining with random if needed
+                    for i in range(filled, self.pop_size):
+                        pop[i]["chromosome"] = self.create_random_chromosome()
+                    ai_init_ok = filled > 0
+            else:
+                # If LLM-based init is disabled, try loading from initial_population.json
+                try:
+                    import json
+                    init_path = os.path.join(os.path.dirname(__file__), "initial_population.json")
+                    if os.path.exists(init_path):
+                        with open(init_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if isinstance(data, list) and len(data) > 0:
+                            filled = 0
+                            for item in data:
+                                chrom = self._validate_and_convert_chromosome(item)
+                                if chrom is not None and filled < self.pop_size:
+                                    pop[filled]["chromosome"] = chrom
+                                    filled += 1
+                            # fill remaining with random if needed
+                            for i in range(filled, self.pop_size):
+                                pop[i]["chromosome"] = self.create_random_chromosome()
+                            ai_init_ok = filled > 0
+                except Exception:
+                    # Any error -> ignore and fallback later
+                    ai_init_ok = False
+            # fallback if AI/file init disabled or failed
+            if not ai_init_ok:
+                for i in range(self.pop_size):
+                    pop[i]["chromosome"] = self.create_random_chromosome()
             chromosom_list = []
             for p in pop:
                 chromosom_list.append(p["chromosome"])
@@ -1085,7 +1220,7 @@ class LLM_NSGA2_Humanitarian:
                 self.use_ai_optimization
                 and self.openrouter_client
                 and it > 0
-                and it % 5 == 0
+                and it % self.llm_iter == 0
             ):
                 print(f"\n🤖 Requesting AI recommendations for generation {it}...")
                 recommendations = self.get_ai_recommendations(it, current_metrics)

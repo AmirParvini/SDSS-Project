@@ -30,15 +30,16 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
             damage_points_id=damage_points_id,
             hospital_id=hospital_id,
             temporary_medical_id=temporary_medical_id,
-            max_iter=100,  # Reduced for faster execution
-            pop_size=100,
-            p_crossover=0.7,
-            p_mutation=0.3,
+            max_iter=200,  # Reduced for faster execution
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
             elitism_rate=0.1,
             verbose=True,  # Disable verbose output for parallel execution
             openrouter_api_key=ai_config['api_key'],
-            use_ai_optimization=ai_config['use_optimization']
-        )
+            use_ai_optimization=ai_config['use_optimization'],
+            llm_iter=10,
+            use_llm_init_pop = False)
 
         start_time = time.time()
         result = llm_nsga2.run(problem)
@@ -57,7 +58,7 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
             'pareto_count': metrics.n_pareto_history,
             'generations': len(metrics.normalized_hypervolume),
             'execution_time': end_time - start_time,
-            'final_hypervolume': float(result.get('hypervolume_summary', {}).get('final_hypervolume', 0))
+            'final_hypervolume': float(metrics.normalized_hypervolume[-1])
         }
 
         result_queue.put(result_data)
@@ -98,10 +99,10 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             damage_points_id=damage_points_id,
             hospital_id=hospital_id,
             temporary_medical_id=temporary_medical_id,
-            max_iter=100,  # Reduced for faster execution
-            pop_size=100,
-            p_crossover=0.7,
-            p_mutation=0.3,
+            max_iter=200,  # Reduced for faster execution
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
             elitism_rate=0.1,
             verbose=False  # Disable verbose output for parallel execution
         )
@@ -123,7 +124,7 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             'pareto_count': metrics.n_pareto_history,
             'generations': len(metrics.normalized_hypervolume),
             'execution_time': end_time - start_time,
-            'final_hypervolume': float(result.get('hypervolume_summary', {}).get('final_hypervolume', 0))
+            'final_hypervolume': float(metrics.normalized_hypervolume[-1])
         }
 
         result_queue.put(result_data)

@@ -345,7 +345,7 @@ class Main():
         ai_config = get_ai_config()
         
         alg = LLM_NSGA2_Humanitarian(
-            max_iter=50,
+            max_iter=200,
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
@@ -357,7 +357,8 @@ class Main():
             hospital_id = self.h_id,
             temporary_medical_id = self.tmc_id,
             openrouter_api_key=ai_config['api_key'],
-            use_ai_optimization=ai_config['use_optimization']
+            use_ai_optimization=ai_config['use_optimization'],
+            use_llm_init_pop = False
         )
 
         # Solve the Problem
