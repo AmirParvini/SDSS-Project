@@ -28,6 +28,7 @@ class HypervolumeManager:
         self.estimated_reference_point = None  # نقطه مرجع تخمینی
         self.hypervolume_history = []  # تاریخچه هایپرولیوم با نقطه مرجع ثابت
         self.preliminary_hv_history = []  # تاریخچه هایپرولیوم موقت
+        self.random_points = None # نقاط تصادفی برای روش Monte Carlo
         
     def store_generation_data(self, generation: int, pareto_front: np.ndarray):
         """
@@ -168,8 +169,6 @@ class HypervolumeManager:
         
         if n_objectives == 2:
             return self._hypervolume_2d(pareto_front, reference_point)
-        elif n_objectives == 3:
-            return self._hypervolume_3d(pareto_front, reference_point)
         else:
             # برای ابعاد بالاتر از روش Monte Carlo استفاده می‌کنیم
             return self._hypervolume_monte_carlo(pareto_front, reference_point)
@@ -227,31 +226,26 @@ class HypervolumeManager:
         # تولید نقاط تصادفی در فضای مرجع
         n_objectives = len(reference_point)
         
-        # پیدا کردن نقطه ideal
-        ideal_point = np.min(pareto_front, axis=0)
+        ideal_point = np.array([0.0, 0.0, 0.0])
         
-        # تولید نقاط تصادفی بین ideal و reference
-        random_points = np.random.uniform(
-            low=ideal_point, 
-            high=reference_point, 
-            size=(n_samples, n_objectives)
-        )
-        
-        # شمارش نقاطی که توسط pareto front dominated می‌شوند
-        dominated_count = 0
-        
-        for random_point in random_points:
-            # بررسی اینکه آیا این نقطه توسط هر نقطه pareto dominated می‌شود
-            for pareto_point in pareto_front:
-                if all(pareto_point <= random_point):
-                    dominated_count += 1
-                    break
-        
-        # محاسبه حجم
-        total_volume = np.prod(reference_point - ideal_point)
-        hypervolume = (dominated_count / n_samples) * total_volume
-        
-        return hypervolume
+        if self.random_points is None:
+            # تولید نقاط تصادفی بین ideal و reference
+            self.random_points = np.random.uniform(0, 1, size=(n_samples, n_objectives))
+            
+        span = reference_point - ideal_point
+        if len(pareto_front) == 0:
+            hv = 0
+        # 3) normalize PF into [0,1]^3
+        pf_norm = (pareto_front - ideal_point) / span
+        pf_norm = np.clip(pf_norm, 0.0, 1.0)
+
+        # 4) dominance test (vectorized):
+        # a rnd point x is dominated if exists s in PF with s <= x (componentwise)
+        # shape tricks: compare all rnd to all pf
+        # pf_norm[None, :, :] -> (1, N, M); rnd[:, None, :] -> (S, 1, M)
+        dominated_by_any = np.all(pf_norm[None, :, :] <= self.random_points[:, None, :], axis=2).any(axis=1)
+        hv = dominated_by_any.mean()  # in [0,1]
+        return hv
     
     def get_metrics_summary(self) -> Dict:
         """

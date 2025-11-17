@@ -10,6 +10,17 @@ from convergence_metrics import ConvergenceMetrics
 import time
 import traceback
 
+# Instance مشترک از کلاس Main برای استفاده در همه جا
+_main_instance = None
+
+def get_main_instance():
+    """Lazy initialization of Main instance"""
+    global _main_instance
+    if _main_instance is None:
+        from main import Main
+        _main_instance = Main()
+    return _main_instance
+
 def run_llm_nsga2(problem, result_queue, algorithm_name):
     """Run LLM-enhanced NSGA-II algorithm"""
     try:
@@ -22,24 +33,38 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
 
         from ai_config import get_ai_config
         ai_config = get_ai_config()
+        
+        # دریافت متغیرها از instance مشترک Main
+        main_instance = get_main_instance()
+        distances = main_instance.distance
+        homeless = main_instance.homeless
+        cost = main_instance.cost
+        capacity = main_instance.capacity
 
         # Initialize LLM NSGA-II
         llm_nsga2 = LLM_NSGA2_Humanitarian(
+            max_iter=300,
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
+            elitism_rate=0.1,  # 10% elitism rate
+            verbose=True,
+            resume=True,
+            openrouter_api_key=ai_config['api_key'],
+            base_url=ai_config['base_url'],
+            use_ai_optimization=True,
+            use_llm_init_pop = False,
+            llm_iter=5,
             shelter_id=shelter_id,
             distribution_center_id=distribution_center_id,
             damage_points_id=damage_points_id,
             hospital_id=hospital_id,
             temporary_medical_id=temporary_medical_id,
-            max_iter=200,  # Reduced for faster execution
-            pop_size=150,
-            p_crossover=0.9,
-            p_mutation=0.1,
-            elitism_rate=0.1,
-            verbose=True,  # Disable verbose output for parallel execution
-            openrouter_api_key=ai_config['api_key'],
-            use_ai_optimization=ai_config['use_optimization'],
-            llm_iter=10,
-            use_llm_init_pop = False)
+            distances=distances,
+            homeless=homeless,
+            cost=cost,
+            capacity=capacity,
+            )
 
         start_time = time.time()
         result = llm_nsga2.run(problem)
@@ -52,7 +77,6 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
             'algorithm': algorithm_name,
             'hypervolume': metrics.normalized_hypervolume,
             'spacing': metrics.normalized_spacing,
-            'diversity': metrics.normalized_diversity,
             'min_objs': metrics.min_objectives_history,
             'mean_objs':metrics.mean_objectives_history,
             'pareto_count': metrics.n_pareto_history,
@@ -99,12 +123,13 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             damage_points_id=damage_points_id,
             hospital_id=hospital_id,
             temporary_medical_id=temporary_medical_id,
-            max_iter=200,  # Reduced for faster execution
+            max_iter=300,
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
             elitism_rate=0.1,
-            verbose=False  # Disable verbose output for parallel execution
+            verbose=False,  # Disable verbose output for parallel execution
+            resume = True
         )
 
         start_time = time.time()
@@ -118,7 +143,6 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             'algorithm': algorithm_name,
             'hypervolume': metrics.normalized_hypervolume,
             'spacing': metrics.normalized_spacing,
-            'diversity': metrics.normalized_diversity,
             'min_objs': metrics.min_objectives_history,
             'mean_objs':metrics.mean_objectives_history,
             'pareto_count': metrics.n_pareto_history,
@@ -149,9 +173,8 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
 class RealCostFunction:
     """Real humanitarian cost function for multiprocessing"""
     def __init__(self):
-        # Initialize the Main class to get the cost function
-        from main import Main
-        self.main_instance = Main()
+        # استفاده از instance مشترک Main
+        self.main_instance = get_main_instance()
 
     def __call__(self, chromosomes):
         """Use the real complex_humanitarian_cost function"""
@@ -166,7 +189,6 @@ def create_real_problem():
         'damage_points_id': list(range(3, 8)),  # 5 damage points (3-7)
         'hospital_id': list(range(1, 5)),  # 4 hospitals
         'temporary_medical_id': list(range(1, 11)),  # 10 temporary medical centers
-        'resume': True
     }
 
 def plot_comparison(results):
@@ -236,29 +258,8 @@ def plot_comparison(results):
         ax2.scatter(range(min_len), standard_result['spacing'][:min_len],
                    color='red', s=20, alpha=0.7)
 
-    # Diversity comparison
-    ax3 = axes[1, 0]
-    if llm_result['diversity'] and standard_result['diversity']:
-        min_len = min(len(llm_result['diversity']), len(standard_result['diversity']))
-        ax3.plot(range(min_len), llm_result['diversity'][:min_len],
-                label='LLM-Enhanced', color='blue', linewidth=2)
-        ax3.plot(range(min_len), standard_result['diversity'][:min_len],
-                label='Standard', color='red', linewidth=2)
-        ax3.set_xlabel('Generation')
-        ax3.set_ylabel('Diversity')
-        ax3.set_title('Population Diversity Comparison')
-        ax3.set_ylim(0, 1)
-        ax3.legend()
-        ax3.grid(True, alpha=0.3)
-
-        # Add data point markers
-        ax3.scatter(range(min_len), llm_result['diversity'][:min_len],
-                   color='blue', s=20, alpha=0.7)
-        ax3.scatter(range(min_len), standard_result['diversity'][:min_len],
-                   color='red', s=20, alpha=0.7)
-
     # Pareto front size comparison
-    ax4 = axes[1, 1]
+    ax4 = axes[1, 0]
     if llm_result['pareto_count'] and standard_result['pareto_count']:
         min_len = min(len(llm_result['pareto_count']), len(standard_result['pareto_count']))
         ax4.plot(range(min_len), llm_result['pareto_count'][:min_len],

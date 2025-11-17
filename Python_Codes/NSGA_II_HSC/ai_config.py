@@ -7,22 +7,22 @@
 # ==================== تنظیمات OpenRouter API ====================
 
 # API Key از OpenRouter (از https://openrouter.ai/ دریافت کنید)
-OPENROUTER_API_KEY = "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"  # "your-api-key-here"
-
-# مدل AI مورد استفاده (مدل‌های رایگان موجود)
-AI_MODEL = "minimax/minimax-m2:free"  # مدل رایگان deepseek
+OPENROUTER_API_KEY = "sk-Wne1ay7BrN5P1wxjU40DRW0bRkQO8ocPS4EdwIjK6TMaPgPW"  # "your-api-key-here"
+AI_MODEL = "deepseek-chat"
+BASE_URL = "https://api.gapapi.com/v1"
+# OPENROUTER_API_KEY = "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"  # "your-api-key-here"
+# AI_MODEL = "openai/gpt-oss-20b:free"
+# BASE_URL = "https://openrouter.ai/api/v1"
+# AI_MODEL = "minimax/minimax-m2:free"
+# BASE_URL = "https://api.gapapi.com/v1"
 
 # ==================== تنظیمات AI Optimization ====================
-
 # فعال/غیرفعال کردن AI optimization
 USE_AI_OPTIMIZATION = True
-
 # فاصله زمانی درخواست پیشنهادات از AI (هر چند نسل)
 AI_UPDATE_INTERVAL = 5  # هر 5 نسل
-
 # حداکثر تعداد تلاش مجدد برای درخواست API
 MAX_API_RETRIES = 3
-
 # تایم‌اوت درخواست API (ثانیه)
 API_TIMEOUT = 30
 
@@ -64,6 +64,7 @@ def get_ai_config():
     return {
         'api_key': OPENROUTER_API_KEY,
         'model': AI_MODEL,
+        'base_url': BASE_URL,
         'use_optimization': USE_AI_OPTIMIZATION,
         'update_interval': AI_UPDATE_INTERVAL,
         'max_retries': MAX_API_RETRIES,

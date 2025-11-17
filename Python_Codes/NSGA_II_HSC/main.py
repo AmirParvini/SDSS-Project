@@ -4,19 +4,25 @@ from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 from matplotlib.widgets import Button
 import datetime
 from llm_nsga2 import LLM_NSGA2_Humanitarian
-import requests
+import json
 from collections import defaultdict
 import math
 import copy
 import itertools
+import os
 from tradeoff_analysis import TradeoffAnalysis  # فایل کلاس TradeoffAnalysis
 import seaborn as sns
 
 
 class Main():
     def __init__(self):
-        response = requests.get("http://localhost:8000/api/v1/getparam")
-        response = response.json()
+        # Get the directory where this script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Construct path to data file relative to script location
+        data_file_path = os.path.join(script_dir, 'exports', 'HSC_Parameters.json')
+        data_file_path = os.path.normpath(data_file_path)
+        with open(data_file_path, 'r', encoding='utf-8') as f:
+            response = json.load(f)
         self.idc_id = [1, 2, 3]
         self.ec_id = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
         self.da_id = [3, 4, 5, 6, 7]
@@ -67,7 +73,6 @@ class Main():
             key: self.affected_pop[key] - (self.severe_injured[key] + self.minor_injured[key])
             for key in self.affected_pop.keys()
         }
-        self.demand = {key: value/5 for key, value in self.affected_pop.items()}
         ec_area = {8: 283762, 9: 133407, 10: 120000, 11: 18700, 12: 14000,
                 13: 24000, 14: 20170, 15: 17400, 16: 25380, 17: 25374, 18: 58055}
         self.reliefpackage_volume = 0.6273  # Cubic meter
@@ -90,8 +95,6 @@ class Main():
         self.capacity = {
             'ambulance': {'injured_type1': 2, 'injured_type2': 4},  # person
             'helicopter': {'injured_type1': 4, 'injured_type2': 12},  # person
-            'truck_type1': 6,  # Cubic meter
-            'truck_type2': 12,  # Cubic meter
             'hospital': {1: 800, 2: 600, 3: 600, 4: 600},  # person
             'tmc': {1: 300, 2: 300, 3: 300, 4: 300, 5: 300, 6: 300, 7: 300, 8: 300, 9: 300, 10: 300},  # person
             'shelter': {key: (value * Pua / rta)*rtc for key, value in ec_area.items()} # person
@@ -279,15 +282,15 @@ class Main():
             ec_cap = [self.capacity['shelter'][v] for v in ec_id_list]
             da_ec_dist.append(sum([self.distance['dist_da_to_ec'][f"{da_id},{v}"] for v in ec_id_list]))
             totalcapacity = sum(ec_cap)
-            # if self.affected_pop[da_id] > totalcapacity:
-            #     ec_capacity_shortage.append(self.affected_pop[da_id]-totalcapacity)
+            # if self.homeless[da_id] > totalcapacity:
+            #     ec_capacity_shortage.append(self.homeless[da_id]-totalcapacity)
             alloc_ratio = [i/totalcapacity for i in ec_cap]
             for idx, ar in enumerate(alloc_ratio):
-                if round(ar * self.affected_pop[da_id]) > ec_cap[idx]:
+                if round(ar * self.homeless[da_id]) > ec_cap[idx]:
                     pop_to_ec.append(ec_cap[idx])
-                    ec_capacity_shortage.append(round(ar * self.affected_pop[da_id]) - ec_cap[idx])
+                    ec_capacity_shortage.append(round(ar * self.homeless[da_id]) - ec_cap[idx])
                 else:
-                    pop_to_ec.append(round(ar * self.affected_pop[da_id]))
+                    pop_to_ec.append(round(ar * self.homeless[da_id]))
                     ec_capacity_shortage.append(0)
             for (key, value) in enumerate(list(zip(ec_id_list, pop_to_ec))):
                 demand[value[0]] = math.ceil(value[-1]/5)
@@ -345,20 +348,27 @@ class Main():
         ai_config = get_ai_config()
         
         alg = LLM_NSGA2_Humanitarian(
-            max_iter=200,
+            max_iter=300,
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
             elitism_rate=0.1,  # 10% elitism rate
             verbose=True,
+            resume=False,
             shelter_id = self.ec_id,
             distribution_center_id = self.idc_id,
             damage_points_id = self.da_id,
             hospital_id = self.h_id,
             temporary_medical_id = self.tmc_id,
             openrouter_api_key=ai_config['api_key'],
+            base_url=ai_config['base_url'],
             use_ai_optimization=ai_config['use_optimization'],
-            use_llm_init_pop = False
+            use_llm_init_pop = False,
+            llm_iter=5,
+            distances=self.distance,
+            homeless=self.homeless,
+            cost=self.cost,
+            capacity=self.capacity,
         )
 
         # Solve the Problem

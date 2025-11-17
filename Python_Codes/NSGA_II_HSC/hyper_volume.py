@@ -312,7 +312,6 @@ class Hypervolume3D:
         # 2) guard: ref must dominate (be worse than) all points
         # if any ref <= ideal in a dim, expand it a bit
         span = ref_point - ideal_point
-        span[span <= 0] = 1.0  # avoid zero/neg span
         hv = []
         
         for pareto_front in pareto_fronts_list:

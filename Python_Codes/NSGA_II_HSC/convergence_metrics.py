@@ -13,11 +13,9 @@ class ConvergenceMetrics:
         self.normalized_hypervolume = []
         self.normalized_spacing = []
         self.normalized_spread = []
-        self.normalized_diversity = []
         self.hypervolume_history = []
         self.spacing_history = []
         self.spread_history = []
-        self.diversity_history = []  # Diversity metric
         self.gd_history = []  # Generational Distance
         self.igd_history = []  # Inverted Generational Distance
         self.n_pareto_history = []
@@ -75,7 +73,7 @@ class ConvergenceMetrics:
         hv = calculate_hypervolume_3d(
             pareto_fronts_list, 
             reference_point=reference_point,
-            method='monte_carlo'  # دقیق‌ترین روش
+            method='monte_carlo'
         )
         
         return hv
@@ -280,7 +278,7 @@ class ConvergenceMetrics:
             max_cost.append(np.max(pareto_front_list, axis=0))
         refrence_point = np.max(max_cost, axis=0) * 1.1
         hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
-        spacing_history, spread_history, diversity_history = [], [], []
+        spacing_history, spread_history = [], []
         
         # اگر all_pop_list ارائه نشده باشد، از pareto_pop_list استفاده می‌کنیم (backward compatibility)
         if all_pop_list is None:
@@ -320,22 +318,6 @@ class ConvergenceMetrics:
             self.min_objectives_history.append(min_obj)
             self.std_objectives_history.append(std_obj)
             
-            # محاسبه diversity از کل جمعیت
-            if idx < len(all_pop_list):
-                all_pop = all_pop_list[idx]
-                if len(all_pop) > 0:
-                    all_pop_front = np.array([ind['cost'] for ind in all_pop])
-                    div = self.diversity(all_pop_front)
-                    diversity_history.append(div)
-                else:
-                    # اگر جمعیت خالی است، از پارتو استفاده کن
-                    div = self.diversity(pareto_front)
-                    diversity_history.append(div)
-            else:
-                # اگر all_pop_list کوتاه‌تر است، از pareto استفاده کن
-                div = self.diversity(pareto_front)
-                diversity_history.append(div)
-            
             # اگر true Pareto front در دسترس باشد
             if true_pareto_front is not None:
                 pareto_front = np.array([ind['cost'] for ind in pareto_pop])
@@ -346,7 +328,6 @@ class ConvergenceMetrics:
         self.normalized_hypervolume = deepcopy(hypervolume_history)
         self.normalized_spacing = deepcopy(spacing_history)
         self.normalized_spread = deepcopy(spread_history)
-        self.normalized_diversity = deepcopy(diversity_history)
     def normalize_list(self, data_list):
         """لیست ورودی را با استفاده از روش Min-Max به [0, 1] نرمال می کند."""
         data_array = np.array(data_list)
@@ -438,15 +419,6 @@ class ConvergenceMetrics:
         ax.legend()
         ax.grid(True, alpha=0.3)
         
-        # 8. Diversity
-        ax = axes[3, 1]
-        ax.plot(iterations, self.normalized_diversity, 'c-', linewidth=1, marker='*', markersize=4)
-        ax.set_xlabel('Iteration', fontsize=11)
-        ax.set_ylabel('Diversity', fontsize=11)
-        # ax.set_title('Diversity Metric\n(بیشتر = تنوع بیشتر)', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-        ax.set_ylim(0, 1)
-        
         plt.tight_layout()
         
         if save_path:
@@ -501,12 +473,6 @@ class ConvergenceMetrics:
             print(f"   Initial: {self.spread_history[0]:.6f}")
             print(f"   Final:   {self.spread_history[-1]:.6f}")
             print(f"   Improvement: {((self.spread_history[0] - self.spread_history[-1]) / self.spread_history[0] * 100):.2f}%")
-        
-        if len(self.diversity_history) > 0:
-            print(f"\n Diversity:")
-            print(f"   Initial: {self.diversity_history[0]:.6f}")
-            print(f"   Final:   {self.diversity_history[-1]:.6f}")
-            print(f"   Improvement: {((self.diversity_history[-1] - self.diversity_history[0]) / self.diversity_history[0] * 100):.2f}%")
         
         if len(self.n_pareto_history) > 0:
             print(f"\n🎯 Pareto Front Size:")

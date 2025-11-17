@@ -21,7 +21,7 @@ class NSGA2_Humanitarian:
 
     def __init__(self, shelter_id, distribution_center_id, damage_points_id, hospital_id,
                  temporary_medical_id, max_iter=100, pop_size=100, p_crossover=0.7, p_mutation=0.3,
-                 elitism_rate=0.1, verbose=True):
+                 elitism_rate=0.1, verbose=True, resume=True):
         """
         Constructor for humanitarian logistics NSGA-II
 
@@ -47,6 +47,7 @@ class NSGA2_Humanitarian:
         self.n_elite = max(1, int(elitism_rate * pop_size)
                            )  # حداقل یک فرد نخبه
         self.verbose = verbose
+        self.resume = resume
 
         # Problem dimensions
         self.da_id = damage_points_id
@@ -389,8 +390,13 @@ class NSGA2_Humanitarian:
         """
         # Extract problem info
         cost_function = problem['cost_function']
-        checkpoint_path = problem.get('checkpoint_path', 'nsga2_checkpoint.pkl')
-        resume = bool(problem.get('resume', False))
+        checkpoint_path = problem.get('checkpoint_path', 'exports/nsga2_checkpoint.pkl')
+        resume = self.resume
+
+        # Ensure the checkpoint directory exists
+        checkpoint_dir = os.path.dirname(checkpoint_path)
+        if checkpoint_dir and checkpoint_dir != ".":
+            os.makedirs(checkpoint_dir, exist_ok=True)
 
         # Empty individual
         empty_individual = {

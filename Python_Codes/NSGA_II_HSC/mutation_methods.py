@@ -23,8 +23,8 @@ class MutationMethods:
     # ==================== LIST-BASED MUTATION METHODS ====================
     
     @staticmethod
-    def bit_flip_mutation_list(individual: List, mutation_rate: float = 0.1, 
-                               value_range: tuple = None) -> List:
+    def bit_flip_mutation_list(individual: List, mutation_rate: float = 0.1,
+                               value_range: tuple = None, **mutation_args) -> List:
         """
         Bit-Flip Mutation برای لیست‌ها
         
@@ -47,6 +47,9 @@ class MutationMethods:
         mutated = bit_flip_mutation_list(individual, 0.2, (0, 5))
         """
         mutated = deepcopy(individual)
+        # override from mutation_args if provided
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        value_range = mutation_args.get("value_range", value_range)
         
         if value_range is None:
             # تخمین محدوده از داده‌های موجود
@@ -63,7 +66,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def swap_mutation_list(individual: List, n_swaps: int = 1) -> List:
+    def swap_mutation_list(individual: List, n_swaps: int = 1, **mutation_args) -> List:
         """
         Swap Mutation برای لیست‌ها
         
@@ -83,6 +86,7 @@ class MutationMethods:
             return deepcopy(individual)
         
         mutated = deepcopy(individual)
+        n_swaps = int(mutation_args.get("n_swaps", n_swaps))
         
         for _ in range(n_swaps):
             idx1, idx2 = random.sample(range(len(mutated)), 2)
@@ -91,7 +95,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def inversion_mutation_list(individual: List) -> List:
+    def inversion_mutation_list(individual: List, **mutation_args) -> List:
         """
         Inversion Mutation برای لیست‌ها
         
@@ -126,7 +130,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def scramble_mutation_list(individual: List) -> List:
+    def scramble_mutation_list(individual: List, **mutation_args) -> List:
         """
         Scramble Mutation برای لیست‌ها
         
@@ -156,7 +160,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def insertion_mutation_list(individual: List) -> List:
+    def insertion_mutation_list(individual: List, **mutation_args) -> List:
         """
         Insertion Mutation برای لیست‌ها
         
@@ -186,7 +190,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def displacement_mutation_list(individual: List) -> List:
+    def displacement_mutation_list(individual: List, **mutation_args) -> List:
         """
         Displacement Mutation برای لیست‌ها
         
@@ -221,7 +225,7 @@ class MutationMethods:
     
     @staticmethod
     def gaussian_mutation_list(individual: List[float], mutation_rate: float = 0.1,
-                               sigma: float = 0.1, bounds: tuple = (0.0, 1.0)) -> List[float]:
+                               sigma: float = 0.1, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Gaussian Mutation برای مقادیر پیوسته
         
@@ -239,6 +243,9 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         mutated = deepcopy(individual)
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        sigma = float(mutation_args.get("sigma", sigma))
+        bounds = mutation_args.get("bounds", bounds)
         
         for i in range(len(mutated)):
             if random.random() < mutation_rate:
@@ -251,7 +258,7 @@ class MutationMethods:
     
     @staticmethod
     def uniform_mutation_list(individual: List[float], mutation_rate: float = 0.1,
-                             bounds: tuple = (0.0, 1.0)) -> List[float]:
+                             bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Uniform Mutation برای مقادیر پیوسته
         
@@ -268,6 +275,7 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         mutated = deepcopy(individual)
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
         
         for i in range(len(mutated)):
             if random.random() < mutation_rate:
@@ -277,7 +285,7 @@ class MutationMethods:
     
     @staticmethod
     def polynomial_mutation_list(individual: List[float], mutation_rate: float = 0.1,
-                                 eta: float = 20.0, bounds: tuple = (0.0, 1.0)) -> List[float]:
+                                 eta: float = 20.0, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Polynomial Mutation برای مقادیر پیوسته
         
@@ -296,6 +304,8 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         mutated = deepcopy(individual)
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        eta = float(mutation_args.get("eta", eta))
         
         for i in range(len(mutated)):
             if random.random() < mutation_rate:
@@ -324,7 +334,7 @@ class MutationMethods:
     
     @staticmethod
     def boundary_mutation_list(individual: List[float], mutation_rate: float = 0.1,
-                               bounds: tuple = (0.0, 1.0)) -> List[float]:
+                               bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Boundary Mutation برای مقادیر پیوسته
         
@@ -341,6 +351,7 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         mutated = deepcopy(individual)
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
         
         for i in range(len(mutated)):
             if random.random() < mutation_rate:
@@ -352,7 +363,7 @@ class MutationMethods:
     
     @staticmethod
     def random_element_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1,
-                                      value_range: tuple = None) -> np.ndarray:
+                                      value_range: tuple = None, **mutation_args) -> np.ndarray:
         """
         Random Element Mutation برای ماتریس‌ها
         
@@ -369,6 +380,8 @@ class MutationMethods:
         mutated_matrix: ماتریس جهش‌یافته
         """
         mutated = matrix.copy()
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        value_range = mutation_args.get("value_range", value_range)
         
         if value_range is None:
             value_range = (0, 1)
@@ -386,7 +399,7 @@ class MutationMethods:
     
     @staticmethod
     def gaussian_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1,
-                                sigma: float = 0.1, bounds: tuple = None) -> np.ndarray:
+                                sigma: float = 0.1, bounds: tuple = (0,1), **mutation_args) -> np.ndarray:
         """
         Gaussian Mutation برای ماتریس‌ها
         
@@ -404,6 +417,8 @@ class MutationMethods:
         mutated_matrix: ماتریس جهش‌یافته
         """
         mutated = matrix.copy()
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        sigma = float(mutation_args.get("sigma", sigma))
         
         # ماسک برای عناصری که جهش می‌یابند
         mask = np.random.rand(*matrix.shape) < mutation_rate
@@ -419,7 +434,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def row_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1) -> np.ndarray:
+    def row_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1, **mutation_args) -> np.ndarray:
         """
         Row Mutation برای ماتریس‌ها
         
@@ -435,6 +450,7 @@ class MutationMethods:
         mutated_matrix: ماتریس جهش‌یافته
         """
         mutated = matrix.copy()
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
         
         for i in range(matrix.shape[0]):
             if random.random() < mutation_rate:
@@ -444,7 +460,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def column_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1) -> np.ndarray:
+    def column_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1, **mutation_args) -> np.ndarray:
         """
         Column Mutation برای ماتریس‌ها
         
@@ -460,6 +476,7 @@ class MutationMethods:
         mutated_matrix: ماتریس جهش‌یافته
         """
         mutated = matrix.copy()
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
         
         for j in range(matrix.shape[1]):
             if random.random() < mutation_rate:
@@ -469,7 +486,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def block_mutation_matrix(matrix: np.ndarray, block_size: tuple = None) -> np.ndarray:
+    def block_mutation_matrix(matrix: np.ndarray, block_size: tuple = None, **mutation_args) -> np.ndarray:
         """
         Block Mutation برای ماتریس‌ها
         
@@ -487,6 +504,7 @@ class MutationMethods:
         mutated = matrix.copy()
         rows, cols = matrix.shape
         
+        block_size = mutation_args.get("block_size", block_size)
         if block_size is None:
             block_rows = random.randint(1, max(1, rows // 2))
             block_cols = random.randint(1, max(1, cols // 2))
@@ -504,7 +522,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def swap_rows_mutation_matrix(matrix: np.ndarray, n_swaps: int = 1) -> np.ndarray:
+    def swap_rows_mutation_matrix(matrix: np.ndarray, n_swaps: int = 1, **mutation_args) -> np.ndarray:
         """
         Swap Rows Mutation برای ماتریس‌ها
         
@@ -523,6 +541,7 @@ class MutationMethods:
             return matrix.copy()
         
         mutated = matrix.copy()
+        n_swaps = int(mutation_args.get("n_swaps", n_swaps))
         
         for _ in range(n_swaps):
             idx1, idx2 = random.sample(range(matrix.shape[0]), 2)
@@ -531,7 +550,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def swap_columns_mutation_matrix(matrix: np.ndarray, n_swaps: int = 1) -> np.ndarray:
+    def swap_columns_mutation_matrix(matrix: np.ndarray, n_swaps: int = 1, **mutation_args) -> np.ndarray:
         """
         Swap Columns Mutation برای ماتریس‌ها
         
@@ -550,6 +569,7 @@ class MutationMethods:
             return matrix.copy()
         
         mutated = matrix.copy()
+        n_swaps = int(mutation_args.get("n_swaps", n_swaps))
         
         for _ in range(n_swaps):
             idx1, idx2 = random.sample(range(matrix.shape[1]), 2)
@@ -559,7 +579,7 @@ class MutationMethods:
     
     @staticmethod
     def creep_mutation_matrix(matrix: np.ndarray, mutation_rate: float = 0.1,
-                             step_size: float = 0.01, bounds: tuple = None) -> np.ndarray:
+                             step_size: float = 0.01, bounds: tuple = None, **mutation_args) -> np.ndarray:
         """
         Creep Mutation برای ماتریس‌ها
         
@@ -577,6 +597,8 @@ class MutationMethods:
         mutated_matrix: ماتریس جهش‌یافته
         """
         mutated = matrix.copy()
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        step_size = float(mutation_args.get("step_size", step_size))
         
         mask = np.random.rand(*matrix.shape) < mutation_rate
         
@@ -594,7 +616,7 @@ class MutationMethods:
     @staticmethod
     def adaptive_mutation_list(individual: List[float], mutation_rate: float = 0.1,
                               generation: int = 0, max_generations: int = 100,
-                              bounds: tuple = (0.0, 1.0)) -> List[float]:
+                              bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Adaptive Mutation با نرخ متغیر
         
@@ -613,6 +635,9 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         # کاهش نرخ جهش با پیشرفت نسل‌ها
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        generation = int(mutation_args.get("generation", generation))
+        max_generations = int(mutation_args.get("max_generations", max_generations))
         adaptive_rate = mutation_rate * (1 - generation / max_generations)
         
         return MutationMethods.gaussian_mutation_list(
@@ -622,7 +647,7 @@ class MutationMethods:
     @staticmethod
     def non_uniform_mutation_list(individual: List[float], mutation_rate: float = 0.1,
                                   generation: int = 0, max_generations: int = 100,
-                                  b: float = 5.0, bounds: tuple = (0.0, 1.0)) -> List[float]:
+                                  b: float = 5.0, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Non-Uniform Mutation
         
@@ -642,6 +667,10 @@ class MutationMethods:
         mutated_individual: لیست جهش‌یافته
         """
         mutated = deepcopy(individual)
+        mutation_rate = float(mutation_args.get("mutation_rate", mutation_rate))
+        generation = int(mutation_args.get("generation", generation))
+        max_generations = int(mutation_args.get("max_generations", max_generations))
+        b = float(mutation_args.get("b", b))
         
         for i in range(len(mutated)):
             if random.random() < mutation_rate:

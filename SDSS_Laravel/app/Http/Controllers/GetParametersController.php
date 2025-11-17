@@ -39,12 +39,22 @@ class GetParametersController extends Controller
         //     ]]);
         // }
         try {
-            return response()->json(['pathes' => [
+            $data = ['pathes' => [
                     'idc_ec_path' => IDCtoEcPath::all(),
                     'da_h_path'   => DAtoHospitalPath::all(),
                     'da_ec_dist'   => DAtoEcDist::all(),
                     'da_tmc_path' => DAtoTmcPath::all()
-                ]]);
+                ]];
+
+            // Save data to JSON file
+            $filePath = 'C:/Users/Amir/Desktop/SDSS-Project/Python_Codes/Python_Codes\NSGA_II_HSC/exports/HSC_Parameters.json';
+            $directory = dirname($filePath);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+            return response()->json($data);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

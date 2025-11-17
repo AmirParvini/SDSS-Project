@@ -8,3 +8,4 @@ pyproj
 numpy
 scipy
 joblib
+requests
