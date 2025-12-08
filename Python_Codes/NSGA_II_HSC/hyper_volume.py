@@ -44,7 +44,7 @@ class Hypervolume3D:
                 
         # انتخاب روش محاسبه
         if method == 'wfg':
-            hv = self._wfg_algorithm(pareto_fronts_list)
+            hv = self._wfg_algorithm(pareto_fronts_list, ref_point=self.reference_point)
         elif method == 'inclusion_exclusion':
             hv = self._inclusion_exclusion(pareto_fronts_list)
         elif method == 'monte_carlo':
@@ -70,7 +70,7 @@ class Hypervolume3D:
     
     # ================== WFG Algorithm ==================
     
-    def _wfg_algorithm(self, pareto_front: np.ndarray) -> float:
+    def _wfg_algorithm(self, pareto_fronts_list: np.ndarray, ref_point) -> List:
         """
         الگوریتم WFG برای محاسبه دقیق Hypervolume در 3D
         
@@ -82,62 +82,137 @@ class Hypervolume3D:
         2. محاسبه exclusive hypervolume هر نقطه
         3. جمع کردن تمام exclusive hypervolumes
         """
-        if len(pareto_front) == 0:
-            return 0.0
-        
-        if len(pareto_front) == 1:
-            return self._single_point_hv(pareto_front[0])
-        
-        # مرتب‌سازی بر اساس اولین هدف (ascending)
-        sorted_indices = np.argsort(pareto_front[:, 0])
-        sorted_pf = pareto_front[sorted_indices]
-        
-        hypervolume = 0.0
-        
-        # محاسبه exclusive hypervolume برای هر نقطه
-        for i in range(len(sorted_pf)):
-            point = sorted_pf[i]
+        ref = np.asarray(ref_point, dtype=float)
+        hv: list[float] = []
+
+        for pareto_front in pareto_fronts_list:
+
+            # اگر پرتو خالی است
+            if pareto_front is None or len(pareto_front) == 0:
+                hv.append(0.0)
+                continue
+
+            pf = np.asarray(pareto_front, dtype=float)
+
+            # اگر فقط یک نقطه دارد → حجم همان یک جعبه
+            if pf.shape[0] == 1:
+                hv.append(self._calculate_box_volume(pf[0], ref))
+                continue
             
-            # پیدا کردن dominated space توسط نقاط بعدی
-            # این نقاط می‌توانند exclusive space این نقطه را کاهش دهند
-            dominated_points = sorted_pf[i+1:]
+            # مرتب‌سازی بر اساس اولین هدف (ascending)
+            pf = np.array(pareto_front)
+            sorted_indices = np.argsort(pf[:, 0])
+            sorted_pf = pf[sorted_indices]
             
-            if len(dominated_points) == 0:
-                # آخرین نقطه - کل فضای باقی‌مانده
-                exclusive_hv = self._calculate_box_volume(point, np.ones(3))
-            else:
-                # محاسبه exclusive hypervolume با استفاده از 2D slicing
-                exclusive_hv = self._exclusive_hypervolume_3d(point, dominated_points)
+            # محاسبه سهم اکسکلوزیو هر نقطه نسبت به بقیه‌ی نقاط همان پرتو
+            hypervolume = 0.0
+            for i in range(sorted_pf.shape[0]):
+                point = sorted_pf[i]
+
+                # مجموعه‌ی سایر نقاط (F \ {point})
+                other_points = np.delete(sorted_pf, i, axis=0)
+
+                # HV_excl(point | other_points)
+                exclusive_hv = self._exclusive_hypervolume_3d(point, other_points)
+
+                hypervolume += exclusive_hv
+                
+            hv.append(hypervolume)
             
-            hypervolume += exclusive_hv
-        
-        return hypervolume
+        return hv
     
     def _exclusive_hypervolume_3d(self, point: np.ndarray, dominated_points: np.ndarray) -> float:
         """
-        محاسبه exclusive hypervolume یک نقطه در فضای 3D
-        با در نظر گرفتن نقاطی که ممکن است بخشی از فضا را بپوشانند
+        محاسبه دقیق exclusive hypervolume یک نقطه در فضای 3D
         
-        این روش از 2D slicing استفاده می‌کند
+        تعریف:
+            HV_excl(p | S) = HV({p} ∪ S) - HV(S)
+        
+        این پیاده‌سازی از یک الگوریتم grid-based برای محاسبه‌ی 
+        union حجم جعبه‌های [point, reference] استفاده می‌کند.
+        از نظر ریاضی دقیق است، ولی پیچیدگی زمانی آن از WFG کلاسیک بیشتر است
+        (برای تعداد نقاط کم/متوسط در 3D معمولاً قابل قبول است).
         """
-        # فضای کامل این نقطه تا reference point
-        full_volume = self._calculate_box_volume(point, np.ones(3))
-        
-        # فیلتر نقاطی که می‌توانند exclusive space را کاهش دهند
-        # فقط نقاطی که در بعد اول بزرگ‌تر هستند ولی در بعدهای دیگر کوچک‌ترند
-        relevant_points = dominated_points[
-            (dominated_points[:, 0] > point[0]) &
-            (dominated_points[:, 1] <= point[1]) &
-            (dominated_points[:, 2] <= point[2])
-        ]
-        
-        if len(relevant_points) == 0:
-            return full_volume
-        
-        # محاسبه حجم overlapping با استفاده از 2D hypervolume
-        overlapping_volume = self._calculate_2d_overlap(point, relevant_points)
-        
-        return full_volume - overlapping_volume
+        import numpy as np
+
+        # نقطه‌ی مرجع را از کلاس بگیر؛ اگر نداشتی، فرض کن [1,1,1]
+        if hasattr(self, "reference_point"):
+            ref = np.asarray(self.reference_point, dtype=float)
+        else:
+            ref = np.ones(3, dtype=float)
+
+        point = np.asarray(point, dtype=float)
+        dominated_points = np.asarray(dominated_points, dtype=float)
+
+        # اگر هیچ نقطه‌ی دیگری نیست، سهم اکسکلوزیو همان حجم جعبه‌ی خودش است
+        if dominated_points.size == 0:
+            return self._calculate_box_volume(point, ref)
+
+        # --- تابع کمکی: محاسبه hypervolume دقیق 3D برای مجموعه‌ای از نقاط ---
+        def _hv3d(points: np.ndarray) -> float:
+            """
+            محاسبه‌ی دقیق hypervolume در 3D برای مجموعه‌ای از نقاط (minimization)
+            هر نقطه p، جعبه [p, ref] را تعریف می‌کند.
+            HV = حجم union همه‌ی این جعبه‌ها.
+            """
+            pts = np.asarray(points, dtype=float)
+
+            # نقاطی که بیرون از ref هستند کمکی نمی‌کنند
+            mask = np.all(pts < ref, axis=1)
+            pts = pts[mask]
+
+            if pts.shape[0] == 0:
+                return 0.0
+
+            # مختصات متمایز در هر بعد (به‌علاوه‌ی ref)
+            xs = sorted(set(pts[:, 0].tolist() + [ref[0]]))
+            ys = sorted(set(pts[:, 1].tolist() + [ref[1]]))
+            zs = sorted(set(pts[:, 2].tolist() + [ref[2]]))
+
+            hv = 0.0
+
+            # روی هر سلول کوچک شبکه حلقه می‌زنیم و اگر این سلول داخل حداقل یک جعبه بود، حجمش را اضافه می‌کنیم
+            for i in range(len(xs) - 1):
+                xL, xR = xs[i], xs[i + 1]
+                xmid = 0.5 * (xL + xR)
+
+                for j in range(len(ys) - 1):
+                    yL, yR = ys[j], ys[j + 1]
+                    ymid = 0.5 * (yL + yR)
+
+                    for k in range(len(zs) - 1):
+                        zL, zR = zs[k], zs[k + 1]
+                        zmid = 0.5 * (zL + zR)
+
+                        center = np.array([xmid, ymid, zmid], dtype=float)
+
+                        # اگر این نقطه‌ی مرکزی توسط حداقل یک نقطه p پوشش داده شود
+                        # (minimization → center >= p در همه‌ی ابعاد)
+                        covered = False
+                        for p in pts:
+                            if np.all(center >= p):
+                                covered = True
+                                break
+
+                        if covered:
+                            hv += (xR - xL) * (yR - yL) * (zR - zL)
+
+            return hv
+
+        # HV({p} ∪ S)
+        all_points = np.vstack([point, dominated_points])
+        hv_with = _hv3d(all_points)
+
+        # HV(S)
+        hv_without = _hv3d(dominated_points)
+
+        exclusive = hv_with - hv_without
+
+        # به خاطر خطاهای عددی ممکن است مقدار خیلی کوچک منفی بشود → 0 کن
+        if exclusive < 0.0 and exclusive > -1e-12:
+            exclusive = 0.0
+
+        return exclusive
     
     def _calculate_2d_overlap(self, point: np.ndarray, dominated_points: np.ndarray) -> float:
         """
@@ -302,16 +377,16 @@ class Hypervolume3D:
         تقریب hypervolume
         """
         # sample in the same cube
-        rnd = np.random.uniform(0.0, 1.0, size=(n_samples, np.array(pareto_fronts_list[0]).shape[1]))
+        rnd = np.random.uniform(0.0, ref_point, size=(n_samples, np.array(pareto_fronts_list[0]).shape[1]))
         
         # 1) ideal point
-        if ideal_point is None:
-            all_costs = [cost for pareto_front in pareto_fronts_list for cost in pareto_front]
-            ideal_point = np.min(all_costs, axis=0)
+        # if ideal_point is None:
+        #     all_costs = [cost for pareto_front in pareto_fronts_list for cost in pareto_front]
+        #     ideal_point = np.min(all_costs, axis=0)
 
         # 2) guard: ref must dominate (be worse than) all points
         # if any ref <= ideal in a dim, expand it a bit
-        span = ref_point - ideal_point
+        # span = ref_point - ideal_point
         hv = []
         
         for pareto_front in pareto_fronts_list:
@@ -319,15 +394,19 @@ class Hypervolume3D:
                 hv.append(0.0)
                 continue
             # 3) normalize PF into [0,1]^3
-            pf_norm = (pareto_front - ideal_point) / span
-            pf_norm = np.clip(pf_norm, 0.0, 1.0)
+            # pf_norm = (pareto_front - ideal_point) / span
+            # pf_norm = np.clip(pf_norm, 0.0, 1.0)
 
             # 4) dominance test (vectorized):
             # a rnd point x is dominated if exists s in PF with s <= x (componentwise)
             # shape tricks: compare all rnd to all pf
             # pf_norm[None, :, :] -> (1, N, M); rnd[:, None, :] -> (S, 1, M)
-            dominated_by_any = np.all(pf_norm[None, :, :] <= rnd[:, None, :], axis=2).any(axis=1)
-            hv.append(dominated_by_any.mean())  # in [0,1]
+            pareto_front = np.array(pareto_front)
+            dominated_by_any = np.all(pareto_front[None, :, :] <= rnd[:, None, :], axis=2).any(axis=1)
+            count = sum(d for d in dominated_by_any if d == True)
+            volume_box = np.prod(ref_point)
+            hv_estimate = volume_box * (count / n_samples)
+            hv.append(hv_estimate)  # in [0,1]
             
         return hv
 

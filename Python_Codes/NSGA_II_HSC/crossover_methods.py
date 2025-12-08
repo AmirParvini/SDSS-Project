@@ -23,7 +23,7 @@ class CrossoverMethods:
     # ==================== LIST-BASED CROSSOVER METHODS ====================
     
     @staticmethod
-    def one_point_crossover_list(parent1: List, parent2: List) -> Tuple[List, List]:
+    def one_point_crossover(parent1: List, parent2: List) -> Tuple[List, List]:
         """
         One-Point Crossover برای لیست‌ها
         
@@ -65,7 +65,7 @@ class CrossoverMethods:
         return child1, child2
     
     @staticmethod
-    def two_point_crossover_list(parent1: List, parent2: List) -> Tuple[List, List]:
+    def two_point_crossover(parent1: List, parent2: List) -> Tuple[List, List]:
         """
         Two-Point Crossover برای لیست‌ها
         
@@ -107,7 +107,7 @@ class CrossoverMethods:
         return child1, child2
     
     @staticmethod
-    def uniform_crossover_list(parent1: List, parent2: List, swap_prob: float = 0.5) -> Tuple[List, List]:
+    def uniform_crossover(parent1: List, parent2: List, swap_prob: float = 0.5) -> Tuple[List, List]:
         """
         Uniform Crossover برای لیست‌ها
         
@@ -136,7 +136,7 @@ class CrossoverMethods:
         return child1, child2
     
     @staticmethod
-    def order_crossover_list(parent1: List, parent2: List) -> Tuple[List, List]:
+    def order_crossover(parent1: List, parent2: List) -> Tuple[List, List]:
         """
         Order Crossover (OX) برای permutation lists
         
@@ -188,7 +188,7 @@ class CrossoverMethods:
         return child1, child2
     
     @staticmethod
-    def arithmetic_crossover_list(parent1: List[float], parent2: List[float], 
+    def arithmetic_crossover(parent1: List[float], parent2: List[float], 
                                   alpha: float = None) -> Tuple[List[float], List[float]]:
         """
         Arithmetic Crossover برای مقادیر پیوسته
@@ -221,7 +221,7 @@ class CrossoverMethods:
         return child1, child2
     
     @staticmethod
-    def blend_crossover_list(parent1: List[float], parent2: List[float], 
+    def blend_crossover(parent1: List[float], parent2: List[float], 
                             alpha: float = 0.5) -> Tuple[List[float], List[float]]:
         """
         Blend Crossover (BLX-α) برای مقادیر پیوسته
@@ -466,7 +466,7 @@ class CrossoverMethods:
     # ==================== MIXED/HYBRID CROSSOVER METHODS ====================
     
     @staticmethod
-    def multi_point_crossover_list(parent1: List, parent2: List, 
+    def multi_point_crossover(parent1: List, parent2: List, 
                                    n_points: int = 3) -> Tuple[List, List]:
         """
         Multi-Point Crossover برای لیست‌ها
@@ -487,7 +487,7 @@ class CrossoverMethods:
             raise ValueError("Parents must have the same length")
         
         if len(parent1) <= n_points:
-            return CrossoverMethods.one_point_crossover_list(parent1, parent2)
+            return CrossoverMethods.one_point_crossover(parent1, parent2)
         
         child1 = deepcopy(parent1)
         child2 = deepcopy(parent2)
@@ -622,19 +622,19 @@ def select_crossover_method(data_type: str, **kwargs):
     crossover = CrossoverMethods()
     
     if data_type == 'list_one_point':
-        return crossover.one_point_crossover_list
+        return crossover.one_point_crossover
     elif data_type == 'list_two_point':
-        return crossover.two_point_crossover_list
+        return crossover.two_point_crossover
     elif data_type == 'list_uniform':
-        return crossover.uniform_crossover_list
+        return crossover.uniform_crossover
     elif data_type == 'permutation_order':
-        return crossover.order_crossover_list
+        return crossover.order_crossover
     elif data_type == 'permutation_pmx':
         return crossover.partially_mapped_crossover
     elif data_type == 'continuous_arithmetic':
-        return crossover.arithmetic_crossover_list
+        return crossover.arithmetic_crossover
     elif data_type == 'continuous_blend':
-        return crossover.blend_crossover_list
+        return crossover.blend_crossover
     elif data_type == 'continuous_sbx':
         return crossover.simulated_binary_crossover
     elif data_type == 'matrix_one_point':

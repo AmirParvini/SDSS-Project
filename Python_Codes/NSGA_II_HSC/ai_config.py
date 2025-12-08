@@ -13,7 +13,7 @@ BASE_URL = "https://api.gapapi.com/v1"
 # OPENROUTER_API_KEY = "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"  # "your-api-key-here"
 # AI_MODEL = "openai/gpt-oss-20b:free"
 # BASE_URL = "https://openrouter.ai/api/v1"
-# AI_MODEL = "minimax/minimax-m2:free"
+# AI_MODEL = "deepseek/deepseek-r1-0528-qwen3-8b:free"
 # BASE_URL = "https://api.gapapi.com/v1"
 
 # ==================== تنظیمات AI Optimization ====================

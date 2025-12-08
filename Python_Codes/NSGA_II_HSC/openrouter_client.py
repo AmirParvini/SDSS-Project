@@ -3,6 +3,8 @@ import json
 import time
 import os
 from typing import Dict, Any, Optional
+from copy import deepcopy
+import re
 
 try:
     from openai import OpenAI
@@ -22,7 +24,7 @@ class OpenRouterClient:
     4. پارس کردن پاسخ AI و تبدیل به فرمت قابل استفاده
     """
 
-    def __init__(self, api_key: str, model: str, base_url:str):
+    def __init__(self, request_type:str, api_key: str, model: str, base_url:str, reasoning=None, store=False):
         """
         Constructor برای OpenRouter Client
 
@@ -31,6 +33,7 @@ class OpenRouterClient:
         api_key: کلید API از OpenRouter
         model: مدل AI مورد استفاده (پیش‌فرض: مدل رایگان Llama)
         """
+        self.request_type = request_type
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
@@ -39,14 +42,8 @@ class OpenRouterClient:
             "Content-Type": "application/json",
             "X-Title": "NSGA-II Optimization",  # اختیاری
         }
-        self.reasoning = {"effort": "medium"}
-        # self.reasoning = None
-        self._system_message = "You are an expert in genetic algorithms and multi-objective optimization. I have a humanitarian logistics optimization problem that is solved using the NSGA-II algorithm."
-
-        # ذخیره اطلاعات مسئله برای استفاده در درخواست‌های بعدی
-        self.problem_description = None
-        self.chromosome_structure = None
-
+        self.reasoning = reasoning
+        self.store = store
         # برای OpenAI: ذخیره previous_response_id برای ادامه چت فقط برای مدل‌های GPT
         self.is_gpt_model = "gpt" in self.model.lower()
         self.previous_response_id_file = None
@@ -296,6 +293,12 @@ Output format (no extra text):
         offspring_survival_history: Dict = prompt_args.get('offspring_survival_history',{})
         current_methods: Dict = prompt_args.get('current_methods',{})
         section_stats_history: Dict = prompt_args.get('section_stats_history',{})
+        dims: Dict = prompt_args.get('dims',{})
+        n_shelters = dims["n_shelters"]
+        n_distribution = dims["n_distribution"]
+        n_damage_points = dims["n_damage_points"]
+        n_hospitals = dims["n_hospitals"]
+        n_temp_medical = dims["n_temp_medical"]
         
         # Helper function to safely get last value from list
         def get_last_value(history_list, default_value=0.0):
@@ -329,15 +332,17 @@ Output format (no extra text):
         std_f3 = get_objective_value(std_objs, 2)
         
         prompt = {
-            "system": f"""You are an expert consultant (adaptive operator selector) for multi-objective evolutionary algorithms specializing in NSGA-II and adaptive operator control. Your task is to analyze the periodic performance of the received metrics and detect diversity in each chromosome part and recommend crossover, mutation and their probabilities and rates and values ​​of input arguments for each part and a selection method for the next generations {llm_iter}.
-            Your recommendations should be actionable (method names are extracted from the list of available methods) and justified by the diagnostics (e.g. low variance or entropy → increase exploration in that part).
-            Your output MUST be only a single valid JSON object following the template.""",
-            "user": f""" You are assisting an ongoing research project that applies NSGA-II to a multi-objective humanitarian logistics optimization problem.
+            "system": f"""
+You are an expert consultant (adaptive operator selector) for multi-objective evolutionary algorithms specializing in NSGA-II and adaptive operator control. Your task is to analyze the periodic performance of the received metrics and detect diversity in each chromosome part and recommend crossover, mutation and their probabilities and rates and values ​​of input arguments for each part and a selection method for the next generations {llm_iter}.
+Your recommendations should be actionable (method names are extracted from the list of *Available Methods*) and justified by the diagnostics (e.g. low variance or entropy → increase exploration in that part). 
+""",
+            "user": f""" 
+You are assisting an ongoing research project that applies NSGA-II to a multi-objective humanitarian logistics optimization problem.
 The problem decisions are encoded in a 7-part chromosome representing distribution center assignments, shelter flows, damage-point assignments, and transport/triage matrices for severe and minor casualties.
 The optimization aims to minimize three objectives: F1, F2, F3.
 The run configuration and problem scale (population size, number of generations, numbers of facilities/nodes) are provided below.
 
-Problem Information:
+=== PROBLEM DESCRIPTION ===
 - Problem Type: Humanitarian Logistics Optimization
 - Number of Objectives: 3 (Min F1: Total distances of homeless people assigned to selected shelters, Min F2: Unmet Demand, Min F3: Death Probability)
 - Chromosome Structure: 7 parts
@@ -349,19 +354,15 @@ Problem Information:
 - Number of Hospitals: 4
 - Number of Candidate Temporary Medical Centers: 10
 
-Instruction:
-Using the supplied problem information, method catalogs, and periodic metrics, produce an adaptive operator plan for the next {llm_iter} generations.
-Your response must be a single JSON object (see the "Output Example" below).
-Focus on:
-- Per-part crossover method
-- Per-part mutation method
-- Global crossover probability and mutation probability
-- Per-gene (inner) mutation rate if applicable
-- A single selection method
-- Elitism rate (elitism_rate): percentage of best individuals to preserve (0.05 to 0.3, typically 0.1-0.2)
-- Per-part probabilities (optional): crossover_part_probability, mutation_part_probability
-Be concise but include a technical justification (1–3 sentences) for each major choice.
-Be sure to select the crossover and mutate methods for each section if they are compatible.
+=== CHROMOSOM STRUCTURE ===
+Chromosome parts and strict shapes:
+1) part1 (length={n_shelters}): integer list in [0,{n_distribution}] where 0 means shelter not selected and 1..{n_distribution} is the distribution center ID.
+2) part2 (length={n_shelters}): float list in [0,1] for flow ratios.
+3) part3 (length={n_shelters}): integer list. Indices 0..{n_damage_points-1} must be a permutation of the {n_damage_points} distinct damage point IDs drawn from the following set: [3,4,5,6,7]. Indices {n_damage_points}..{n_shelters-1} can be any element from the same ID set and 0 (duplicates allowed).
+4) part4 (shape={n_damage_points}x{n_hospitals}): float matrix in [0,1] with at least one positive per row; rows need be normalized.
+5) part5 (shape={n_damage_points}x{n_hospitals}): float matrix in [0,1].
+6) part6 (shape={n_damage_points}x{n_hospitals + n_temp_medical}): float matrix in [0,1] with at least one positive per row; rows need be normalized.
+7) part7 (shape={n_damage_points}x{n_hospitals + n_temp_medical}): float matrix in [0,1].
 
 How to allocate in chromosome segments:
 part1: An array that specifies which distribution center each shelter is supplied from. Represents the number of candidate shelter locations, whose values ​​are either zero or a random number between the distribution center indices.
@@ -381,49 +382,10 @@ Part4 has a direct effect on F3. Allocating damaged points to nearby hospitals r
 Part5 has a direct effect on F3. High values ​​of elements indicate that a large percentage of the injured are transported by ambulance and a small percentage of the injured are transported by helicopter. Transporting by ambulance may increase the time it takes to transport the injured and increase F3, but it uses less budget, but the helicopter is the opposite.
 Part6 and part7 are the same as part 4 and part 5, except that large values ​​of 0 reduce budget consumption but may increase F3.
 
-Available Methods:
-15 different Crossover Methods:
-- one_point_crossover_list (compatible only for part1, part2, part3_p2)
-- two_point_crossover_list (compatible only for part1, part2, part3_p2)
-- multi_point_crossover_list (compatible only for part1, part2, part3_p2)
-- uniform_crossover_list (compatible only for part1, part2, part3_p2)
-- order_crossover_list (compatible only for part3_p1)
-- partially_mapped_crossover (compatible only for part3_p1)
-- arithmetic_crossover_list (compatible only for part2)
-- blend_crossover_list (compatible only for part2)
-- one_point_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- two_point_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- uniform_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- block_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- row_wise_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- arithmetic_crossover_matrix (compatible only for parts 4, 5, 6, 7)
-- simulated_binary_crossover (compatible only for part2)
-
-16 different Mutation Methods:
-- bit_flip_mutation_list(mutation_rate, value_range) (compatible only for part1) 
-- swap_mutation_list(n_swaps) (compatible only for part1, part3_p1, part3_p2) 
-- inversion_mutation_list(no arguments) (compatible only for part1, part3_p1, part3_p2)
-- scramble_mutation_list(no arguments) (compatible only for part1, part3_p1, part3_p2) 
-- insertion_mutation_list(no arguments) (compatible only for part1, part3_p1, part3_p2) 
-- displacement_mutation_list(no arguments) (compatible only for part1, part3_p1, part3_p2) 
-- gaussian_mutation_list(mutation_rate, sigma) (compatible only for part2) 
-- uniform_mutation_list(mutation_rate) (compatible only for part2) 
-- polynomial_mutation_list(mutation_rate, eta) (compatible only for part2) 
-- boundary_mutation_list(mutation_rate) (compatible only for part2) 
-- random_element_mutation_matrix(mutation_rate, value_range) (compatible only for parts 4, 5, 6, 7) 
-- gaussian_mutation_matrix(mutation_rate, sigma) (compatible only for parts 4, 5, 6, 7) 
-- row_mutation_matrix(mutation_rate) (compatible only for parts 4, 5, 6, 7) 
-- column_mutation_matrix(mutation_rate) (compatible only for parts 4, 5, 6, 7) 
-- block_mutation_matrix(block_size(tuple/list of length 2)) (compatible only for parts 4, 5, 6, 7) 
-- creep_mutation_matrix(mutation_rate, step_size) (compatible only for parts 4, 5, 6, 7) 
-
-6 different Selection Methods:
-- crowded_binary_tournament(pop, k)
-- adaptive_k_tournament(pop, k)
-- rank_based_roulette(pop, power)
-- reference_biased_tournament(pop, refs=refs, k=k, tau=tau)
-- age_diversity_tournament(pop, k=k, prefer_younger=prefer_younger)
-- epsilon_dominance_tournament(pop, k=k, eps=eps)
+Instruction:
+Using the problem information, method catalogs, and periodic criteria provided, generate an adaptive operator scheme for the next generations {llm_iter}.
+In other words, you will play the role of an intelligent Multi-Armed Bandit that will suggest appropriate methods and values ​​for the next generations based on both the analysis of the historical performance of the methods and their rates, probabilities, and input argument values, as well as your own knowledge and understanding of them.
+Be concise but include a technical justification (1–3 sentences) for each major choice.
 
 what you will receive and how to use it:
 Every {llm_iter} generations I will provide you a metrics payload containing:
@@ -440,103 +402,154 @@ Use the variance/entropy of each chromosome segment to identify which segments a
 - Low variance (continuous) or low entropy (discrete/permutation) → indicates convergence on that section → increase exploration (stronger mutation, more disruptive crossover) for that section.
 - High variance/entropy → indicates wide exploration or noise → favor exploitative, smoothing operators for that section.
 
-Note: *The key values ​​are stored in the method history as a list, and the value of each element is used for {llm_iter} generations in order, but is written only once to avoid prompt overhead.
+Note: 
+*The key values ​​are stored in the method history as a list, and the value of each element is used for {llm_iter} generations in order, but is written only once to avoid prompt overhead.
 For example, the value of the key 'global_crossover_probability_history' stored as [0.8, 0.7] means that the value 0.7 is used for generations 0 to 4 and the value 0.8 is used for generations 5 to 9.
 
+=== DATA HISTORY ===
 The data you need to analyze and based on that, suggest the things I wanted for the next {llm_iter} generations:
-* Performance Metrics History (from generation 0 to {generation}):
-* Current generation: {generation}
-* Metrics History (Metric history from the first run of the algorithm to the current run):
+1. Performance Metrics History (from generation 0 to {generation}):
+2. Current generation: {generation}
+3. Metrics History (Metric history from the first run of the algorithm to the current run):
     - pareto_front Hypervolume history: {metrics_history.get("hypervolume", [])}
     - pareto_front Spacing history: {metrics_history.get("spacing", [])}
     - pareto_front Spread history: {metrics_history.get("spread", [])}
     - Number of Pareto solutions history: {metrics_history.get("pareto_count", [])}
     - pareto_front Average crowding distance history: {metrics_history.get("avg_crowding_distance", [])}
     - offspring survival history: {offspring_survival_history}
-    - Elitism rate history: {metrics_history.get("elitism_rate", [])}
     - variance/entropy of parts history (The values ​​for each part are stored as tuples. for exam -> "entropy":(variance_per_gene(list), avg_variance(float))): {section_stats_history}
-* History of methods and their possibilities: {current_methods.get("history", {})}
-* Population objective statistics (from entire population):
+4. History of methods and their possibilities: {current_methods.get("history", {})}
+5. Population objective statistics (from entire population):
     - Mean objectives: F1={mean_f1:.6f}, F2={mean_f2:.6f}, F3={mean_f3:.6f}
     - Min objectives: F1={min_f1:.6f}, F2={min_f2:.6f}, F3={min_f3:.6f}
     - Std objectives: F1={std_f1:.6f}, F2={std_f2:.6f}, F3={std_f3:.6f}
-
+ 
 Note: 
-
 *The default methods Selection, Crossover, and Mutation are the methods that are used by "default" for the algorithm in the early generations.
 *If the algorithm performs well using these default methods, you can suggest them (i.e. use the default instead of the method name). No data from the input arguments of these methods will be sent to you.
 *Review and analyze the progress of the data provided to you and use it in your suggestions.
 *Argue for yourself why you chose the methods, their probabilities, rates, and input argument values.
 *When specifying the values ​​of the input arguments of the methods, be careful to only assign values ​​to the input arguments of the methods you propose and display them in the output.
 
-From now on, I will only send you the history of the parameters without any additional writing, and you will return your suggestions by analyzing them carefully, completely in accordance with the output format.
+=== AVALIBLE METHODS ===
+The methods you suggest should be selected from this method:
+"crossover_methods":[
+- one_point_crossover -> Use only in 'part1'&'part2'&'part3_p2'
+- two_point_crossover -> Use only in 'part1'&'part2'&'part3_p2'
+- multi_point_crossover -> Use only in 'part1'&'part2'&'part3_p2'
+- uniform_crossover -> Use only in 'part1'&'part2'&'part3_p2'
+- order_crossover -> Use only in 'part3_p1'
+- partially_mapped_crossover -> Use only in 'part3_p1'
+- arithmetic_crossover -> Use only in 'part2'
+- blend_crossover -> Use only in 'part2'
+- one_point_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- two_point_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- uniform_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- block_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- row_wise_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- arithmetic_crossover_matrix -> Use only in 'part4'&'part5'&'part6'&'part7'
+- simulated_binary_crossover -> Use only in 'part2'
+]
+"mutation_methods":[
+- bit_flip_mutation(mutation_rate, value_range) -> Use only in 'part1' 
+- swap_mutation(n_swaps) -> Use only in 'part1'&'part3_p1'&'part3_p2'
+- inversion_mutation(no arguments) -> Use only in 'part1'&'part3_p1'&'part3_p2'
+- scramble_mutation(no arguments) -> Use only in 'part1'&'part3_p1'&'part3_p2'
+- insertion_mutation(no arguments) -> Use only in 'part1'&'part3_p1'&'part3_p2'
+- displacement_mutation(no arguments) -> Use only in 'part1'&'part3_p1'&'part3_p2'
+- gaussian_mutation(mutation_rate, sigma) -> Use only in 'part2'
+- uniform_mutation(mutation_rate) -> Use only in 'part2'
+- polynomial_mutation(mutation_rate, eta) -> Use only in 'part2'
+- boundary_mutation(mutation_rate) -> Use only in 'part2'
+- random_element_mutation_matrix(mutation_rate, value_range) -> Use only in 'part4'&'part5'&'part6'&'part7'
+- gaussian_mutation_matrix(mutation_rate, sigma) -> Use only in 'part4'&'part5'&'part6'&'part7'
+- row_mutation_matrix(mutation_rate) -> Use only in 'part4'&'part5'&'part6'&'part7'
+- column_mutation_matrix(mutation_rate) -> Use only in 'part4'&'part5'&'part6'&'part7'
+- block_mutation_matrix(block_size(tuple/list of length 2)) -> Use only in 'part4'&'part5'&'part6'&'part7'
+- creep_mutation_matrix(mutation_rate, step_size) -> Use only in 'part4'&'part5'&'part6'&'part7'
+]
+"selection_methods":[
+- crowded_binary_tournament(pop, k)
+- adaptive_k_tournament(pop, k)
+- rank_based_roulette(pop, power)
+- reference_biased_tournament(pop, refs=refs, k=k, tau=tau)
+- age_diversity_tournament(pop, k=k, prefer_younger=prefer_younger)
+- epsilon_dominance_tournament(pop, k=k, eps=eps)
+]
 
-Provide your response in the following JSON template (Try not to use capital letters in the keys of this output):
+=== STRICT ENFORCEMENT RULES ===
+1.Use the *AVALIBLE METHODS* only in the mentioned parts (for example partially_mapped_crossover -> Use only in 'part3_p1' .This means that this method should only be used in Part3_p1).
+2.Avoid changing or removing characters of the method names in *AVAILABLE METHODS*. Make sure the method names you use for the parts exactly match *AVAILABLE METHODS*.
+3.Avoid changing the characters in output patternt keys.
+4.Be careful not to leave out the keys used in the output patternt.
+5.not to use capital letters in the keys of JSON output
+
+=== OUTPU PATTERN ===
+Your output should be just a valid JSON object that follows the pattern below.:
 ```json
 {{
-    "recommendations": {{
-            "crossover_methods": {{
-                "part1": "crossover_method_name",
-            "part2": "crossover_method_name",
-            "part3_p1": "crossover_method_name",
-            "part3_p2": "crossover_method_name",
-            "part4": "crossover_method_name",
-            "part5": "crossover_method_name",
-            "part6": "crossover_method_name",
-            "part7": "crossover_method_name",
-            }}
-            "global_crossover_probability": 0.0,
-            "crossover_part_probability": {{
-                    "part1": 0.0,
-                            "part2": 0.0,
-                            "part3_p1": 0.0,
-                            "part3_p2": 0.0,
-                            "part4": 0.0,
-                            "part5": 0.0,
-                            "part6": 0.0,
-                            "part7": 0.0,
-            }},
-        "mutation_methods": {{
-                "part1": "mutation_method_name",
-            "part2": "mutation_method_name",
-            "part3_p1": "mutation_method_name",
-            "part3_p2": "mutation_method_name",
-            "part4": "mutation_method_name",
-            "part5": "mutation_method_name",
-            "part6": "mutation_method_name",
-            "part7": "mutation_method_name",
-            }}
-            "global_mutation_probability": 0.0,
-            "mutation_args_per_part": {{
-                "part1": {{"mutation_rate": 0.05}},
-                "part2": {{"mutation_rate": 0.15, "sigma": 0.2}},
-                "part3_p1": {{"n_swaps": 2}},
-                "part3_p2": {{"n_swaps": 1}},
-                "part4": {{"mutation_rate": 0.08, "eta": 20}},
-                "part5": {{"mutation_rate": 0.08}},
-                "part6": {{"mutation_rate": 0.12}},
-                "part7": {{"mutation_rate": 0.12}}
-            }},
-            "mutation_part_probability": {{
-                    "part1": 0.0,
-                            "part2": 0.0,
-                            "part3_p1": 0.0,
-                            "part3_p2": 0.0,
-                            "part4": 0.0,
-                            "part5": 0.0,
-                            "part6": 0.0,
-                            "part7": 0.0,
-                    }},
-        "selection_method": "selection_method_name",
-        "selection_args": {{
-            "k": 2,
-            "power": 1.0,
-            "refs": "[[...], ...]",
-            "tau": 1.0,
-            "prefer_younger": true,
-            "eps": 0.0
+"recommendations": {{
+    "crossover_methods": {{
+        "part1": "",
+        "part2": "",
+        "part3_p1": "",
+        "part3_p2": "",
+        "part4": "",
+        "part5": "",
+        "part6": "",
+        "part7": "",
         }},
-        "elitism_rate": 0.1
+    "global_crossover_probability": 0.0,
+    "crossover_part_probability": {{
+        "part1": 0.0,
+        "part2": 0.0,
+        "part3_p1": 0.0,
+        "part3_p2": 0.0,
+        "part4": 0.0,
+        "part5": 0.0,
+        "part6": 0.0,
+        "part7": 0.0,
+        }},
+    "mutation_methods": {{
+        "part1": "",
+        "part2": "",
+        "part3_p1": "",
+        "part3_p2": "",
+        "part4": "",
+        "part5": "",
+        "part6": "",
+        "part7": "",
+        }},
+    "global_mutation_probability": 0.0,
+    "mutation_args_per_part": {{
+        "part1": {{"mutation_rate": 0.05}},
+        "part2": {{"mutation_rate": 0.15, "sigma": 0.2}},
+        "part3_p1": {{"n_swaps": 2}},
+        "part3_p2": {{"n_swaps": 1}},
+        "part4": {{"mutation_rate": 0.08, "eta": 20}},
+        "part5": {{"mutation_rate": 0.08}},
+        "part6": {{"mutation_rate": 0.12}},
+        "part7": {{"mutation_rate": 0.12}}
+        }},
+    "mutation_part_probability": {{
+        "part1": 0.0,
+        "part2": 0.0,
+        "part3_p1": 0.0,
+        "part3_p2": 0.0,
+        "part4": 0.0,
+        "part5": 0.0,
+        "part6": 0.0,
+        "part7": 0.0,
+        }},
+    "selection_method": "",
+    "selection_args": {{
+        "k": 2,
+        "power": 1.0,
+        "refs": "[[float, float, float],[float, float, float],...]",
+        "tau": 1.0,
+        "prefer_younger": true,
+        "eps": 0.0
+        }}
     }}
 }}
 ```
@@ -545,7 +558,7 @@ Provide your response in the following JSON template (Try not to use capital let
         return prompt
 
     def send_request(
-        self, prompt: str, max_retries: int = 3
+        self, prompt: str, max_retries: int = 3000
     ) -> Optional[Dict[str, Any]]:
         """
         ارسال درخواست به OpenRouter API
@@ -626,7 +639,6 @@ Provide your response in the following JSON template (Try not to use capital let
     - Number of Pareto solutions history: {metrics_history.get("pareto_count", [0])[-1] if isinstance(metrics_history.get("pareto_count"), list) else metrics_history.get("pareto_count", 0)}
     - pareto_front Average crowding distance history: {metrics_history.get("avg_crowding_distance", [0])[-1] if isinstance(metrics_history.get("avg_crowding_distance"), list) else metrics_history.get("avg_crowding_distance", 0):.6f}
     - offspring survival history: {offspring_survival_history}
-    - Elitism rate history: {metrics_history.get("elitism_rate", [0])[-1] if isinstance(metrics_history.get("elitism_rate"), list) else metrics_history.get("elitism_rate", 0):.4f} ({metrics_history.get("elitism_rate", [0])[-1] if isinstance(metrics_history.get("elitism_rate"), list) else metrics_history.get("elitism_rate", 0) * 100:.1f}% of population preserved as elite)
     - variance/entropy of parts history (The values ​​for each part are stored as tuples. for exam -> "entropy":(variance_per_gene, avg_variance)): {section_stats_history}
 * History of methods and their possibilities: {current_methods.get("history", {})}
 * Population objective statistics (from entire population):
@@ -679,9 +691,9 @@ From now on, I will only send you the history of the parameters without any addi
 
     def send_request_openai(
         self,
+        store: bool,
         prompt: Optional[Dict[str, str]] = None,
         metrics_data: Optional[str] = None,
-        store: bool = True,
         max_retries: int = 30000
     ) -> Optional[Dict[str, Any]]:
         """
@@ -720,7 +732,7 @@ From now on, I will only send you the history of the parameters without any addi
                             "X-Title": "NSGA-II Optimization",  # اختیاری
                         },
                         reasoning = self.reasoning,
-                        store=store,
+                        store=self.store,
                         previous_response_id=self.previous_response_id
                     )
                 else:
@@ -743,11 +755,10 @@ From now on, I will only send you the history of the parameters without any addi
                             "X-Title": "NSGA-II Optimization",  # اختیاری
                         },
                         reasoning = self.reasoning,
-                        store=store
                     )
 
                     # ذخیره previous_response_id برای درخواست‌های بعدی فقط برای مدل‌های GPT
-                    if store and self.is_gpt_model:
+                    if self.store and self.is_gpt_model:
                         if hasattr(response, 'previous_response_id') and response.previous_response_id:
                             self.previous_response_id = response.previous_response_id
                         elif hasattr(response, 'id') and response.id:
@@ -820,234 +831,144 @@ From now on, I will only send you the history of the parameters without any addi
         
         return None
 
-    def parse_ai_response(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        پارس کردن پاسخ AI و استخراج پیشنهادات مطابق با فرمت خروجی create_prompt
+    def parse_ai_response(self, response: Dict[str, Any]) -> dict:
         
-        فرمت مورد انتظار:
-        {
+        message = response.get("choices", [{}])[0].get("message", {})
+        content = message.get("content", "")
+        # 1) اول سعی می‌کنیم بلوک ```json ... ``` را پیدا کنیم
+        m = re.search(r"```json(.*?)```", content, flags=re.DOTALL | re.IGNORECASE)
+        if m:
+            json_str = m.group(1).strip()
+        else:
+            # اگر کد بلاک نبود، از اولین { تا آخرین } رو می‌گیریم
+            start = content.find("{")
+            end = content.rfind("}")
+            if start == -1 or end == -1 or end <= start:
+                raise ValueError("No JSON object found in the given text.")
+            json_str = content[start:end+1]
+
+        # Fix trailing commas in JSON objects (invalid in standard JSON)
+        json_str = re.sub(r',\s*}', '}', json_str)
+
+        data = json.loads(json_str)
+
+        # اگر ساختار به صورت {"recommendations": {...}} است:
+        rec = data.get("recommendations", data)
+
+        # 2) اسکلت استانداردی که می‌خوای (اعداد مهم نیستن، فقط فرمت)
+        template = {
             "recommendations": {
-                "crossover_methods": {...},
-                "mutation_methods": {...},
-                "selection_method": "...",
-                "selection_args": {...},
-                "elitism_rate": 0.1
+                "crossover_methods": {
+                    "part1": "",
+                    "part2": "",
+                    "part3_p1": "",
+                    "part3_p2": "",
+                    "part4": "",
+                    "part5": "",
+                    "part6": "",
+                    "part7": "",
+                },
+                "global_crossover_probability": 0.0,
+                "crossover_part_probability": {
+                    "part1": 0.0,
+                    "part2": 0.0,
+                    "part3_p1": 0.0,
+                    "part3_p2": 0.0,
+                    "part4": 0.0,
+                    "part5": 0.0,
+                    "part6": 0.0,
+                    "part7": 0.0,
+                },
+                "mutation_methods": {
+                    "part1": "",
+                    "part2": "",
+                    "part3_p1": "",
+                    "part3_p2": "",
+                    "part4": "",
+                    "part5": "",
+                    "part6": "",
+                    "part7": "",
+                },
+                "global_mutation_probability": 0.0,
+                "mutation_args_per_part": {
+                    "part1": {"mutation_rate": 0.05},
+                    "part2": {"mutation_rate": 0.15, "sigma": 0.2},
+                    "part3_p1": {"n_swaps": 2},
+                    "part3_p2": {"n_swaps": 1},
+                    "part4": {"mutation_rate": 0.08, "eta": 20},
+                    "part5": {"mutation_rate": 0.08},
+                    "part6": {"mutation_rate": 0.12},
+                    "part7": {"mutation_rate": 0.12},
+                },
+                "mutation_part_probability": {
+                    "part1": 0.0,
+                    "part2": 0.0,
+                    "part3_p1": 0.0,
+                    "part3_p2": 0.0,
+                    "part4": 0.0,
+                    "part5": 0.0,
+                    "part6": 0.0,
+                    "part7": 0.0,
+                },
+                "selection_method": "",
+                "selection_args": {
+                    "k": 2,
+                    "power": 1.0,
+                    "refs": "[[float, float, float],[float, float, float],...]",
+                    "tau": 1.0,
+                    "prefer_younger": True,
+                    "eps": 0.0,
+                }
             }
         }
 
-        Parameters:
-        -----------
-        response: پاسخ API از OpenRouter
+        result = deepcopy(template)
+        tmpl_rec = result["recommendations"]
 
-        Returns:
-        --------
-        Dict: پیشنهادات AI با ساختار {"recommendations": {...}} یا None در صورت خطا
-        """
-        try:
-            message = response.get("choices", [{}])[0].get("message", {})
-            content = message.get("content", "")
+        # Helper برای پر کردن دیکشنری‌های ساده‌ی partها
+        def fill_part_dict(tmpl_dict, src_dict):
+            for k in tmpl_dict.keys():
+                if isinstance(tmpl_dict[k], dict):
+                    # برای mutation_args_per_part که خودش dict است
+                    if k in src_dict and isinstance(src_dict[k], dict):
+                        # اگه خواستی عددها رو نگه داری:
+                        tmpl_dict[k].update(src_dict[k])
+                else:
+                    if k in src_dict:
+                        tmpl_dict[k] = src_dict[k]
 
-            # برخی مدل‌ها محتوای چندبخشی یا غیررشته‌ای می‌دهند
-            if isinstance(content, list):
-                # ترکیب قطعات متنی
-                content = "\n".join([str(part.get("text", part)) for part in content])
-            elif not isinstance(content, str):
-                content = str(content)
+        # 3) پر کردن از روی JSON مدل (اگه مقادیر موجود باشن)
+        if "crossover_methods" in rec:
+            fill_part_dict(tmpl_rec["crossover_methods"], rec["crossover_methods"])
 
-            if not content or not content.strip():
-                print("⚠️ Empty response content from AI")
-                return None
+        if "global_crossover_probability" in rec:
+            tmpl_rec["global_crossover_probability"] = rec["global_crossover_probability"]
 
-            import re
+        if "crossover_part_probability" in rec:
+            fill_part_dict(tmpl_rec["crossover_part_probability"], rec["crossover_part_probability"])
 
-            # 1) اول تلاش برای یافتن بلاک های ```json ... ``` (اولویت اول)
-            # پیدا کردن بلاک‌های کد با شمارش دقیق براکت‌ها
-            fenced_blocks = []
-            code_block_pattern = r"```(?:json)?\s*\n?"
-            code_block_starts = list(re.finditer(code_block_pattern, content, re.IGNORECASE))
-            
-            for match in code_block_starts:
-                start_pos = match.end()
-                # پیدا کردن پایان بلاک کد
-                end_marker = content.find("```", start_pos)
-                if end_marker == -1:
-                    continue
-                
-                block_content = content[start_pos:end_marker].strip()
-                if not block_content or not block_content.startswith("{"):
-                    continue
-                
-                # شمارش براکت‌ها برای پیدا کردن JSON کامل
-                brace_count = 0
-                in_string = False
-                escape_next = False
-                json_end = -1
-                
-                for i, ch in enumerate(block_content):
-                    if escape_next:
-                        escape_next = False
-                        continue
-                    
-                    if ch == "\\":
-                        escape_next = True
-                        continue
-                    
-                    if ch == '"' and not escape_next:
-                        in_string = not in_string
-                        continue
-                    
-                    if not in_string:
-                        if ch == "{":
-                            brace_count += 1
-                        elif ch == "}":
-                            brace_count -= 1
-                            if brace_count == 0:
-                                json_end = i + 1
-                                break
-                
-                if json_end > 0:
-                    json_str = block_content[:json_end].strip()
-                    if json_str:
-                        fenced_blocks.append(json_str)
-            
-            if fenced_blocks:
-                # اولویت: بلاکی که شامل کلید "recommendations" است
-                for block in fenced_blocks:
-                    try:
-                        obj = json.loads(block)
-                        if isinstance(obj, dict) and "recommendations" in obj:
-                            return obj
-                    except json.JSONDecodeError:
-                        continue
-                
-                # اگر recommendations پیدا نشد، بلاکی که شامل crossover یا mutation است
-                for block in fenced_blocks:
-                    try:
-                        obj = json.loads(block)
-                        if isinstance(obj, dict) and (
-                            "crossover_methods" in obj or 
-                            "mutation_methods" in obj or
-                            "selection_method" in obj
-                        ):
-                            # اگر ساختار recommendations ندارد، آن را اضافه می‌کنیم
-                            if "recommendations" not in obj:
-                                return {"recommendations": obj}
-                            return obj
-                    except json.JSONDecodeError:
-                        continue
-                
-                # در غیر این صورت اولین بلاک معتبر JSON را امتحان می‌کنیم
-                for block in fenced_blocks:
-                    try:
-                        obj = json.loads(block)
-                        if isinstance(obj, dict):
-                            # اگر ساختار recommendations ندارد، آن را اضافه می‌کنیم
-                            if "recommendations" not in obj:
-                                return {"recommendations": obj}
-                            return obj
-                    except json.JSONDecodeError:
-                        continue
+        if "mutation_methods" in rec:
+            fill_part_dict(tmpl_rec["mutation_methods"], rec["mutation_methods"])
 
-            # 2) تلاش برای یافتن JSON بدون بلاک کد (مستقیم در متن)
-            # حذف کامنت‌های احتمالی و متن اضافی قبل و بعد از JSON
-            content_cleaned = content.strip()
-            
-            # حذف متن قبل از اولین {
-            first_brace = content_cleaned.find("{")
-            if first_brace > 0:
-                content_cleaned = content_cleaned[first_brace:]
-            
-            # تلاش برای پارس مستقیم
-            try:
-                obj = json.loads(content_cleaned)
-                if isinstance(obj, dict):
-                    # بررسی ساختار recommendations
-                    if "recommendations" in obj:
-                        return obj
-                    # اگر recommendations ندارد اما ساختار درست است، اضافه می‌کنیم
-                    if "crossover_methods" in obj or "mutation_methods" in obj or "selection_method" in obj:
-                        return {"recommendations": obj}
-                    return obj
-            except json.JSONDecodeError:
-                pass
+        if "global_mutation_probability" in rec:
+            tmpl_rec["global_mutation_probability"] = rec["global_mutation_probability"]
 
-            # 3) تلاش برای استخراج آبجکت JSON با شمارش براکت‌ها (روش دقیق‌تر)
-            start_idx = content.find("{")
-            candidates = []
-            while start_idx != -1:
-                brace = 0
-                in_string = False
-                escape_next = False
-                
-                for end_idx in range(start_idx, len(content)):
-                    ch = content[end_idx]
-                    
-                    if escape_next:
-                        escape_next = False
-                        continue
-                    
-                    if ch == "\\":
-                        escape_next = True
-                        continue
-                    
-                    if ch == '"' and not escape_next:
-                        in_string = not in_string
-                        continue
-                    
-                    if not in_string:
-                        if ch == "{":
-                            brace += 1
-                        elif ch == "}":
-                            brace -= 1
-                            if brace == 0:
-                                candidate = content[start_idx : end_idx + 1]
-                                candidates.append((start_idx, candidate))
-                                break
-                
-                start_idx = content.find("{", start_idx + 1)
-            
-            # بررسی کاندیداها از بزرگترین به کوچکترین (احتمالاً کامل‌تر است)
-            candidates.sort(key=lambda x: len(x[1]), reverse=True)
-            
-            for start_idx, candidate in candidates:
-                try:
-                    obj = json.loads(candidate)
-                    if isinstance(obj, dict):
-                        # اولویت به ساختار recommendations
-                        if "recommendations" in obj:
-                            return obj
-                        # اگر ساختار درست است اما recommendations ندارد
-                        if "crossover_methods" in obj or "mutation_methods" in obj or "selection_method" in obj:
-                            return {"recommendations": obj}
-                        # هر دیکشنری معتبر دیگر
-                        return obj
-                except json.JSONDecodeError:
-                    continue
+        if "mutation_args_per_part" in rec:
+            fill_part_dict(tmpl_rec["mutation_args_per_part"], rec["mutation_args_per_part"])
 
-            # اگر هیچ JSON معتبری پیدا نشد
-            print("❌ Could not extract valid JSON from AI response")
-            print(f"Response content (first 500 chars): {content[:500]}")
-            if len(content) > 500:
-                print(f"... (total length: {len(content)} chars)")
-            return None
+        if "mutation_part_probability" in rec:
+            fill_part_dict(tmpl_rec["mutation_part_probability"], rec["mutation_part_probability"])
 
-        except (KeyError, IndexError) as e:
-            print(f"❌ Error accessing response structure: {e}")
-            print(f"Response keys: {list(response.keys()) if isinstance(response, dict) else 'Not a dict'}")
-            return None
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON decode error: {e}")
-            print(f"Response content (first 500 chars): {content[:500] if 'content' in locals() else 'N/A'}")
-            return None
-        except Exception as e:
-            print(f"❌ Unexpected error parsing AI response: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        if "selection_method" in rec:
+            tmpl_rec["selection_method"] = rec["selection_method"]
+
+        if "selection_args" in rec and isinstance(rec["selection_args"], dict):
+            tmpl_rec["selection_args"].update(rec["selection_args"])
+
+        return result
 
     def get_recommendations(
         self,
-        use_openai: bool = True,
         **prompt_args
     ) -> Optional[Dict[str, Any]]:
         """
@@ -1058,26 +979,25 @@ From now on, I will only send you the history of the parameters without any addi
         generation: نسل فعلی
         metrics: شاخص‌های عملکرد
         current_methods: متدهای فعلی
-        use_openai: استفاده از کتابخانه OpenAI به جای requests
 
         Returns:
         --------
         Dict: پیشنهادات AI یا None در صورت خطا
         """
-        if use_openai:
+        if self.request_type == 'openai':
             # استفاده از OpenAI
             if not self.is_gpt_model or self.previous_response_id is None:
                 # اولین درخواست یا مدل غیر-GPT: ارسال prompt کامل
                 prompt = self.create_prompt(**prompt_args)
-                response = self.send_request_openai(prompt=prompt, store=True)
+                response = self.send_request_openai(prompt=prompt, store=self.store)
             else:
                 # درخواست‌های بعدی برای مدل‌های GPT: فقط ارسال metrics data
                 metrics_data = self.extract_metrics_data(**prompt_args)
-                response = self.send_request_openai(metrics_data=metrics_data, store=True)
+                response = self.send_request_openai(metrics_data=metrics_data, store=self.store)
         else:
             # استفاده از requests (متد قدیمی)
             prompt = self.create_prompt(**prompt_args)
-            response = self.send_request(prompt, 3000)
+            response = self.send_request(prompt)
 
         if response is None:
             return None
@@ -1108,34 +1028,36 @@ From now on, I will only send you the history of the parameters without any addi
 
             # بررسی متدهای پیشنهادی
             valid_crossover = [
-                "one_point_crossover_list",
-                "two_point_crossover_list",
-                "uniform_crossover_list",
-                "order_crossover_list",
-                "arithmetic_crossover_list",
-                "blend_crossover_list",
+                "default",
+                "one_point_crossover",
+                "two_point_crossover",
+                "uniform_crossover",
+                "order_crossover",
+                "arithmetic_crossover",
+                "blend_crossover",
                 "one_point_crossover_matrix",
                 "two_point_crossover_matrix",
                 "uniform_crossover_matrix",
                 "block_crossover_matrix",
                 "row_wise_crossover_matrix",
                 "arithmetic_crossover_matrix",
-                "multi_point_crossover_list",
+                "multi_point_crossover",
                 "partially_mapped_crossover",
                 "simulated_binary_crossover",
             ]
 
             valid_mutation = [
-                "bit_flip_mutation_list",
-                "swap_mutation_list",
-                "inversion_mutation_list",
-                "scramble_mutation_list",
-                "insertion_mutation_list",
-                "displacement_mutation_list",
-                "gaussian_mutation_list",
-                "uniform_mutation_list",
-                "polynomial_mutation_list",
-                "boundary_mutation_list",
+                "default",
+                "bit_flip_mutation",
+                "swap_mutation",
+                "inversion_mutation",
+                "scramble_mutation",
+                "insertion_mutation",
+                "displacement_mutation",
+                "gaussian_mutation",
+                "uniform_mutation",
+                "polynomial_mutation",
+                "boundary_mutation",
                 "random_element_mutation_matrix",
                 "gaussian_mutation_matrix",
                 "row_mutation_matrix",
@@ -1145,6 +1067,7 @@ From now on, I will only send you the history of the parameters without any addi
             ]
 
             valid_selection = [
+                "default",
                 "crowded_binary_tournament",
                 "adaptive_k_tournament",
                 "rank_based_roulette",
@@ -1235,14 +1158,7 @@ From now on, I will only send you the history of the parameters without any addi
                 if rec["selection_method"] not in valid_selection:
                     print(f"⚠️ Invalid selection method: {rec['selection_method']}")
                     return False
-
-            # بررسی elitism_rate
-            if "elitism_rate" in rec:
-                elitism = rec["elitism_rate"]
-                if not isinstance(elitism, (int, float)) or not (0.05 <= elitism <= 0.3):
-                    print(f"⚠️ Invalid elitism_rate: {elitism} (must be between 0.05 and 0.3)")
-                    return False
-
+                
             return True
 
         except Exception as e:

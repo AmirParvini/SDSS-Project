@@ -58,21 +58,16 @@ class SelectionMethods:
 
     # --------- 1) Crowded Binary Tournament (CBT) ---------
     def crowded_binary_tournament(self, pop: List[Individual], **selection_args) -> Individual:
-        """Standard NSGA-II crowded binary tournament (rank -> crowding)."""
-        k = int(selection_args.get("k", 2))
-        a, b = random.sample(pop, k)
-        by_feas = self.feasibility_rule(a, b)
-        if by_feas is not None:
-            return by_feas
-        return self.better_by_rank_crowding(a, b)
-
-    def crowded_binary_tournament_feasible(self, pop: List[Individual]) -> Individual:
-        """CBT با قاعده امکان‌پذیری به‌عنوان پیش‌فیلتر."""
-        a, b = random.sample(pop, 2)
-        by_feas = self.feasibility_rule(a, b)
-        if by_feas is not None:
-            return by_feas
-        return self.better_by_rank_crowding(a, b)
+        """Standard NSGA-II crowded tournament (rank -> crowding), generalized for k >= 2."""
+        contenders = random.sample(pop, 2)
+        best = contenders[0]
+        for c in contenders[1:]:
+            by_feas = self.feasibility_rule(best, c)
+            if by_feas is not None:
+                best = by_feas
+                continue
+            best = self.better_by_rank_crowding(best, c)
+        return best
 
     # --------- 2) Adaptive k-Tournament (A-kT) ---------
     def adaptive_k_tournament(
@@ -230,7 +225,7 @@ class SelectionMethods:
         # Precompute distances and weights
         scored = []
         for ind in contenders:
-            d = self.distance_to_refs(ind["cost"], refs)
+            d = self.distance_to_refs(ind["normal_cost"], refs)
             w = math.exp(-(d / max(1e-12, tau)))
             scored.append((ind, d, w))
         # Sort-like comparison:
@@ -341,8 +336,6 @@ class SelectionMethods:
         method = method.lower()
         if method in ("cbt", "crowded_binary_tournament"):
             return self.crowded_binary_tournament(pop, **kwargs)
-        if method in ("cbt_feas", "crowded_binary_tournament_feasible"):
-            return self.crowded_binary_tournament_feasible(pop)
         if method in ("kt", "a-kt", "k_tournament", "adaptive_k_tournament"):
             return self.adaptive_k_tournament(pop, **kwargs)
         if method in ("ff", "feasibility_first", "feasibility_first_tournament"):

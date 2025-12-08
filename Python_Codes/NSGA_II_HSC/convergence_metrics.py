@@ -373,7 +373,7 @@ class ConvergenceMetrics:
         ax.set_ylabel('Spread (Delta)', fontsize=11)
         # ax.set_title('Spread Metric\n(کمتر = پوشش بهتر)', fontsize=12, fontweight='bold')
         ax.grid(True, alpha=0.3)
-        ax.set_ylim(0, 1)
+        # ax.set_ylim(0, 1)
         
         # 4. Number of Pareto Solutions
         ax = axes[1, 1]
@@ -457,25 +457,25 @@ class ConvergenceMetrics:
         print("="*60)
         
         if len(self.hypervolume_history) > 0:
-            print(f"\n📊 Hypervolume:")
+            print("\n📊 Hypervolume:")
             print(f"   Initial: {self.hypervolume_history[0]:.6f}")
             print(f"   Final:   {self.hypervolume_history[-1]:.6f}")
             print(f"   Improvement: {((self.hypervolume_history[-1] - self.hypervolume_history[0]) / self.hypervolume_history[0] * 100):.2f}%")
         
         if len(self.spacing_history) > 0:
-            print(f"\n📏 Spacing:")
+            print("\n📏 Spacing:")
             print(f"   Initial: {self.spacing_history[0]:.6f}")
             print(f"   Final:   {self.spacing_history[-1]:.6f}")
             print(f"   Improvement: {((self.spacing_history[0] - self.spacing_history[-1]) / self.spacing_history[0] * 100):.2f}%")
         
         if len(self.spread_history) > 0:
-            print(f"\n📐 Spread:")
+            print("\n📐 Spread:")
             print(f"   Initial: {self.spread_history[0]:.6f}")
             print(f"   Final:   {self.spread_history[-1]:.6f}")
             print(f"   Improvement: {((self.spread_history[0] - self.spread_history[-1]) / self.spread_history[0] * 100):.2f}%")
         
         if len(self.n_pareto_history) > 0:
-            print(f"\n🎯 Pareto Front Size:")
+            print("\n🎯 Pareto Front Size:")
             print(f"   Initial: {self.n_pareto_history[0]}")
             print(f"   Final:   {self.n_pareto_history[-1]}")
             print(f"   Change:  {self.n_pareto_history[-1] - self.n_pareto_history[0]:+d}")

@@ -2,6 +2,7 @@ import numpy as np
 from copy import deepcopy
 import random
 import time
+from ollama_client import OllamaClient
 from convergence_metrics import ConvergenceMetrics
 from diagnostic_metrics import DiagnosticMetrics
 from crossover_methods import CrossoverMethods
@@ -9,7 +10,7 @@ from mutation_methods import MutationMethods
 from selection_methods import SelectionMethods
 from openrouter_client import OpenRouterClient
 from hypervolume_manager import HypervolumeManager
-from ai_config import AI_MODEL
+from ai_config import print_config_status
 import traceback
 import os
 import pickle
@@ -22,7 +23,6 @@ class LLM_NSGA2_Humanitarian:
     Features:
     - Multi-objective optimization for humanitarian logistics
     - Custom chromosome structure for shelter, distribution, and medical facility allocation
-    - Elitism: preserves best solutions across generations
     - Crowding distance for diversity maintenance
     - Constraint handling for feasible solutions
     """
@@ -38,12 +38,9 @@ class LLM_NSGA2_Humanitarian:
         pop_size=150,
         p_crossover=0.9,
         p_mutation=0.1,
-        elitism_rate=0.1,
         verbose=True,
         resume = True,
-        openrouter_api_key=None,
-        base_url=None,
-        use_ai_optimization=True,
+        using_ollama=False,
         llm_iter = 5,
         use_llm_init_pop=True,
         distances=None,
@@ -67,30 +64,45 @@ class LLM_NSGA2_Humanitarian:
         pop_size: Population size (default: 100)
         p_crossover: Crossover probability (default: 0.7)
         p_mutation: Mutation probability (default: 0.3)
-        elitism_rate: Percentage of elite individuals to preserve (default: 0.1)
         verbose: Print iteration information (default: True)
-        openrouter_api_key: API key for OpenRouter (optional)
-        use_ai_optimization: Enable AI-based method optimization (default: False)
         distances: dict of distance matrices to inject into AI prompt
         homeless: dict of homeless counts per damage point id to inject into AI prompt
         """
+        # نمایش وضعیت تنظیمات AI
+        print_config_status()
         self.max_iter = max_iter
         self.pop_size = pop_size
         self.p_crossover = p_crossover
         self.p_mutation = p_mutation
-        self.elitism_rate = elitism_rate
-        self.n_elite = max(1, int(elitism_rate * pop_size))  # حداقل یک فرد نخبه
         self.verbose = verbose
         self.resume = resume
-        self.use_ai_optimization = use_ai_optimization
         self.use_llm_init_pop = bool(use_llm_init_pop)
         self.llm_iter = llm_iter
 
         # تنظیم OpenRouter Client
-        self.openrouter_client = None
-        if use_ai_optimization and openrouter_api_key:
-            self.openrouter_client = OpenRouterClient(openrouter_api_key, AI_MODEL, base_url)
-
+        self.api_client = None
+        if  not using_ollama:
+            # api_key = "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"
+            api_key = "sk-Wne1ay7BrN5P1wxjU40DRW0bRkQO8ocPS4EdwIjK6TMaPgPW"
+            model = "deepseek-chat"
+            base_url="https://api.gapapi.com/v1"
+            self.api_client = OpenRouterClient(
+                request_type='openai',
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+                reasoning={"effort": "medium"}
+                )
+        elif using_ollama:
+            api_key = ""
+            model = "deepseek-r1:7b"
+            base_url="http://127.0.0.1:11434"
+            self.api_client = OpenRouterClient(
+                request_type='request',
+                api_key=api_key,
+                model=model,
+                base_url=base_url
+                )
         # ذخیره متدهای فعلی (هر بخش به صورت جداگانه)
         self.current_methods = {
             "crossover_methods": {
@@ -223,33 +235,33 @@ class LLM_NSGA2_Humanitarian:
         self.capacity = capacity or {}
 
         self.crossover_methods = {
-            "1": CrossoverMethods.one_point_crossover_list,
-            "2": CrossoverMethods.two_point_crossover_list,
-            "3": CrossoverMethods.uniform_crossover_list,
-            "4": CrossoverMethods.order_crossover_list,
-            "5": CrossoverMethods.arithmetic_crossover_list,
-            "6": CrossoverMethods.blend_crossover_list,
+            "1": CrossoverMethods.one_point_crossover,
+            "2": CrossoverMethods.two_point_crossover,
+            "3": CrossoverMethods.uniform_crossover,
+            "4": CrossoverMethods.order_crossover,
+            "5": CrossoverMethods.arithmetic_crossover,
+            "6": CrossoverMethods.blend_crossover,
             "7": CrossoverMethods.one_point_crossover_matrix,
             "8": CrossoverMethods.two_point_crossover_matrix,
             "9": CrossoverMethods.uniform_crossover_matrix,
             "10": CrossoverMethods.block_crossover_matrix,
             "11": CrossoverMethods.row_wise_crossover_matrix,
             "12": CrossoverMethods.arithmetic_crossover_matrix,
-            "13": CrossoverMethods.multi_point_crossover_list,
+            "13": CrossoverMethods.multi_point_crossover,
             "14": CrossoverMethods.partially_mapped_crossover,
             "15": CrossoverMethods.simulated_binary_crossover,
         }
         self.mutation_methods = {
-            "1": MutationMethods.bit_flip_mutation_list,
-            "2": MutationMethods.swap_mutation_list,
-            "3": MutationMethods.inversion_mutation_list,
-            "4": MutationMethods.scramble_mutation_list,
-            "5": MutationMethods.insertion_mutation_list,
-            "6": MutationMethods.displacement_mutation_list,
-            "7": MutationMethods.gaussian_mutation_list,
-            "8": MutationMethods.uniform_mutation_list,
-            "9": MutationMethods.polynomial_mutation_list,
-            "10": MutationMethods.boundary_mutation_list,
+            "1": MutationMethods.bit_flip_mutation,
+            "2": MutationMethods.swap_mutation,
+            "3": MutationMethods.inversion_mutation,
+            "4": MutationMethods.scramble_mutation,
+            "5": MutationMethods.insertion_mutation,
+            "6": MutationMethods.displacement_mutation,
+            "7": MutationMethods.gaussian_mutation,
+            "8": MutationMethods.uniform_mutation,
+            "9": MutationMethods.polynomial_mutation,
+            "10": MutationMethods.boundary_mutation,
             "11": MutationMethods.random_element_mutation_matrix,
             "12": MutationMethods.gaussian_mutation_matrix,
             "13": MutationMethods.row_mutation_matrix,
@@ -1158,7 +1170,7 @@ class LLM_NSGA2_Humanitarian:
         """
         # Extract problem info
         cost_function = problem["cost_function"]
-        checkpoint_path = problem.get("checkpoint_path", "exports/llm_nsga2_checkpoint.pkl")
+        checkpoint_path = os.path.join(os.path.dirname(__file__), "exports", "llm_nsga2_checkpoint.pkl")
         resume = self.resume
 
         # Ensure the checkpoint directory exists
@@ -1239,7 +1251,7 @@ class LLM_NSGA2_Humanitarian:
             pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
             # Try AI-generated initial population first if enabled
             ai_init_ok = False
-            if self.use_llm_init_pop and self.openrouter_client:
+            if self.use_llm_init_pop and self.api_client:
                 dims = {
                     "n_shelters": self.n_shelters,
                     "n_distribution": self.n_distribution,
@@ -1255,7 +1267,7 @@ class LLM_NSGA2_Humanitarian:
                         "h_id": self.hospital_id_list,
                         "tmc_id": self.tmc_id_list,
                     }
-                    ai_pop = self.openrouter_client.get_initial_population(
+                    ai_pop = self.api_client.get_initial_population(
                         self.pop_size,
                         dims,
                         ids_payload,
@@ -1308,7 +1320,7 @@ class LLM_NSGA2_Humanitarian:
                     else:
                         if self.verbose:
                             print(f"ℹ initial_population.json not found at: {init_path}")
-                            print(f"  Using random initialization instead")
+                            print("  Using random initialization instead")
                 except Exception as e:
                     # Any error -> ignore and fallback later
                     if self.verbose:
@@ -1341,11 +1353,6 @@ class LLM_NSGA2_Humanitarian:
         # Main loop
         pareto_pop = []  # safe default to avoid UnboundLocalError on early failures
         for it in range(start_it, self.max_iter):
-            # انتخاب افراد نخبه از نسل فعلی
-            elite_individuals = self.select_elite(pop, F)
-
-            # محاسبه تعداد افراد جدید مورد نیاز (کل جمعیت منهای نخبگان)
-            n_new_individuals = self.pop_size - len(elite_individuals)
 
             # جمع‌آوری شاخص‌های عملکرد
             current_metrics = self.collect_metrics(pop, F, it)
@@ -1358,16 +1365,23 @@ class LLM_NSGA2_Humanitarian:
                 else:
                     self.metrics_history[key].append(round(value, 4))
 
-            # درخواست پیشنهادات AI هر 5 نسل
+            # درخواست پینهادات AI هر 5 نسل
             if (
-                self.use_ai_optimization
-                and self.openrouter_client
+                self.api_client
                 and it > 0
                 and it % self.llm_iter == 0
             ):
                 print(f"\n🤖 Requesting AI recommendations for generation {it}...")
                 # اگر خطا رخ دهد، exception پرتاب می‌شود و الگوریتم متوقف می‌شود
+                dims = {
+                    "n_shelters": self.n_shelters,
+                    "n_distribution": self.n_distribution,
+                    "n_damage_points": self.n_damage_points,
+                    "n_hospitals": self.n_hospitals,
+                    "n_temp_medical": self.n_temp_medical,
+                }
                 prompt_args = {
+                    'dims': dims,
                     'llm_iter': self.llm_iter,
                     'it': it,
                     'current_methods': self.current_methods,
@@ -1384,7 +1398,7 @@ class LLM_NSGA2_Humanitarian:
 
             # Crossover
             popc = []
-            n_crossover_pairs = n_new_individuals // 2
+            n_crossover_pairs = self.pop_size // 2
             for _ in range(n_crossover_pairs):
                 p1 = self.crowding_tournament_selection(pop)
                 p2 = self.crowding_tournament_selection(pop)
@@ -1433,7 +1447,7 @@ class LLM_NSGA2_Humanitarian:
                     popc.append(deepcopy(p2))
 
             # اگر تعداد فرد باقی‌مانده فرد باشد، یک فرد اضافی تولید کن
-            if len(popc) < n_new_individuals:
+            if len(popc) < self.pop_size:
                 p = self.crowding_tournament_selection(pop)
                 popc.append(deepcopy(p))
 
@@ -1475,11 +1489,11 @@ class LLM_NSGA2_Humanitarian:
                     popm.append(popc[i])
 
             # ترکیب نخبگان با افراد جدید
-            pop = elite_individuals + popm
+            pop += popm
 
             # محاسبه cost برای افراد جدید (نخبگان قبلاً محاسبه شده‌اند)
             new_chromosomes = []
-            for i in range(len(elite_individuals), len(pop)):
+            for i in range(len(self.pop_size), len(pop)):
                 if pop[i]["cost"] is None:
                     new_chromosomes.append(pop[i]["chromosome"])
 
@@ -1488,7 +1502,7 @@ class LLM_NSGA2_Humanitarian:
                     new_chromosomes
                 )
                 new_idx = 0
-                for i in range(len(elite_individuals), len(pop)):
+                for i in range(len(self.pop_size), len(pop)):
                     if pop[i]["cost"] is None:
                         pop[i]["cost"] = np.array(costs[new_idx])
                         pop[i]["normal_cost"] = np.array(normal_costs[new_idx])
@@ -1509,7 +1523,7 @@ class LLM_NSGA2_Humanitarian:
 
             # تعداد فرزندان زنده‌مانده بعد از انتخاب محیطی (بدون نخبگان)
             try:
-                survived_offspring = self.count_survived_offspring(elite_individuals, popm, pop)
+                survived_offspring = self.count_survived_offspring(popm, pop)
                 self.offspring_survival_history.append(survived_offspring)
             except Exception:
                 survived_offspring = None
@@ -1534,7 +1548,6 @@ class LLM_NSGA2_Humanitarian:
             if self.verbose:
                 print(f"\nIteration {it + 1}:")
                 print(f"    Number of Pareto Members = {len(F[0])}")
-                print(f"    Elite individuals preserved: {len(elite_individuals)}")
                 print(f"    New individuals generated: {len(popm)}")
                 if survived_offspring is not None:
                     print(f"    Offspring that survived selection: {survived_offspring}")
@@ -1604,6 +1617,7 @@ class LLM_NSGA2_Humanitarian:
             "pareto_history": pareto_pop_list,
             "metrics": self.metrics,
             "hypervolume_manager": self.hypervolume_manager,
+            "methods_history": self.current_methods["history"]
             # 'diagnostics': self.diagnostics
         }
 
@@ -1707,48 +1721,11 @@ class LLM_NSGA2_Humanitarian:
 
         return pop, F
 
-    def select_elite(self, pop, F):
-        """
-        انتخاب افراد نخبه از جمعیت فعلی
-        بهترین افراد از رتبه اول (Pareto front) انتخاب می‌شوند
-        """
-        elite = []
-
-        # ابتدا تمام افراد رتبه اول را اضافه کن
-        if len(F) > 0 and len(F[0]) > 0:
-            pareto_front = [pop[i] for i in F[0]]
-
-            # اگر تعداد افراد رتبه اول کمتر از تعداد نخبگان مورد نیاز است
-            if len(pareto_front) <= self.n_elite:
-                elite.extend(pareto_front)
-                remaining = self.n_elite - len(pareto_front)
-
-                # از رتبه‌های بعدی نیز انتخاب کن
-                for rank in range(1, len(F)):
-                    if remaining <= 0:
-                        break
-                    rank_individuals = [pop[i] for i in F[rank]]
-                    # مرتب‌سازی بر اساس crowding distance
-                    rank_individuals.sort(
-                        key=lambda x: x["crowding_distance"], reverse=True
-                    )
-
-                    take = min(remaining, len(rank_individuals))
-                    elite.extend(rank_individuals[:take])
-                    remaining -= take
-            else:
-                # اگر تعداد افراد رتبه اول بیشتر از نیاز است، بهترین‌ها را انتخاب کن
-                pareto_front.sort(key=lambda x: x["crowding_distance"], reverse=True)
-                elite = pareto_front[: self.n_elite]
-
-        return elite
-
-    def count_survived_offspring(self, elites, offspring_candidates, new_population):
+    def count_survived_offspring(self, offspring_candidates, new_population):
         """
         شمارش تعداد فرزندانی که از نسل جاری تولید شده‌اند و در جمعیت جدید باقی مانده‌اند.
         تعریف:
         - فرزندان همان افرادی هستند که بعد از مرحله crossover/mutation در لیست offspring_candidates (popm) قرار دارند.
-        - نخبگان (elites) افراد حفظ‌شده از نسل قبل هستند و نباید در شمارش لحاظ شوند.
         - new_population جمعیت نهایی پس از ترکیب نخبگان با فرزندان و انتخاب/مرتب‌سازی است.
 
         روش شمارش:
@@ -1772,8 +1749,7 @@ class LLM_NSGA2_Humanitarian:
         # build multiset of offspring chromosomes (allow duplicates) using consumed flags
         consumed = [False] * len(offspring_candidates)
         count = 0
-        # skip first len(elites) of new_population since they are elites by construction
-        for ind in new_population[len(elites):]:
+        for ind in new_population:
             ch = ind.get("chromosome")
             # try find a matching offspring not yet consumed
             for idx, off in enumerate(offspring_candidates):
@@ -1897,7 +1873,6 @@ class LLM_NSGA2_Humanitarian:
         # شاخص‌های اضافی
         current_metrics["generation"] = generation
         current_metrics["population_size"] = len(pop)
-        current_metrics["elitism_rate"] = self.elitism_rate  # اضافه کردن نرخ نخبه‌گرایی
         # آمار بخشی (section_stats) طبق Prompt 2
         section_stats = self.compute_section_stats(pop)
         
@@ -2027,23 +2002,31 @@ class LLM_NSGA2_Humanitarian:
                 if part in rec["crossover_methods"]:
                     method_name = rec["crossover_methods"][part]
                     # پیدا کردن کلید متد (شماره آن در dictionary)
-                    found = False
-                    for key, method in self.crossover_methods.items():
-                        if (
-                            hasattr(method, "__name__")
-                            and method.__name__ == method_name
-                        ):
-                            self.current_methods["crossover_methods"][part] = key
-                            # ذخیره نام متد جدید در history
-                            self.current_methods["history"]["crossover_methods_history"][part].append(method_name)
-                            found = True
-                            if self.verbose:
-                                print(
-                                    f"🔄 Crossover method for {part} updated: {method_name}, probability: {rec['crossover_part_probability'][part]}"
-                                )
-                            break
-                    if not found:
-                        print(f"⚠️ Invalid crossover method for {part}: {method_name}")
+                    if method_name == "default":
+                        self.current_methods["crossover_methods"] = "default"
+                        selection_record = {
+                                "method_name": "default",
+                        }
+                        self.current_methods["history"]["crossover_methods_history"].append(selection_record)
+                        print("🔄 Crossover method updated: default")
+                    else:
+                        found = False
+                        for key, method in self.crossover_methods.items():
+                            if (
+                                hasattr(method, "__name__")
+                                and method.__name__ == method_name
+                            ):
+                                self.current_methods["crossover_methods"][part] = key
+                                # ذخیره نام متد جدید در history
+                                self.current_methods["history"]["crossover_methods_history"][part].append(method_name)
+                                found = True
+                                if self.verbose:
+                                    print(
+                                        f"🔄 Crossover method for {part} updated: {method_name}, probability: {rec['crossover_part_probability'][part]}"
+                                    )
+                                break
+                        if not found:
+                            print(f"⚠️ Invalid crossover method for {part}: {method_name}")
 
             if "global_crossover_probability" in rec:
                 self.p_crossover = rec["global_crossover_probability"]
@@ -2077,31 +2060,39 @@ class LLM_NSGA2_Humanitarian:
                 if part in rec["mutation_methods"]:
                     method_name = rec["mutation_methods"][part]
                     # پیدا کردن کلید متد (شماره آن در dictionary)
-                    found = False
-                    for key, method in self.mutation_methods.items():
-                        if (
-                            hasattr(method, "__name__")
-                            and method.__name__ == method_name
-                        ):
-                            self.current_methods["mutation_methods"][part] = key
-                            # ذخیره نام متد جدید به همراه آرگومان‌های ورودی در history
-                            mutation_args_per_part = self.current_methods.get("mutation_args_per_part", {})
-                            part_args = mutation_args_per_part.get(part, {}) if isinstance(mutation_args_per_part, dict) else {}
-                            # فقط آرگومان‌هایی که None نیستند را ذخیره می‌کنیم
-                            args_dict = {k: v for k, v in part_args.items() if v is not None} if isinstance(part_args, dict) else {}
-                            mutation_record = {
-                                "method_name": method_name,
-                                "args": args_dict
-                            }
-                            self.current_methods["history"]["mutation_methods_history"][part].append(mutation_record)
-                            found = True
-                            if self.verbose:
-                                print(
-                                    f"🧬 Mutation method for {part} updated: {method_name}, probability: {rec['mutation_part_probability'][part]}"
-                                )
-                            break
-                    if not found:
-                        print(f"⚠️ Invalid mutation method for {part}: {method_name}")
+                    if method_name == "default":
+                        self.current_methods["mutation_methods"] = "default"
+                        selection_record = {
+                                "method_name": "default",
+                        }
+                        self.current_methods["history"]["mutation_methods_history"].append(selection_record)
+                        print("🧬 Mutation method updated: default")
+                    else:
+                        found = False
+                        for key, method in self.mutation_methods.items():
+                            if (
+                                hasattr(method, "__name__")
+                                and method.__name__ == method_name
+                            ):
+                                self.current_methods["mutation_methods"][part] = key
+                                # ذخیره نام متد جدید به همراه آرگومان‌های ورودی در history
+                                mutation_args_per_part = self.current_methods.get("mutation_args_per_part", {})
+                                part_args = mutation_args_per_part.get(part, {}) if isinstance(mutation_args_per_part, dict) else {}
+                                # فقط آرگومان‌هایی که None نیستند را ذخیره می‌کنیم
+                                args_dict = {k: v for k, v in part_args.items() if v is not None} if isinstance(part_args, dict) else {}
+                                mutation_record = {
+                                    "method_name": method_name,
+                                    "args": args_dict
+                                }
+                                self.current_methods["history"]["mutation_methods_history"][part].append(mutation_record)
+                                found = True
+                                if self.verbose:
+                                    print(
+                                        f"🧬 Mutation method for {part} updated: {method_name}, probability: {rec['mutation_part_probability'][part]}"
+                                    )
+                                break
+                        if not found:
+                            print(f"⚠️ Invalid mutation method for {part}: {method_name}")
 
             # آرگومان‌های جهش به تفکیک پارت
             if "mutation_args_per_part" in rec:
@@ -2137,44 +2128,40 @@ class LLM_NSGA2_Humanitarian:
         if "selection_method" in rec:
             selection_method_name = rec["selection_method"]
             # پیدا کردن کلید متد (شماره آن در dictionary)
-            found = False
-            for key, method in self.selection_methods.items():
-                method_name = getattr(method, "__name__", "")
-                if method_name == selection_method_name:
-                    self.current_methods["selection_method"] = key
-                    # ذخیره نام متد جدید به همراه آرگومان‌های ورودی در history
-                    selection_args = self.current_methods.get("selection_args", {})
-                    # فقط آرگومان‌هایی که None نیستند را ذخیره می‌کنیم
-                    args_dict = {k: v for k, v in selection_args.items() if v is not None}
-                    selection_record = {
-                        "method_name": selection_method_name,
-                        "args": args_dict
-                    }
-                    self.current_methods["history"]["selection_method_history"].append(selection_record)
-                    found = True
-                    if self.verbose:
-                        print(f"🎯 Selection method updated: {selection_method_name}")
-                    break
-            if not found:
-                print(f"⚠️ Invalid selection method: {selection_method_name}")
+            if selection_method_name == "default":
+                self.current_methods["selection_method"] = "default"
+                selection_record = {
+                        "method_name": "default",
+                }
+                self.current_methods["history"]["selection_method_history"].append(selection_record)
+                print("🎯 Selection method updated: default")
+            else:
+                found = False
+                for key, method in self.selection_methods.items():
+                    method_name = getattr(method, "__name__", "")
+                    if method_name == selection_method_name:
+                        self.current_methods["selection_method"] = key
+                        # ذخیره نام متد جدید به همراه آرگومان‌های ورودی در history
+                        selection_args = self.current_methods.get("selection_args", {})
+                        # فقط آرگومان‌هایی که None نیستند را ذخیره می‌کنیم
+                        args_dict = {k: v for k, v in selection_args.items() if v is not None}
+                        selection_record = {
+                            "method_name": selection_method_name,
+                            "args": args_dict
+                        }
+                        self.current_methods["history"]["selection_method_history"].append(selection_record)
+                        found = True
+                        if self.verbose:
+                            print(f"🎯 Selection method updated: {selection_method_name}")
+                        break
+                if not found:
+                    print(f"⚠️ Invalid selection method: {selection_method_name}")
 
         # به‌روزرسانی نرخ نخبه‌گرایی
         if "selection_args" in rec:
             self.current_methods["selection_args"] = rec["selection_args"]
             if self.verbose:
                 print(f"⚙️ Selection args updated: {self.current_methods['selection_args']}")
-
-        if "elitism_rate" in rec:
-            new_elitism_rate = rec["elitism_rate"]
-            # اعتبارسنجی: باید بین 0.05 تا 0.3 باشد
-            if 0.05 <= new_elitism_rate <= 0.3:
-                self.elitism_rate = new_elitism_rate
-                # محاسبه مجدد تعداد نخبگان
-                self.n_elite = max(1, int(self.elitism_rate * self.pop_size))
-                if self.verbose:
-                    print(f"👑 Elitism rate updated: {self.elitism_rate:.4f} ({self.elitism_rate * 100:.1f}% → {self.n_elite} elite individuals)")
-            else:
-                print(f"⚠️ Invalid elitism_rate: {new_elitism_rate}. Must be between 0.05 and 0.3. Keeping current value: {self.elitism_rate:.4f}")
 
         # نمایش تحلیل AI
         if "analysis" in recommendations:
@@ -2200,17 +2187,17 @@ class LLM_NSGA2_Humanitarian:
         -------
         RuntimeError: در صورت خطا در دریافت یا اعتبارسنجی پیشنهادات AI
         """
-        if not self.openrouter_client:
+        if not self.api_client:
             raise RuntimeError("OpenRouter client is not initialized. Cannot get AI recommendations.")
 
         try:
-            recommendations = self.openrouter_client.get_recommendations(
+            recommendations = self.api_client.get_recommendations(
                 **prompt_args
             )
 
             if recommendations:
                 # اعتبارسنجی پیشنهادات
-                if self.openrouter_client.validate_recommendations(recommendations):
+                if self.api_client.validate_recommendations(recommendations):
                     return recommendations
                 else:
                     error_msg = "❌ AI recommendations are invalid - format validation failed"

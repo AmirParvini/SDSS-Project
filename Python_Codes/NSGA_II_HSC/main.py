@@ -4,6 +4,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 from matplotlib.widgets import Button
 import datetime
 from llm_nsga2 import LLM_NSGA2_Humanitarian
+from nsga2 import NSGA2_Humanitarian
+from convergence_metrics import ConvergenceMetrics
 import json
 from collections import defaultdict
 import math
@@ -337,44 +339,47 @@ class Main():
         problem = {
             'cost_function': self.complex_humanitarian_cost  # Use simple or complex function
         }
-
-        # Initialize Algorithm with problem dimensions
-        from ai_config import get_ai_config, print_config_status
         
-        # نمایش وضعیت تنظیمات AI
-        print_config_status()
-        
-        # دریافت تنظیمات AI
-        ai_config = get_ai_config()
-        
-        alg = LLM_NSGA2_Humanitarian(
-            max_iter=300,
-            pop_size=150,
-            p_crossover=0.9,
-            p_mutation=0.1,
-            elitism_rate=0.1,  # 10% elitism rate
-            verbose=True,
-            resume=False,
+        # alg = LLM_NSGA2_Humanitarian(
+        #     max_iter=300,
+        #     pop_size=150,
+        #     p_crossover=0.9,
+        #     p_mutation=0.1,
+        #     elitism_rate=0.1,  # 10% elitism rate
+        #     verbose=True,
+        #     resume=True,
+        #     shelter_id = self.ec_id,
+        #     distribution_center_id = self.idc_id,
+        #     damage_points_id = self.da_id,
+        #     hospital_id = self.h_id,
+        #     temporary_medical_id = self.tmc_id,
+        #     using_ollama=False,
+        #     use_llm_init_pop = False,
+        #     llm_iter=5,
+        #     distances=self.distance,
+        #     homeless=self.homeless,
+        #     cost=self.cost,
+        #     capacity=self.capacity,
+        # )
+        alg = NSGA2_Humanitarian(
             shelter_id = self.ec_id,
             distribution_center_id = self.idc_id,
             damage_points_id = self.da_id,
             hospital_id = self.h_id,
             temporary_medical_id = self.tmc_id,
-            openrouter_api_key=ai_config['api_key'],
-            base_url=ai_config['base_url'],
-            use_ai_optimization=ai_config['use_optimization'],
-            use_llm_init_pop = False,
-            llm_iter=5,
-            distances=self.distance,
-            homeless=self.homeless,
-            cost=self.cost,
-            capacity=self.capacity,
+            max_iter=300,
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
+            elitism_rate=0.1,
+            verbose=True,  # Disable verbose output for parallel execution
+            resume = False
         )
 
         # Solve the Problem
         results = alg.run(problem)
         pareto_pop = results['pareto_pop']
-        metrics = results['metrics'] 
+        metrics: ConvergenceMetrics = results['metrics'] 
         # diagnostics = results['diagnostics']
         
         # رسم نمودارهای همگرایی

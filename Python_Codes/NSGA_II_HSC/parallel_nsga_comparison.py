@@ -3,6 +3,9 @@ import matplotlib
 # Backend is not forced to 'Agg' to allow plt.show() to work.
 # The plotting is done in the main process, so GUI blocking is not an issue.
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
+from matplotlib.widgets import Button
+import datetime
 import numpy as np
 from llm_nsga2 import LLM_NSGA2_Humanitarian
 from nsga2 import NSGA2_Humanitarian
@@ -47,13 +50,10 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
-            elitism_rate=0.1,  # 10% elitism rate
             verbose=True,
             resume=True,
-            openrouter_api_key=ai_config['api_key'],
-            base_url=ai_config['base_url'],
-            use_ai_optimization=True,
-            use_llm_init_pop = False,
+            using_ollama=False,
+            use_llm_init_pop=False,
             llm_iter=5,
             shelter_id=shelter_id,
             distribution_center_id=distribution_center_id,
@@ -77,9 +77,12 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
             'algorithm': algorithm_name,
             'hypervolume': metrics.normalized_hypervolume,
             'spacing': metrics.normalized_spacing,
+            'spread': metrics.normalized_spread,
             'min_objs': metrics.min_objectives_history,
             'mean_objs':metrics.mean_objectives_history,
             'pareto_count': metrics.n_pareto_history,
+            'pareto_front': [ind['cost'] for ind in result.get('pareto_pop', [])],
+            'pareto_history': [[ind['cost'] for ind in gen] for gen in result.get('pareto_history', [])],
             'generations': len(metrics.normalized_hypervolume),
             'execution_time': end_time - start_time,
             'final_hypervolume': float(metrics.normalized_hypervolume[-1])
@@ -127,7 +130,6 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             pop_size=150,
             p_crossover=0.9,
             p_mutation=0.1,
-            elitism_rate=0.1,
             verbose=False,  # Disable verbose output for parallel execution
             resume = True
         )
@@ -143,9 +145,12 @@ def run_standard_nsga2(problem, result_queue, algorithm_name):
             'algorithm': algorithm_name,
             'hypervolume': metrics.normalized_hypervolume,
             'spacing': metrics.normalized_spacing,
+            'spread': metrics.normalized_spread,
             'min_objs': metrics.min_objectives_history,
             'mean_objs':metrics.mean_objectives_history,
             'pareto_count': metrics.n_pareto_history,
+            'pareto_front': [ind['cost'] for ind in result.get('pareto_pop', [])],
+            'pareto_history': [[ind['cost'] for ind in gen] for gen in result.get('pareto_history', [])],
             'generations': len(metrics.normalized_hypervolume),
             'execution_time': end_time - start_time,
             'final_hypervolume': float(metrics.normalized_hypervolume[-1])
@@ -215,26 +220,67 @@ def plot_comparison(results):
     fig.suptitle('NSGA-II Algorithms Comparison: LLM-Enhanced vs Standard', fontsize=14)
 
     # Hypervolume comparison
+    # ax1 = axes[0, 0]
+    # if llm_result['hypervolume'] and standard_result['hypervolume']:
+    #     min_len = min(len(llm_result['hypervolume']), len(standard_result['hypervolume']))
+    #     ax1.plot(range(min_len), llm_result['hypervolume'][:min_len],
+    #             label=f"LLM-Enhanced (Final: {llm_result['final_hypervolume']:.4f})",
+    #             color='blue', linewidth=2)
+    #     ax1.plot(range(min_len), standard_result['hypervolume'][:min_len],
+    #             label=f"Standard (Final: {standard_result['final_hypervolume']:.4f})",
+    #             color='red', linewidth=2)
+    #     ax1.set_xlabel('Generation')
+    #     ax1.set_ylabel('Hypervolume')
+    #     ax1.set_title('Hypervolume Comparison')
+    #     ax1.set_ylim(0, 1)
+    #     ax1.legend()
+    #     ax1.grid(True, alpha=0.3)
+    #     # Add data point markers
+    #     ax1.scatter(range(min_len), llm_result['hypervolume'][:min_len],
+    #                color='blue', s=20, alpha=0.7)
+    #     ax1.scatter(range(min_len), standard_result['hypervolume'][:min_len],
+    #                color='red', s=20, alpha=0.7)
+    from convergence_metrics import ConvergenceMetrics
+    metrics = ConvergenceMetrics()
+    max_cost = []
+    std_pareto_fronts_list = []
+    for pp in standard_result.get('pareto_history'):
+        pareto_front_list = pp
+        std_pareto_fronts_list.append(pareto_front_list)
+        max_cost.append(np.max(pareto_front_list, axis=0))
+    std_max_cost = np.max(max_cost, axis=0)
+    max_cost = []
+    llm_pareto_fronts_list = []
+    for pp in llm_result.get('pareto_history'):
+        pareto_front_list = pp
+        llm_pareto_fronts_list.append(pareto_front_list)
+        max_cost.append(np.max(pareto_front_list, axis=0))
+    llm_max_cost = np.max(max_cost, axis=0)
+    
+    reference_point = np.max([std_max_cost, llm_max_cost], axis=0) *1.1
+    llm_hypervolume_history = metrics.hypervolume(llm_pareto_fronts_list, reference_point)
+    standard_hypervolume_history = metrics.hypervolume(std_pareto_fronts_list, reference_point)
+    
     ax1 = axes[0, 0]
-    if llm_result['hypervolume'] and standard_result['hypervolume']:
-        min_len = min(len(llm_result['hypervolume']), len(standard_result['hypervolume']))
-        ax1.plot(range(min_len), llm_result['hypervolume'][:min_len],
-                label=f"LLM-Enhanced (Final: {llm_result['final_hypervolume']:.4f})",
+    if llm_hypervolume_history and standard_hypervolume_history:
+        min_len = min(len(llm_hypervolume_history), len(standard_hypervolume_history))
+        ax1.plot(range(min_len),llm_hypervolume_history[:min_len],
+                label=f"LLM-Enhanced (Final: {llm_hypervolume_history[-1]:.4f})",
                 color='blue', linewidth=2)
-        ax1.plot(range(min_len), standard_result['hypervolume'][:min_len],
-                label=f"Standard (Final: {standard_result['final_hypervolume']:.4f})",
+        ax1.plot(range(min_len), standard_hypervolume_history[:min_len],
+                label=f"Standard (Final: {standard_hypervolume_history[-1]:.4f})",
                 color='red', linewidth=2)
         ax1.set_xlabel('Generation')
         ax1.set_ylabel('Hypervolume')
         ax1.set_title('Hypervolume Comparison')
-        ax1.set_ylim(0, 1)
+        # ax1.set_ylim(0, 1)
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
         # Add data point markers
-        ax1.scatter(range(min_len), llm_result['hypervolume'][:min_len],
+        ax1.scatter(range(min_len), llm_hypervolume_history[:min_len],
                    color='blue', s=20, alpha=0.7)
-        ax1.scatter(range(min_len), standard_result['hypervolume'][:min_len],
+        ax1.scatter(range(min_len), standard_hypervolume_history[:min_len],
                    color='red', s=20, alpha=0.7)
 
     # Spacing comparison
@@ -258,8 +304,28 @@ def plot_comparison(results):
         ax2.scatter(range(min_len), standard_result['spacing'][:min_len],
                    color='red', s=20, alpha=0.7)
 
+    # Spread comparison
+    ax2 = axes[1, 0]
+    if llm_result['spread'] and standard_result['spread']:
+        min_len = min(len(llm_result['spread']), len(standard_result['spread']))
+        ax2.plot(range(min_len), llm_result['spread'][:min_len],
+                label='LLM-Enhanced', color='blue', linewidth=2)
+        ax2.plot(range(min_len), standard_result['spread'][:min_len],
+                label='Standard', color='red', linewidth=2)
+        ax2.set_xlabel('Generation')
+        ax2.set_ylabel('Spread')
+        ax2.set_title('Spread Metric Comparison')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        # Add data point markers
+        ax2.scatter(range(min_len), llm_result['spread'][:min_len],
+                   color='blue', s=20, alpha=0.7)
+        ax2.scatter(range(min_len), standard_result['spread'][:min_len],
+                   color='red', s=20, alpha=0.7)
+        
     # Pareto front size comparison
-    ax4 = axes[1, 0]
+    ax4 = axes[1, 1]
     if llm_result['pareto_count'] and standard_result['pareto_count']:
         min_len = min(len(llm_result['pareto_count']), len(standard_result['pareto_count']))
         ax4.plot(range(min_len), llm_result['pareto_count'][:min_len],
@@ -315,6 +381,137 @@ def plot_comparison(results):
     else:
         print("[TIE] Both algorithms achieved similar final hypervolume!")
 
+def pareto_3dplot_comparison(results):
+    llm_result = next((r for r in results if 'LLM' in r['algorithm']), None)
+    standard_result = next((r for r in results if 'Standard' in r['algorithm']), None)
+
+    if not llm_result or not standard_result:
+        print("Could not find both LLM and Standard results for 3D plotting.")
+        return
+
+    # Get Pareto history for animation
+    llm_history = llm_result.get('pareto_history', [])
+    standard_history = standard_result.get('pareto_history', [])
+
+    if not llm_history or not standard_history:
+        print("No Pareto history data available for 3D animation.")
+        return
+
+    # Convert to numpy arrays
+    llm_costs_history = [np.array([ind for ind in gen if len(ind) >= 3]) for gen in llm_history]
+    standard_costs_history = [np.array([ind for ind in gen if len(ind) >= 3]) for gen in standard_history]
+
+    # Filter out empty generations
+    llm_costs_history = [gen for gen in llm_costs_history if gen.size > 0]
+    standard_costs_history = [gen for gen in standard_costs_history if gen.size > 0]
+
+    if not llm_costs_history or not standard_costs_history:
+        print("No valid Pareto history data for 3D animation.")
+        return
+
+    # Compute stable axis limits across all generations
+    all_llm_costs = np.vstack([gen for gen in llm_costs_history if gen.size > 0])
+    all_standard_costs = np.vstack([gen for gen in standard_costs_history if gen.size > 0])
+
+    if all_llm_costs.size == 0 or all_standard_costs.size == 0:
+        print("No cost data available for axis limits.")
+        return
+
+    all_costs = np.vstack([all_llm_costs, all_standard_costs])
+    x_min, x_max = np.min(all_costs[:, 0]), np.max(all_costs[:, 0])
+    y_min, y_max = np.min(all_costs[:, 1]), np.max(all_costs[:, 1])
+    z_min, z_max = np.min(all_costs[:, 2]), np.max(all_costs[:, 2])
+
+    fig = plt.figure(figsize=(12, 9))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Initialize scatter plots for both algorithms
+    scat_llm = ax.scatter([], [], [], c='red', s=50, alpha=0.7, edgecolors='black', label='LLM-Enhanced')
+    scat_standard = ax.scatter([], [], [], c='blue', s=50, alpha=0.7, edgecolors='black', label='Standard')
+
+    ax.set_xlabel('F1: Total da_ec_distance', fontsize=12)
+    ax.set_ylabel('F2: Unmet Demand', fontsize=12)
+    ax.set_zlabel('F3: Death Probability', fontsize=12)
+    ax.set_title('3D Pareto Front Evolution: LLM-Enhanced vs Standard', fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.set_zlim(z_min, z_max)
+    ax.legend()
+
+    # Animation control state
+    is_paused = {'value': False}
+
+    def init():
+        scat_llm._offsets3d = ([], [], [])
+        scat_standard._offsets3d = ([], [], [])
+        return (scat_llm, scat_standard)
+
+    def update(frame_idx):
+        # Update LLM scatter
+        if frame_idx < len(llm_costs_history) and llm_costs_history[frame_idx].size > 0:
+            frame_costs = llm_costs_history[frame_idx]
+            xs, ys, zs = frame_costs[:, 0], frame_costs[:, 1], frame_costs[:, 2]
+            scat_llm._offsets3d = (xs, ys, zs)
+        else:
+            scat_llm._offsets3d = ([], [], [])
+
+        # Update Standard scatter
+        if frame_idx < len(standard_costs_history) and standard_costs_history[frame_idx].size > 0:
+            frame_costs = standard_costs_history[frame_idx]
+            xs, ys, zs = frame_costs[:, 0], frame_costs[:, 1], frame_costs[:, 2]
+            scat_standard._offsets3d = (xs, ys, zs)
+        else:
+            scat_standard._offsets3d = ([], [], [])
+
+        ax.set_title(f'3D Pareto Front Evolution (Generation {frame_idx + 1})')
+        return (scat_llm, scat_standard)
+
+    max_frames = max(len(llm_costs_history), len(standard_costs_history))
+    anim = FuncAnimation(fig, update, init_func=init, frames=max_frames, interval=400, blit=False, repeat=True)
+
+    # Play/Pause button
+    btn_ax = fig.add_axes([0.8, 0.02, 0.1, 0.05])
+    btn_playpause = Button(btn_ax, 'Play/Pause')
+
+    def on_playpause_clicked(event):
+        if is_paused['value']:
+            anim.event_source.start()
+            is_paused['value'] = False
+        else:
+            anim.event_source.stop()
+            is_paused['value'] = True
+
+    btn_playpause.on_clicked(on_playpause_clicked)
+
+    # Save button (tries GIF then MP4)
+    btn_save_ax = fig.add_axes([0.67, 0.02, 0.1, 0.05])
+    btn_save = Button(btn_save_ax, 'Save')
+
+    def on_save_clicked(event):
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Try GIF with Pillow
+        try:
+            gif_path = f'pareto_3d_comparison_{timestamp}.gif'
+            writer = PillowWriter(fps=max(1, int(1000/anim.event_source.interval)))
+            anim.save(gif_path, writer=writer)
+            print(f'Saved GIF: {gif_path}')
+            return
+        except Exception as e:
+            print(f'GIF save failed: {e}')
+        # Try MP4 with ffmpeg
+        try:
+            mp4_path = f'pareto_3d_comparison_{timestamp}.mp4'
+            writer = FFMpegWriter(fps=max(1, int(1000/anim.event_source.interval)))
+            anim.save(mp4_path, writer=writer)
+            print(f'Saved MP4: {mp4_path}')
+        except Exception as e:
+            print(f'MP4 save failed: {e}')
+
+    btn_save.on_clicked(on_save_clicked)
+
+    plt.tight_layout()
+    plt.show(block=True)
 def plot_objective_trends(results):
     """Plot comparison of min and mean objective values over generations."""
     llm_result = next((r for r in results if 'LLM' in r['algorithm']), None)
@@ -428,7 +625,18 @@ def main():
     if len(results) == 2:
         print("Generating comparison plots...")
         plot_comparison(results)
-        plot_objective_trends(results)
+        # pareto_3dplot_comparison(results)
+        # plot_objective_trends(results)
+        import compare_algorithm
+        llm_result = next((r for r in results if 'LLM' in r['algorithm']), None)
+        standard_result = next((r for r in results if 'Standard' in r['algorithm']), None)
+        ref = np.max([np.max(standard_result.get('pareto_front', []), axis=0), np.max(llm_result.get('pareto_front', []), axis=0)], axis=0) * 1.1
+        binary_HV = compare_algorithm.binary_hypervolume_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []), ref)
+        CI = compare_algorithm.coverage_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []))
+        EI = compare_algorithm.epsilon_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []))
+        print(f"Binary Hypervolume Indicator (LLM vs Standard): {binary_HV:.4f} \n\
+              Coverage Indicator C(LLM, Standard): {CI:.4f} \n\
+                  Epsilon Indicator ε(LLM, Standard): {EI:.4f}")
     else:
         print(f"in __file__ Expected 2 results, got {len(results)}")
         for result in results:

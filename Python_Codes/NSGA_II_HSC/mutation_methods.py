@@ -23,7 +23,7 @@ class MutationMethods:
     # ==================== LIST-BASED MUTATION METHODS ====================
     
     @staticmethod
-    def bit_flip_mutation_list(individual: List, mutation_rate: float = 0.1,
+    def bit_flip_mutation(individual: List, mutation_rate: float = 0.1,
                                value_range: tuple = None, **mutation_args) -> List:
         """
         Bit-Flip Mutation برای لیست‌ها
@@ -44,7 +44,7 @@ class MutationMethods:
         Example:
         --------
         individual = [1, 2, 0, 3, 0]
-        mutated = bit_flip_mutation_list(individual, 0.2, (0, 5))
+        mutated = bit_flip_mutation(individual, 0.2, (0, 5))
         """
         mutated = deepcopy(individual)
         # override from mutation_args if provided
@@ -66,7 +66,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def swap_mutation_list(individual: List, n_swaps: int = 1, **mutation_args) -> List:
+    def swap_mutation(individual: List, n_swaps: int = 1, **mutation_args) -> List:
         """
         Swap Mutation برای لیست‌ها
         
@@ -95,7 +95,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def inversion_mutation_list(individual: List, **mutation_args) -> List:
+    def inversion_mutation(individual: List, **mutation_args) -> List:
         """
         Inversion Mutation برای لیست‌ها
         
@@ -130,7 +130,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def scramble_mutation_list(individual: List, **mutation_args) -> List:
+    def scramble_mutation(individual: List, **mutation_args) -> List:
         """
         Scramble Mutation برای لیست‌ها
         
@@ -160,7 +160,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def insertion_mutation_list(individual: List, **mutation_args) -> List:
+    def insertion_mutation(individual: List, **mutation_args) -> List:
         """
         Insertion Mutation برای لیست‌ها
         
@@ -190,7 +190,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def displacement_mutation_list(individual: List, **mutation_args) -> List:
+    def displacement_mutation(individual: List, **mutation_args) -> List:
         """
         Displacement Mutation برای لیست‌ها
         
@@ -224,7 +224,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def gaussian_mutation_list(individual: List[float], mutation_rate: float = 0.1,
+    def gaussian_mutation(individual: List[float], mutation_rate: float = 0.1,
                                sigma: float = 0.1, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Gaussian Mutation برای مقادیر پیوسته
@@ -257,7 +257,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def uniform_mutation_list(individual: List[float], mutation_rate: float = 0.1,
+    def uniform_mutation(individual: List[float], mutation_rate: float = 0.1,
                              bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Uniform Mutation برای مقادیر پیوسته
@@ -284,7 +284,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def polynomial_mutation_list(individual: List[float], mutation_rate: float = 0.1,
+    def polynomial_mutation(individual: List[float], mutation_rate: float = 0.1,
                                  eta: float = 20.0, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Polynomial Mutation برای مقادیر پیوسته
@@ -333,7 +333,7 @@ class MutationMethods:
         return mutated
     
     @staticmethod
-    def boundary_mutation_list(individual: List[float], mutation_rate: float = 0.1,
+    def boundary_mutation(individual: List[float], mutation_rate: float = 0.1,
                                bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
         Boundary Mutation برای مقادیر پیوسته
@@ -640,12 +640,12 @@ class MutationMethods:
         max_generations = int(mutation_args.get("max_generations", max_generations))
         adaptive_rate = mutation_rate * (1 - generation / max_generations)
         
-        return MutationMethods.gaussian_mutation_list(
+        return MutationMethods.gaussian_mutation(
             individual, adaptive_rate, sigma=0.1, bounds=bounds
         )
     
     @staticmethod
-    def non_uniform_mutation_list(individual: List[float], mutation_rate: float = 0.1,
+    def non_uniform_mutation(individual: List[float], mutation_rate: float = 0.1,
                                   generation: int = 0, max_generations: int = 100,
                                   b: float = 5.0, bounds: tuple = (0.0, 1.0), **mutation_args) -> List[float]:
         """
@@ -714,25 +714,25 @@ def select_mutation_method(data_type: str, **kwargs):
     mutation = MutationMethods()
     
     if data_type == 'list_bit_flip':
-        return mutation.bit_flip_mutation_list
+        return mutation.bit_flip_mutation
     elif data_type == 'list_swap':
-        return mutation.swap_mutation_list
+        return mutation.swap_mutation
     elif data_type == 'list_inversion':
-        return mutation.inversion_mutation_list
+        return mutation.inversion_mutation
     elif data_type == 'list_scramble':
-        return mutation.scramble_mutation_list
+        return mutation.scramble_mutation
     elif data_type == 'list_insertion':
-        return mutation.insertion_mutation_list
+        return mutation.insertion_mutation
     elif data_type == 'list_displacement':
-        return mutation.displacement_mutation_list
+        return mutation.displacement_mutation
     elif data_type == 'continuous_gaussian':
-        return mutation.gaussian_mutation_list
+        return mutation.gaussian_mutation
     elif data_type == 'continuous_uniform':
-        return mutation.uniform_mutation_list
+        return mutation.uniform_mutation
     elif data_type == 'continuous_polynomial':
-        return mutation.polynomial_mutation_list
+        return mutation.polynomial_mutation
     elif data_type == 'continuous_boundary':
-        return mutation.boundary_mutation_list
+        return mutation.boundary_mutation
     elif data_type == 'matrix_random':
         return mutation.random_element_mutation_matrix
     elif data_type == 'matrix_gaussian':
