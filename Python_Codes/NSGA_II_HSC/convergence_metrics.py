@@ -270,14 +270,14 @@ class ConvergenceMetrics:
         return igd
     
     def update_metrics(self, pareto_pop_list, true_pareto_front=None, all_pop_list=None):
-        max_cost = []
-        pareto_fronts_list = []
-        for pp in pareto_pop_list:
-            pareto_front_list = [ind['cost'] for ind in pp]
-            pareto_fronts_list.append(pareto_front_list)
-            max_cost.append(np.max(pareto_front_list, axis=0))
-        refrence_point = np.max(max_cost, axis=0) * 1.1
-        hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
+        # max_cost = []
+        # pareto_fronts_list = []
+        # for pp in pareto_pop_list:
+        #     pareto_front_list = [ind['cost'] for ind in pp]
+        #     pareto_fronts_list.append(pareto_front_list)
+        #     max_cost.append(np.max(pareto_front_list, axis=0))
+        # refrence_point = np.max(max_cost, axis=0) * 1.1
+        # hypervolume_history = self.hypervolume(pareto_fronts_list, refrence_point)
         spacing_history, spread_history = [], []
         
         # اگر all_pop_list ارائه نشده باشد، از pareto_pop_list استفاده می‌کنیم (backward compatibility)
@@ -325,7 +325,7 @@ class ConvergenceMetrics:
                 igd = self.inverted_generational_distance(pareto_front, true_pareto_front)
                 self.gd_history.append(gd)
                 self.igd_history.append(igd)
-        self.normalized_hypervolume = deepcopy(hypervolume_history)
+        # self.normalized_hypervolume = deepcopy(hypervolume_history)
         self.normalized_spacing = deepcopy(spacing_history)
         self.normalized_spread = deepcopy(spread_history)
     def normalize_list(self, data_list):

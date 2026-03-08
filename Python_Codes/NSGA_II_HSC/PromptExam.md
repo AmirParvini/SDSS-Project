@@ -382,19 +382,6 @@ Problem Information:
 - Number of Hospitals: 4
 - Number of Candidate Temporary Medical Centers: 10
 
-Instruction:
-Using the supplied problem information, method catalogs, and periodic metrics, produce an adaptive operator plan for the next {llm_iter} generations.
-Your response must be a single JSON object (see the "Output Example" below).
-Focus on:
-- Per-part crossover method
-- Per-part mutation method
-- Global crossover probability and mutation probability
-- Per-gene (inner) mutation rate if applicable
-- A single selection method
-- Elitism rate (elitism_rate): percentage of best individuals to preserve (0.05 to 0.3, typically 0.1-0.2)
-- Per-part probabilities (optional): crossover_part_probability, mutation_part_probability
-Be concise but include a technical justification (1–3 sentences) for each major choice.
-
 How to allocate in chromosome segments:
 part1: An array that specifies which distribution center each shelter is supplied from. Represents the number of candidate shelter locations, whose values ​​are either zero or a random number between the distribution center indices.
 part2: A percentage of the demand for active shelters. In this part of the Chromosome, where the allocations of populations to shelters were determined and the demand was calculated accordingly, the values ​​of the elements in the second part determine how much of the demand for the desired shelter should be met. For example, if the second index receives a value of 0.7 and if this index was non-zero in the first part, it means that 0.7 of the demand for that shelter will be shipped.
@@ -464,7 +451,6 @@ Every {llm_iter} generations I will provide you a metrics payload containing:
 - Hostory of the names of the methods used in each generation
 - History of input argument values ​​for crossover, mutation, and selection methods
 - History of the global probability of crossover and mutation methods in each generation
-- History of the global probability of selection method in each generation
 - History of the probability of crossover and mutation of each part of the chromosome in each generation
 - History of the global metrics per generation: Hypervolume (HV), Spacing, Spread, Number of Pareto solutions, Average crowding distance
 - Population objective statistics: Mean, Min, and Standard deviation of objectives (F1, F2, F3) calculated from the entire population of each generation
@@ -487,7 +473,6 @@ The data you need to analyze and based on that, suggest the things I wanted for 
     - Number of Pareto solutions history: {metrics_history.get("pareto_count", [])}
     - pareto_front Average crowding distance history: {metrics_history.get("avg_crowding_distance", [])}
     - offspring survival history: {offspring_survival_history}
-    - Elitism rate history: {metrics_history.get("elitism_rate", [])}
     - variance/entropy of parts history (The values ​​for each part are stored as tuples. for exam -> "entropy":(variance_per_gene(list), avg_variance(float))): {section_stats_history}
 * History of methods and their possibilities: {current_methods.get("history", {})}
 * Population objective statistics (from entire population):
@@ -495,15 +480,12 @@ The data you need to analyze and based on that, suggest the things I wanted for 
     - Min objectives: F1={min_f1:.6f}, F2={min_f2:.6f}, F3={min_f3:.6f}
     - Std objectives: F1={std_f1:.6f}, F2={std_f2:.6f}, F3={std_f3:.6f}
 
-Note: 
-
+Notes: 
 *The default methods Selection, Crossover, and Mutation are the methods that are used by "default" for the algorithm in the early generations.
 *If the algorithm performs well using these default methods, you can suggest them (i.e. use the default instead of the method name). No data from the input arguments of these methods will be sent to you.
 *Review and analyze the progress of the data provided to you and use it in your suggestions.
 *Argue for yourself why you chose the methods, their probabilities, rates, and input argument values.
 *When specifying the values ​​of the input arguments of the methods, be careful to only assign values ​​to the input arguments of the methods you propose and display them in the output.
-
-From now on, I will only send you the history of the parameters without any additional writing, and you will return your suggestions by analyzing them carefully, completely in accordance with the output format.
 
 Provide your response in the following JSON template (Try not to use capital letters in the keys of this output):
 ```json
@@ -569,8 +551,7 @@ Provide your response in the following JSON template (Try not to use capital let
             "tau": 1.0,
             "prefer_younger": true,
             "eps": 0.0
-        }},
-        "elitism_rate": 0.1
+        }}
     }}
 }}
 ```

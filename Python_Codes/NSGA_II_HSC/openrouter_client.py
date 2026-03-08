@@ -61,7 +61,8 @@ class OpenRouterClient:
                 self.previous_response_id = self.load_previous_response_id()
 
     def create_init_pop_prompt(self, pop_size: int, dims: Dict[str, int], ids: Dict[str, list], distances: Dict[str, Any],
-                               homeless: Dict[int, float],sever_injured:Dict[int, float], minor_injured:Dict[int, float], cost: Dict[str, Any], capacity: Dict[str, Any]) -> str:
+                               homeless: Dict[int, float],sever_injured:Dict[int, float], minor_injured:Dict[int, float],
+                               budge: int, cost: Dict[str, Any], capacity: Dict[str, Any]) -> str:
         """
         Build a strict prompt asking the model to generate an initial population.
 
@@ -103,7 +104,7 @@ Problem Information:
 - Number of Hospitals: 4
 - Number of Candidate Temporary Medical Centers: 10
 
-Problem Data (IDs, distances, and demand context):
+Problem Data:
 - Distribution Center IDs (idc_id): {idc_ids}
 - Shelter IDs (ec_id): {ec_ids}
 - Damage Point IDs (da_id): {da_ids}
@@ -113,6 +114,7 @@ Problem Data (IDs, distances, and demand context):
 - Homeless counts per damage point (JSON): {homeless_json}
 - sever injured counts per damage point (JSON): {sever_injured_json}
 - minor injured counts per damage point (JSON): {minor_injured_json}
+- Fixed Budge: {budge}
 - Cost parameters (JSON): {cost_json}
 - Capacity parameters (JSON): {capacity_json}
 
@@ -147,12 +149,7 @@ Note:
 *Carefully examine the problem data provided to you, considering the impact of each chromosome part on the budget and objective functions, and analyze and use them to create the initial population.
 
 Follow these design principles strictly:
-1️⃣ **Feasibility first**
-- Every chromosome must fully satisfy all problem constraints (capacity, flow balance, assignment rules, logical structure).
-- If a generated chromosome violates a constraint, repair it immediately (e.g., normalize rows, reassign excess, fix duplicates, ensure each row has at least one positive value).
-- At least 80% of the population should be feasible from the start.
-
-2️⃣ **High diversity**
+1. **High diversity**
 - Use stratified sampling:
   - For continuous variables → use Latin Hypercube or Sobol sampling in [0,1].
   - For discrete or categorical variables → sample uniformly while avoiding duplicates.
@@ -160,28 +157,12 @@ Follow these design principles strictly:
 - Remove any near-identical individuals (Euclidean or Hamming distance threshold).
 - Include boundary and mid-range individuals to cover the decision space broadly.
 
-3️⃣ **Intelligent seeding**
+2. **Intelligent seeding**
 - Insert a few heuristic individuals derived from the problem logic, e.g.:
   - “Minimum-distance” or “nearest assignment”
   - “Capacity-balanced” or “min-unmet-demand”
   - “Uniform distribution of flows”
 - Include at least one “extreme” solution per objective (favoring one objective strongly while ignoring others) to ensure corner coverage on the Pareto front.
-
-4️⃣ **Structure-aware generation**
-- For each chromosome section:
-  - **Binary/multiclass selection part:** ensure valid selection counts and diversity.
-  - **Continuous ratio/matrix part:** ensure ≥0 and normalized where required.
-  - **Permutation part:** guarantee valid ordering of IDs.
-  - **Matrix sections (e.g., flows):** each row must contain at least one positive entry.
-
-5️⃣ **Controlled randomness and reproducibility**
-- Use a fixed random seed for consistency.
-- Population size: between 50–200 (or about 4–10× number of decision variables).
-
-6️⃣ **Quality check before evolution**
-- Evaluate all objectives for the initial population.
-- Print the percentage of feasible individuals and diversity metrics (spread/spacing).
-- If diversity < threshold or feasibility < 60%, resample and repair again.
 
 Hard constraints:
 - Respect all lengths and shapes exactly.
@@ -246,14 +227,15 @@ Output format (no extra text):
 
     def get_initial_population(self, pop_size: int, dims: Dict[str, int], ids: Dict[str, list],
                                distances: Dict[str, Any], homeless: Dict[int, float], severe_injured: Dict[int, float], minor_injured: Dict[int, float],
-                               cost: Dict[str, Any], capacity: Dict[str, Any], max_retries: int = 3) -> Optional[list]:
+                               budge: int, cost: Dict[str, Any], capacity: Dict[str, Any], max_retries: int = 3) -> Optional[list]:
         """
         Request an initial population from the AI. Returns a list of chromosome dicts
         or None on failure.
         """
         # Build prompt with actual DA IDs injected
         print('get_initial_population...')
-        prompt = self.create_init_pop_prompt(pop_size, dims, ids, distances, homeless, severe_injured, minor_injured, cost, capacity)
+        prompt = self.create_init_pop_prompt(pop_size, dims, ids, distances, homeless, severe_injured, minor_injured,
+                                             budge, cost, capacity)
         
         print('send_request...')
         response = self.send_request_openai(prompt)
@@ -408,9 +390,8 @@ For example, the value of the key 'global_crossover_probability_history' stored 
 
 === DATA HISTORY ===
 The data you need to analyze and based on that, suggest the things I wanted for the next {llm_iter} generations:
-1. Performance Metrics History (from generation 0 to {generation}):
-2. Current generation: {generation}
-3. Metrics History (Metric history from the first run of the algorithm to the current run):
+1. Current generation: {generation}
+2. Metrics History (Metric history from the first run of the algorithm to the current run):
     - pareto_front Hypervolume history: {metrics_history.get("hypervolume", [])}
     - pareto_front Spacing history: {metrics_history.get("spacing", [])}
     - pareto_front Spread history: {metrics_history.get("spread", [])}
@@ -418,8 +399,8 @@ The data you need to analyze and based on that, suggest the things I wanted for 
     - pareto_front Average crowding distance history: {metrics_history.get("avg_crowding_distance", [])}
     - offspring survival history: {offspring_survival_history}
     - variance/entropy of parts history (The values ​​for each part are stored as tuples. for exam -> "entropy":(variance_per_gene(list), avg_variance(float))): {section_stats_history}
-4. History of methods and their possibilities: {current_methods.get("history", {})}
-5. Population objective statistics (from entire population):
+3. History of methods and their possibilities: {current_methods.get("history", {})}
+4. Population objective statistics (from entire population):
     - Mean objectives: F1={mean_f1:.6f}, F2={mean_f2:.6f}, F3={mean_f3:.6f}
     - Min objectives: F1={min_f1:.6f}, F2={min_f2:.6f}, F3={min_f3:.6f}
     - Std objectives: F1={std_f1:.6f}, F2={std_f2:.6f}, F3={std_f3:.6f}

@@ -377,7 +377,8 @@ class Hypervolume3D:
         تقریب hypervolume
         """
         # sample in the same cube
-        rnd = np.random.uniform(0.0, ref_point, size=(n_samples, np.array(pareto_fronts_list[0]).shape[1]))
+        rng = np.random.default_rng(seed=42)
+        rnd = rng.uniform(0.0, ref_point, size=(n_samples, np.array(pareto_fronts_list[0]).shape[1]))
         
         # 1) ideal point
         # if ideal_point is None:

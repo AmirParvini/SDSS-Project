@@ -358,6 +358,7 @@ class Main():
         #     llm_iter=5,
         #     distances=self.distance,
         #     homeless=self.homeless,
+        #     budge=self.B,
         #     cost=self.cost,
         #     capacity=self.capacity,
         # )

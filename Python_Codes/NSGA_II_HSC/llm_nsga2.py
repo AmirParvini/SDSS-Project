@@ -47,6 +47,7 @@ class LLM_NSGA2_Humanitarian:
         homeless=None,
         severe_injured=None,
         minor_injured=None,
+        budge=None,
         cost=None,
         capacity=None,
     ):
@@ -1275,6 +1276,7 @@ class LLM_NSGA2_Humanitarian:
                         self.homeless,
                         self.severe_injured,
                         self.minor_injured,
+                        self.budge,
                         self.cost,
                         self.capacity,
                     )

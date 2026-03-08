@@ -69,26 +69,26 @@ def epsilon_indicator(A, B):
 #               3) BINARY HYPERVOLUME DIFFERENCE
 # ============================================================
 
-def dominated_hypervolume(A, ref, ideal, samples=50000):
-    maxs = ref
-    rand_points = np.random.uniform(low=ideal, high=maxs, size=(samples, 3))
+def dominated_hypervolume(A, ref, samples=100000):
+    rng = np.random.default_rng(seed=42)
+    rand_points = rng.uniform(0, ref, size=(samples, 3))
     def dominated_by_set(p, A):
         return any(np.all(a <= p) for a in A)
     count = sum(dominated_by_set(p, A) for p in rand_points)
-    volume_box = np.prod(maxs - ideal)
+    volume_box = np.prod(ref)
     hv_estimate = volume_box * (count / samples)
     return hv_estimate
 
 
 def binary_hypervolume_indicator(A, B, ref):
     
-    ideal = np.minimum(np.min(A, axis=0), np.min(B, axis=0))
+    # ideal = np.minimum(np.min(A, axis=0), np.min(B, axis=0))
     
-    hvA = dominated_hypervolume(A, ref, ideal)
-    hvB = dominated_hypervolume(B, ref, ideal)
+    hvA = dominated_hypervolume(A, ref)
+    hvB = dominated_hypervolume(B, ref)
 
     # محاسبه حجم کل جعبه مرجع برای نرمال‌سازی
-    ref_volume = np.prod(ref - ideal)
+    ref_volume = np.prod(ref)
 
 
     # خروجی نرمال‌شده بین -1 و +1 (حداکثر اختلاف ممکن)

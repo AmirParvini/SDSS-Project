@@ -59,6 +59,88 @@ class NSGA2_Humanitarian:
         self.diagnostics = DiagnosticMetrics()
         self.selection_methods = SelectionMethods()
 
+    def _validate_and_convert_chromosome(self, item):
+        """
+        Validate a chromosome dict from AI and convert to the internal format:
+        [list, list, list, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        Returns None if invalid.
+        """
+        try:
+            # part1
+            p1 = list(item["part1"]) if isinstance(item.get("part1"), list) else None
+            if p1 is None or len(p1) != self.n_shelters:
+                return None
+            if any((not isinstance(x, (int, float))) or (x < 0) or (x > self.n_distribution) for x in p1):
+                return None
+            p1 = [int(round(x)) for x in p1]
+
+            # part2
+            p2 = list(item["part2"]) if isinstance(item.get("part2"), list) else None
+            if p2 is None or len(p2) != self.n_shelters:
+                return None
+            p2 = [float(min(1.0, max(0.0, x))) for x in p2]
+
+            # part3
+            p3 = list(item["part3"]) if isinstance(item.get("part3"), list) else None
+            if p3 is None or len(p3) != self.n_shelters:
+                return None
+            p3 = [int(x) for x in p3]
+            # basic sanity: first section should be permutation of DA ids
+            prefix = p3[: self.n_damage_points]
+            if sorted(prefix) != sorted(self.da_id):
+                return None
+
+            # matrices
+            import numpy as np
+            # part4
+            p4 = item.get("part4")
+            if not (isinstance(p4, list) and len(p4) == self.n_damage_points):
+                return None
+            p4_arr = np.array(p4, dtype=float)
+            if p4_arr.shape != (self.n_damage_points, self.n_hospitals):
+                return None
+            # each row has at least one positive
+            if not all(np.any(row > 0) for row in p4_arr):
+                return None
+
+            # part5
+            p5 = item.get("part5")
+            if not (isinstance(p5, list) and len(p5) == self.n_damage_points):
+                return None
+            p5_arr = np.array(p5, dtype=float)
+            if p5_arr.shape != (self.n_damage_points, self.n_hospitals):
+                return None
+            p5_arr = np.clip(p5_arr, 0.0, 1.0)
+            # enforce mask where p4>0 => p5 can be >0, else 0
+            p5_arr[p4_arr == 0] = 0.0
+
+            # part6
+            p6 = item.get("part6")
+            if not (isinstance(p6, list) and len(p6) == self.n_damage_points):
+                return None
+            p6_arr = np.array(p6, dtype=float)
+            if p6_arr.shape != (self.n_damage_points, self.n_hospitals + self.n_temp_medical):
+                return None
+            if not all(np.any(row > 0) for row in p6_arr):
+                return None
+
+            # part7
+            p7 = item.get("part7")
+            if not (isinstance(p7, list) and len(p7) == self.n_damage_points):
+                return None
+            p7_arr = np.array(p7, dtype=float)
+            if p7_arr.shape != (self.n_damage_points, self.n_hospitals + self.n_temp_medical):
+                return None
+            p7_arr = np.clip(p7_arr, 0.0, 1.0)
+            p7_arr[p6_arr == 0] = 0.0
+
+            chrom = [p1, p2, p3, p4_arr, p5_arr, p6_arr, p7_arr]
+            # final light repair
+            chrom = self.chromosome_repair(chrom)
+            return chrom
+        except Exception:
+            return None
+
     def create_random_chromosome(self):
         """
         Create a random valid chromosome
@@ -83,7 +165,8 @@ class NSGA2_Humanitarian:
         flow_values = []
         for i in range(self.n_shelters):
             # Use normal distribution with mean 0.6 and std 0.15
-            ratio = np.clip(np.random.normal(0.6, 0.15), 0, 1)
+            # ratio = np.clip(np.random.normal(0.6, 0.15), 0, 1)
+            ratio = np.random.random()
             flow_values.append(ratio)
         chromosome.append(flow_values)
 
@@ -382,13 +465,13 @@ class NSGA2_Humanitarian:
         mutated = self.chromosome_repair(mutated)
         return mutated
 
-    def run(self, problem):
+    def run(self, problem, RUN_NUM):
         """
         Run NSGA-II for humanitarian logistics problem with checkpoint/resume support
         """
         # Extract problem info
         cost_function = problem['cost_function']
-        checkpoint_path = os.path.join(os.path.dirname(__file__), "exports", "nsga2_checkpoint.pkl")
+        checkpoint_path = os.path.join(os.path.dirname(__file__), "exports", f"nsga2_checkpoint_{RUN_NUM}.pkl")
         resume = self.resume
 
         # Ensure the checkpoint directory exists
@@ -430,18 +513,76 @@ class NSGA2_Humanitarian:
                     print('Failed to load checkpoint. Starting fresh.')
                 pop = None
 
-        if pop is None:
-            # Initialize population
-            pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
-            for i in range(self.pop_size):
-                pop[i]['chromosome'] = self.create_random_chromosome()
-            chromosom_list = [p['chromosome'] for p in pop]
-            costs, constriants_violation, normal_cost = cost_function(chromosom_list)
-            for idx, i_cost in enumerate(costs):
-                pop[idx]['cost'] = np.array(i_cost)
-                pop[idx]['normal_cost'] = np.array(normal_cost[idx])
-                pop[idx]['constriant_violation'] = constriants_violation[idx]
+        # if pop is None:
+        #     # Initialize population
+        #     pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
+        #     for i in range(self.pop_size):
+        #         pop[i]['chromosome'] = self.create_random_chromosome()
+        #     chromosom_list = [p['chromosome'] for p in pop]
+        #     costs, constriants_violation, normal_cost = cost_function(chromosom_list)
+        #     for idx, i_cost in enumerate(costs):
+        #         pop[idx]['cost'] = np.array(i_cost)
+        #         pop[idx]['normal_cost'] = np.array(normal_cost[idx])
+        #         pop[idx]['constriant_violation'] = constriants_violation[idx]
 
+        #     # Non-dominated sorting
+        #     pop, F = self.non_dominated_sorting(pop)
+        #     # Calculate crowding distance
+        #     pop = self.calc_crowding_distance(pop, F)
+        #     # Sort population
+        #     pop, F = self.sort_population(pop)
+        
+        if pop is None:
+            pop = [deepcopy(empty_individual) for _ in range(self.pop_size)]
+            # Try AI-generated initial population first if enabled
+            ai_init_ok = False
+            # If LLM-based init is disabled, try loading from initial_population.json
+            try:
+                import json
+                init_path = os.path.join(os.path.dirname(__file__), "")
+                if os.path.exists(init_path):
+                    if self.verbose:
+                        print(f"✓ Found initial_population.json at: {init_path}")
+                    with open(init_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if "population" in data and len(data["population"]) > 0:
+                        filled = 0
+                        for chromosome_dict in data["population"]:
+                            chrom = self._validate_and_convert_chromosome(chromosome_dict)
+                            if chrom is not None and filled < self.pop_size:
+                                pop[filled]["chromosome"] = chrom
+                                filled += 1
+                        # fill remaining with random if needed
+                        for i in range(filled, self.pop_size):
+                            pop[i]["chromosome"] = self.create_random_chromosome()
+                        ai_init_ok = filled > 0
+                        if self.verbose:
+                            print(f"✓ Loaded {filled} chromosomes from initial_population.json")
+                    else:
+                        if self.verbose:
+                            print(f"⚠ initial_population.json exists but is empty or invalid format")
+                else:
+                    if self.verbose:
+                        print(f"ℹ initial_population.json not found at: {init_path}")
+                        print("  Using random initialization instead")
+            except Exception as e:
+                # Any error -> ignore and fallback later
+                if self.verbose:
+                    print(f"⚠ Error loading initial_population.json: {e}")
+                ai_init_ok = False
+            # fallback if AI/file init disabled or failed
+            if not ai_init_ok:
+                print("Create random population...")
+                for i in range(self.pop_size):
+                    pop[i]["chromosome"] = self.create_random_chromosome()
+            chromosom_list = []
+            for p in pop:
+                chromosom_list.append(p["chromosome"])
+            costs, constriants_violation, normal_cost = cost_function(chromosom_list)
+            for idx, i in enumerate(costs):
+                pop[idx]["cost"] = np.array(i)
+                pop[idx]["normal_cost"] = np.array(normal_cost[idx])
+                pop[idx]["constriant_violation"] = constriants_violation[idx]
             # Non-dominated sorting
             pop, F = self.non_dominated_sorting(pop)
             # Calculate crowding distance
