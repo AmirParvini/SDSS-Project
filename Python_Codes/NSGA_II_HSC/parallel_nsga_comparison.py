@@ -108,8 +108,8 @@ def run_llm_nsga2(problem, result_queue, algorithm_name):
         print(f"[ERROR] in {__file__} {algorithm_name} failed:")
         traceback.print_exc()
 
-def run_standard_nsga2(problem, result_queue, algorithm_name, RUN_NUM):
-    """Run standard NSGA-II algorithm"""
+def run_standard_nsga2_RandomPop(problem, result_queue, algorithm_name, RUN_NUM):
+    """Run standard NSGA-II algorithm with random pop"""
     try:
         # Initialize algorithm parameters
         shelter_id = problem.get('shelter_id', list(range(1, 6)))  # 5 shelters
@@ -134,7 +134,73 @@ def run_standard_nsga2(problem, result_queue, algorithm_name, RUN_NUM):
         )
 
         start_time = time.time()
-        result = nsga2.run(problem, RUN_NUM)
+        result = nsga2.run(problem, RUN_NUM, INIT_POP_TYPE="random")
+        end_time = time.time()
+        
+        # Extract metrics history
+        metrics: ConvergenceMetrics = result.get('metrics', {})
+
+        result_data = {
+            'algorithm': algorithm_name,
+            'hypervolume': metrics.normalized_hypervolume,
+            'spacing': metrics.normalized_spacing,
+            'spread': metrics.normalized_spread,
+            'min_objs': metrics.min_objectives_history,
+            'mean_objs':metrics.mean_objectives_history,
+            'pareto_count': metrics.n_pareto_history,
+            'pareto_front': [ind['cost'] for ind in result.get('pareto_pop', [])],
+            'pareto_history': [[ind['cost'] for ind in gen] for gen in result.get('pareto_history', [])],
+            'generations': len(metrics.normalized_hypervolume),
+            'execution_time': end_time - start_time,
+            # 'final_hypervolume': float(metrics.normalized_hypervolume[-1])
+        }
+
+        result_queue.put(result_data)
+        print(f"[SUCCESS] {algorithm_name} completed in {result_data['execution_time']:.2f} seconds")
+
+    except Exception as e:
+        error_data = {
+            'algorithm': algorithm_name,
+            'error': str(e),
+            'hypervolume': [],
+            'spacing': [],
+            'diversity': [],
+            'pareto_count': 0,
+            'generations': [],
+            'execution_time': 0,
+            # 'final_hypervolume': 0
+        }
+        result_queue.put(error_data)
+        print(f"[ERROR] in {__file__} {algorithm_name} failed:")
+        traceback.print_exc()
+
+def run_standard_nsga2_LLMPop(problem, result_queue, algorithm_name, RUN_NUM):
+    """Run standard NSGA-II algorithm with LLM pop"""
+    try:
+        # Initialize algorithm parameters
+        shelter_id = problem.get('shelter_id', list(range(1, 6)))  # 5 shelters
+        distribution_center_id = problem.get('distribution_center_id', list(range(1, 4)))  # 3 distribution centers
+        damage_points_id = problem.get('damage_points_id', list(range(1, 4)))  # 3 damage points
+        hospital_id = problem.get('hospital_id', list(range(1, 3)))  # 2 hospitals
+        temporary_medical_id = problem.get('temporary_medical_id', list(range(1, 3)))  # 2 temporary medical centers
+
+        # Initialize standard NSGA-II
+        nsga2 = NSGA2_Humanitarian(
+            shelter_id=shelter_id,
+            distribution_center_id=distribution_center_id,
+            damage_points_id=damage_points_id,
+            hospital_id=hospital_id,
+            temporary_medical_id=temporary_medical_id,
+            max_iter=300,
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
+            verbose=True,  # Disable verbose output for parallel execution
+            resume = True
+        )
+
+        start_time = time.time()
+        result = nsga2.run(problem, RUN_NUM, INIT_POP_TYPE="llm")
         end_time = time.time()
         
         # Extract metrics history
@@ -574,8 +640,13 @@ def main():
         )
 
         standard_process = mp.Process(
-            target=run_standard_nsga2,
+            target=run_standard_nsga2_RandomPop,
             args=(problem, result_queue, "Standard NSGA-II", r+1)
+        )
+        
+        standard_llmpop_process = mp.Process(
+            target=run_standard_nsga2_LLMPop,
+            args=(problem, result_queue, "Standard_LLMPop NSGA-II", r+1)
         )
 
         # Start both processes
@@ -584,10 +655,11 @@ def main():
 
         llm_process.start()
         standard_process.start()
+        standard_llmpop_process.start()
 
         # Collect results first, then join. This is a more robust pattern.
         results = []
-        for _ in range(2): # We expect two results
+        for _ in range(3): # We expect two results
             try:
                 # Wait for a result to appear in the queue
                 result = result_queue.get(timeout=3600) # Generous 1-hour timeout
@@ -603,6 +675,7 @@ def main():
         # Now that results are collected, join the processes
         llm_process.join(timeout=60)
         standard_process.join(timeout=60)
+        standard_llmpop_process.join(timeout=60)
 
         # If any process is still alive after collecting results, terminate it
         if llm_process.is_alive():
@@ -613,19 +686,28 @@ def main():
             print("[WARN] Standard process did not terminate after collecting results. Forcing termination...")
             standard_process.terminate()
             standard_process.join()
+        if standard_llmpop_process.is_alive():
+            print("[WARN] Standard_llmpop process did not terminate after collecting results. Forcing termination...")
+            standard_llmpop_process.terminate()
+            standard_llmpop_process.join()
         run_results.append(results)
     std_max_costs = []
     llm_max_costs = []
+    stdllmpop_max_costs = []
     std_pareto_fronts_lists = [] # لیست پرتوفرانت‌های همه اجراهای NSGA-II
     llm_pareto_fronts_lists = [] # لیست پرتوفرانت‌های همه اجراهای LLM_NSGA-II
+    stdllmpop_pareto_fronts_lists = [] # لیست پرتوفرانت‌های همه اجراهای LLM_NSGA-II
     for rr in run_results: # برای یافتن رفرنس پوینت بین تمامی ران‌ها جهت محاسبه هایپرولوم
         llm_result = None
         standard_result = None
+        standard_llmpop_result = None
         for result in rr:
-            if 'LLM' in result['algorithm']:
+            if 'LLM-Enhanced NSGA-II' in result['algorithm']:
                 llm_result = result
-            else:
+            elif 'Standard NSGA-II' in result['algorithm']:
                 standard_result = result
+            elif 'Standard_LLMPop NSGA-II' in result['algorithm']:
+                standard_llmpop_result = result    
         max_cost = []
         std_pareto_fronts_list = [] # پرتوفرانت‌های یک اجرای NSGA-II
         for pp in standard_result.get('pareto_history'):
@@ -642,49 +724,57 @@ def main():
             max_cost.append(np.max(pareto_front_list, axis=0))
         llm_pareto_fronts_lists.append(llm_pareto_fronts_list)
         llm_max_costs.append(np.max(max_cost, axis=0))
+        max_cost = []
+        stdllmpop_pareto_fronts_list = []
+        for pp in standard_llmpop_result.get('pareto_history'):
+            pareto_front_list = pp
+            stdllmpop_pareto_fronts_list.append(pareto_front_list)
+            max_cost.append(np.max(pareto_front_list, axis=0))
+        stdllmpop_pareto_fronts_lists.append(stdllmpop_pareto_fronts_list)
+        stdllmpop_max_costs.append(np.max(max_cost, axis=0))
     std_max_cost = np.max(std_max_costs, axis=0)    
     llm_max_cost = np.max(llm_max_costs, axis=0)
-    reference_point = np.max([std_max_cost, llm_max_cost], axis=0) *1.1
+    stdllmpop_max_cost = np.max(stdllmpop_max_costs, axis=0)
+    reference_point = np.max([std_max_cost, llm_max_cost, stdllmpop_max_cost], axis=0) *1.1
     for idx, rr in enumerate(run_results):
-        if len(rr) == 2:
-            print(f"Generating comparison plots for Run {idx+1}...")
-            plot_comparison(rr,
-                            std_pareto_fronts_lists[idx],
-                            llm_pareto_fronts_lists[idx],
-                            reference_point,
-                            idx)
-            pareto_3dplot_comparison(rr, idx)
-            plot_objective_trends(rr, idx)
-            import compare_algorithm
-            llm_result = next((r for r in rr if 'LLM' in r['algorithm']), None)
-            standard_result = next((r for r in rr if 'Standard' in r['algorithm']), None)
-            binary_HV = compare_algorithm.binary_hypervolume_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []), reference_point)
-            CI = compare_algorithm.coverage_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []))
-            EI = compare_algorithm.epsilon_indicator(llm_result.get('pareto_front', []), standard_result.get('pareto_front', []))
-            text_output = (
-                f"Binary Hypervolume Indicator (LLM vs Standard): {binary_HV:.4f}\n"
-                f"Coverage Indicator C(LLM, Standard): {CI:.4f}\n"
-                f"Epsilon Indicator ε(LLM, Standard): {EI:.4f}")
-            plt.figure(figsize=(10, 4))
-            plt.text(
-                0.01, 0.5,
-                text_output,
-                fontsize=12,
-                verticalalignment='center',
-                horizontalalignment='left',
-                family='monospace'
-            )
-            plt.axis('off')
-            plt.savefig(f"comparison_binary_indicators_Run{idx+1}.png", dpi=300, bbox_inches='tight')
-            plt.close()
-            # print(f"Binary Hypervolume Indicator (LLM vs Standard): {binary_HV:.4f} \n\
-            #       Coverage Indicator C(LLM, Standard): {CI:.4f} \n\
-            #           Epsilon Indicator ε(LLM, Standard): {EI:.4f}")
-        else:
-            print(f"in __file__ Expected 2 results, got {len(rr)}")
-            for result in rr:
-                print(f"Result: {result.get('algorithm', 'Unknown')} - Error: {result.get('error', 'None')}")
-
+        llm_result = None
+        standard_result = None
+        stdllmpop_result = None
+        for result in rr:
+            if 'LLM-Enhanced NSGA-II' in result['algorithm']:
+                llm_result = result
+            elif 'Standard NSGA-II' in result['algorithm']:
+                standard_result = result
+            elif 'Standard_LLMPop NSGA-II' in result['algorithm']:
+                stdllmpop_result = result
+        from convergence_metrics import ConvergenceMetrics
+        metrics = ConvergenceMetrics()
+        llm_hypervolume_history = metrics.hypervolume(llm_pareto_fronts_lists[idx], reference_point)
+        standard_hypervolume_history = metrics.hypervolume(std_pareto_fronts_lists[idx], reference_point)
+        stdllmpop_hypervolume_history = metrics.hypervolume(stdllmpop_pareto_fronts_lists[idx], reference_point)
+        text_output = (
+            f"llm HV: {llm_hypervolume_history[-1]:.4f}\n"
+            f"std HV: {standard_hypervolume_history[-1]:.4f}\n"
+            f"stdllmpop HV: {stdllmpop_hypervolume_history[-1]:.4f}\n\n"
+            f"llm Spread: {llm_result['spread'][-1]:.4f}\n"
+            f"std Spread: {standard_result['spread'][-1]:.4f}\n"
+            f"stdllmpop Spread: {stdllmpop_result['spread'][-1]:.4f}\n\n"
+            f"llm Spacing: {llm_result['spacing'][-1]:.4f}\n"
+            f"std Spacing: {standard_result['spacing'][-1]:.4f}\n"
+            f"stdllmpop Spacing: {stdllmpop_result['spacing'][-1]:.4f}\n\n")
+        plt.figure(figsize=(10, 4))
+        plt.text(
+            0.01, 0.5,
+            text_output,
+            fontsize=12,
+            verticalalignment='center',
+            horizontalalignment='left',
+            family='monospace'
+        )
+        plt.axis('off')
+        plt.savefig(f"comparison_binary_indicators_Run{idx+1}.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        
 if __name__ == "__main__":
     # Required for Windows multiprocessing
     mp.set_start_method('spawn', force=True)

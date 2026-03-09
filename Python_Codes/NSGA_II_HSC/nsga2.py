@@ -465,13 +465,16 @@ class NSGA2_Humanitarian:
         mutated = self.chromosome_repair(mutated)
         return mutated
 
-    def run(self, problem, RUN_NUM):
+    def run(self, problem, RUN_NUM, INIT_POP_TYPE):
         """
         Run NSGA-II for humanitarian logistics problem with checkpoint/resume support
         """
         # Extract problem info
         cost_function = problem['cost_function']
-        checkpoint_path = os.path.join(os.path.dirname(__file__), "exports", f"nsga2_checkpoint_{RUN_NUM}.pkl")
+        if INIT_POP_TYPE == "random":
+            checkpoint_path = os.path.join(os.path.dirname(__file__), "exports\\random_initial_pop_checkpoint", f"nsga2_checkpoint_{RUN_NUM}.pkl")
+        elif INIT_POP_TYPE == "llm":
+            checkpoint_path = os.path.join(os.path.dirname(__file__), "exports\gpt_initial_pop_checkpoint", f"nsga2_checkpoint_{RUN_NUM}.pkl")
         resume = self.resume
 
         # Ensure the checkpoint directory exists

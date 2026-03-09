@@ -41,14 +41,14 @@ class Hypervolume3D:
         
         # نرمال‌سازی
         # normalized_pf = self._normalize(pareto_front, self.reference_point)
-                
+        
         # انتخاب روش محاسبه
         if method == 'wfg':
             hv = self._wfg_algorithm(pareto_fronts_list, ref_point=self.reference_point)
         elif method == 'inclusion_exclusion':
             hv = self._inclusion_exclusion(pareto_fronts_list)
         elif method == 'monte_carlo':
-            hv = self._monte_carlo(pareto_fronts_list=pareto_fronts_list, ref_point=self.reference_point, n_samples=100000)
+            hv = self._monte_carlo_normal(pareto_fronts_list=pareto_fronts_list, ref_point=self.reference_point, n_samples=100000)
         else:
             raise ValueError(f"روش نامعتبر: {method}")
         
@@ -389,7 +389,7 @@ class Hypervolume3D:
         # if any ref <= ideal in a dim, expand it a bit
         # span = ref_point - ideal_point
         hv = []
-        
+        pareto_fronts_list = [pareto_fronts_list[-1]]
         for pareto_front in pareto_fronts_list:
             if len(pareto_front) == 0:
                 hv.append(0.0)
@@ -409,6 +409,61 @@ class Hypervolume3D:
             hv_estimate = volume_box * (count / n_samples)
             hv.append(hv_estimate)  # in [0,1]
             
+        return hv
+    
+    def _monte_carlo_normal(self, pareto_fronts_list: np.ndarray, ref_point: np.ndarray,
+                 ideal_point: np.ndarray = None, n_samples: int = 100000) -> list:
+        """
+        تقریب Monte Carlo برای Hypervolume (نرمال‌شده)
+
+        مناسب برای:
+        - تعداد زیاد جواب‌ها
+        - نیاز به سرعت بالا
+        - دقت کامل لازم نیست
+
+        Parameters:
+        -----------
+        n_samples: تعداد نمونه‌های تصادفی
+
+        Returns:
+        --------
+        تقریب hypervolume نرمال‌شده در بازه [0, 1]
+        """
+        rng = np.random.default_rng(seed=42)
+        rnd = rng.uniform(
+            0.0,
+            ref_point,
+            size=(n_samples, np.array(pareto_fronts_list[0]).shape[1])
+        )
+
+        # حجم کل جعبه مرجع (مخرج نرمال‌سازی)
+        volume_box = np.prod(ref_point)
+
+        hv = []
+        pareto_fronts_list = [pareto_fronts_list[-1]]
+
+        for pareto_front in pareto_fronts_list:
+            if len(pareto_front) == 0:
+                hv.append(0.0)
+                continue
+
+            pareto_front = np.array(pareto_front)
+
+            # بررسی دومینانس: آیا هر نقطه تصادفی توسط حداقل یک نقطه PF دومینیت می‌شود؟
+            # pareto_front[None, :, :] -> (1, N, M)
+            # rnd[:, None, :]          -> (S, 1, M)
+            dominated_by_any = np.all(
+                pareto_front[None, :, :] <= rnd[:, None, :],
+                axis=2
+            ).any(axis=1)
+
+            count = np.sum(dominated_by_any)
+
+            # نرمال‌سازی: تقسیم بر حجم کل جعبه
+            hv_normalized = count / n_samples  # معادل: (volume_box * count/n_samples) / volume_box
+
+            hv.append(hv_normalized)
+
         return hv
 
 
