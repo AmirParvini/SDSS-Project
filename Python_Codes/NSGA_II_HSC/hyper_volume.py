@@ -440,8 +440,7 @@ class Hypervolume3D:
         volume_box = np.prod(ref_point)
 
         hv = []
-        pareto_fronts_list = [pareto_fronts_list[-1]]
-
+        
         for pareto_front in pareto_fronts_list:
             if len(pareto_front) == 0:
                 hv.append(0.0)

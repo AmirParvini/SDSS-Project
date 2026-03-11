@@ -101,8 +101,6 @@ class Main():
             'tmc': {1: 300, 2: 300, 3: 300, 4: 300, 5: 300, 6: 300, 7: 300, 8: 300, 9: 300, 10: 300},  # person
             'shelter': {key: (value * Pua / rta)*rtc for key, value in ec_area.items()} # person
         }
-
-
     def complex_humanitarian_cost(self, chromosome_list):
         # global idc_id, ec_id, da_id, h_id, tmc_id, ambulance_speed, helicopter_speed, \
         #     dist_idc_to_shelter, dist_da_to_h, dist_da_to_ec, dist_da_to_tmc, dist_da_to_h_helicopter, dist_da_to_tmc_helicopter, cost, severe_injured, minor_injured
@@ -340,52 +338,52 @@ class Main():
             'cost_function': self.complex_humanitarian_cost  # Use simple or complex function
         }
         
-        # alg = LLM_NSGA2_Humanitarian(
-        #     max_iter=300,
-        #     pop_size=150,
-        #     p_crossover=0.9,
-        #     p_mutation=0.1,
-        #     elitism_rate=0.1,  # 10% elitism rate
-        #     verbose=True,
-        #     resume=True,
-        #     shelter_id = self.ec_id,
-        #     distribution_center_id = self.idc_id,
-        #     damage_points_id = self.da_id,
-        #     hospital_id = self.h_id,
-        #     temporary_medical_id = self.tmc_id,
-        #     using_ollama=False,
-        #     use_llm_init_pop = False,
-        #     llm_iter=5,
-        #     distances=self.distance,
-        #     homeless=self.homeless,
-        #     budge=self.B,
-        #     cost=self.cost,
-        #     capacity=self.capacity,
-        # )
-        alg = NSGA2_Humanitarian(
+        alg = LLM_NSGA2_Humanitarian(
+            max_iter=300,
+            pop_size=150,
+            p_crossover=0.9,
+            p_mutation=0.1,
+            verbose=True,
+            resume=True,
+            using_ollama=False,
+            use_llm_init_pop = False,
+            llm_iter=5,
             shelter_id = self.ec_id,
             distribution_center_id = self.idc_id,
             damage_points_id = self.da_id,
             hospital_id = self.h_id,
             temporary_medical_id = self.tmc_id,
-            max_iter=300,
-            pop_size=150,
-            p_crossover=0.9,
-            p_mutation=0.1,
-            elitism_rate=0.1,
-            verbose=True,  # Disable verbose output for parallel execution
-            resume = False
+            distances=self.distance,
+            homeless=self.homeless,
+            budge=self.B,
+            cost=self.cost,
+            capacity=self.capacity,
         )
+        
+        # alg = NSGA2_Humanitarian(
+        #     shelter_id = self.ec_id,
+        #     distribution_center_id = self.idc_id,
+        #     damage_points_id = self.da_id,
+        #     hospital_id = self.h_id,
+        #     temporary_medical_id = self.tmc_id,
+        #     max_iter=300,
+        #     pop_size=150,
+        #     p_crossover=0.9,
+        #     p_mutation=0.1,
+        #     elitism_rate=0.1,
+        #     verbose=True,  # Disable verbose output for parallel execution
+        #     resume = False
+        # )
 
         # Solve the Problem
         results = alg.run(problem)
         pareto_pop = results['pareto_pop']
-        metrics: ConvergenceMetrics = results['metrics'] 
+        # metrics: ConvergenceMetrics = results['metrics']
         # diagnostics = results['diagnostics']
         
         # رسم نمودارهای همگرایی
-        metrics.plot_convergence(save_path='convergence_metrics.png')
-        metrics.print_summary()
+        # metrics.plot_convergence(save_path='convergence_metrics.png')
+        # metrics.print_summary()
         # diagnostics.diagnose_problems()
         # diagnostics.plot_diagnostic_metrics(save_path='diagnostic_metrics.png')
         

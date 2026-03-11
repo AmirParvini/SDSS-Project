@@ -261,15 +261,22 @@ def create_real_problem():
         'temporary_medical_id': list(range(1, 11)),  # 10 temporary medical centers
     }
 
-def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, reference_point, idx):
+def plot_comparison(results,
+                    std_pareto_fronts_list,
+                    llm_pareto_fronts_list,
+                    stdllmpop_fronts_list,
+                    reference_point, idx):
     """Plot comparison of metrics between the two algorithms"""
     llm_result = None
     standard_result = None
+    standard_llmpop_result = None
     for result in results:
-        if 'LLM' in result['algorithm']:
+        if 'LLM-Enhanced NSGA-II' in result['algorithm']:
             llm_result = result
-        else:
+        elif 'Standard NSGA-II' in result['algorithm']:
             standard_result = result
+        elif 'Standard_LLMPop NSGA-II' in result['algorithm']:
+            standard_llmpop_result = result
     # Create subplots
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     fig.suptitle('NSGA-II Algorithms Comparison: LLM-Enhanced vs Standard', fontsize=14)
@@ -301,6 +308,7 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
     
     llm_hypervolume_history = metrics.hypervolume(llm_pareto_fronts_list, reference_point)
     standard_hypervolume_history = metrics.hypervolume(std_pareto_fronts_list, reference_point)
+    stdllmpop_hypervolume_history = metrics.hypervolume(stdllmpop_fronts_list, reference_point)
     
     ax1 = axes[0, 0]
     if llm_hypervolume_history and standard_hypervolume_history:
@@ -311,6 +319,9 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
         ax1.plot(range(min_len), standard_hypervolume_history[:min_len],
                 label=f"NSGA-II (Final: {standard_hypervolume_history[-1]:.4f})",
                 color='red', linewidth=1, marker='o', markersize=2)
+        ax1.plot(range(min_len), stdllmpop_hypervolume_history[:min_len],
+                label=f"NSGA-II with GPT-5 ini pop (Final: {stdllmpop_hypervolume_history[-1]:.4f})",
+                color='green', linewidth=1, marker='o', markersize=2)
         ax1.set_xlabel('Generation')
         ax1.set_ylabel('Hypervolume')
         ax1.set_title('Hypervolume Comparison')
@@ -332,9 +343,11 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
                 label=f"LLM_NSGA-II (Final: {llm_result['spacing'][-1]:.4f})")
         ax2.plot(range(min_len), standard_result['spacing'][:min_len],  'r-', linewidth=1, marker='o', markersize=2,
                 label=f"LLM_NSGA-II (Final: {standard_result['spacing'][-1]:.4f})")
+        ax2.plot(range(min_len), standard_llmpop_result['spacing'][:min_len],  'g-', linewidth=1, marker='o', markersize=2,
+                label=f"NSGA-II with GPT-5 ini pop (Final: {standard_llmpop_result['spacing'][-1]:.4f})")
         ax2.set_xlabel('Generation')
         ax2.set_ylabel('Spacing')
-        ax2.set_title('Spacing Metric Comparison')
+        ax2.set_title('Spacing Comparison')
         ax2.set_ylim(0, 1)
         ax2.legend()
         ax2.grid(True, alpha=0.3)
@@ -355,9 +368,12 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
         ax2.plot(range(min_len), standard_result['spread'][:min_len], 'r-', linewidth=1, marker='o', markersize=2,
                 label=f"NSGA-II (Final: {standard_result['spread'][-1]:.4f})",
                 )
+        ax2.plot(range(min_len), standard_llmpop_result['spread'][:min_len], 'g-', linewidth=1, marker='o', markersize=2,
+                label=f"NSGA-II with GPT-5 ini pop (Final: {standard_llmpop_result['spread'][-1]:.4f})",
+                )
         ax2.set_xlabel('Generation')
         ax2.set_ylabel('Spread')
-        ax2.set_title('Spread Metric Comparison')
+        ax2.set_title('Spread Comparison')
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
@@ -372,9 +388,11 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
     if llm_result['pareto_count'] and standard_result['pareto_count']:
         min_len = min(len(llm_result['pareto_count']), len(standard_result['pareto_count']))
         ax4.plot(range(min_len), llm_result['pareto_count'][:min_len], 'b-', linewidth=1, marker='o', markersize=2,
-                label='LLM-Enhanced')
+                label='LLM_NSGA-II')
         ax4.plot(range(min_len), standard_result['pareto_count'][:min_len], 'r-', linewidth=1, marker='o', markersize=2,
-                label='Standard')
+                label='NSGA-II')
+        ax4.plot(range(min_len), standard_llmpop_result['pareto_count'][:min_len], 'g-', linewidth=1, marker='o', markersize=2,
+                label='NSGA-II with GPT-5 init pop')
         ax4.set_xlabel('Generation')
         ax4.set_ylabel('Pareto Front Size')
         ax4.set_title('Pareto Front Size Comparison')
@@ -386,7 +404,7 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
         #            color='blue', alpha=0.7)
         # ax4.scatter(range(min_len), standard_result['pareto_count'][:min_len],
         #            color='red', alpha=0.7)
-        
+
     plt.tight_layout()
 
     # Save the plot to file
@@ -416,8 +434,9 @@ def plot_comparison(results, std_pareto_fronts_list, llm_pareto_fronts_list, ref
     #     print("[TIE] Both algorithms achieved similar final hypervolume!")
 
 def pareto_3dplot_comparison(results, idx):
-    llm_result = next((r for r in results if 'LLM' in r['algorithm']), None)
-    standard_result = next((r for r in results if 'Standard' in r['algorithm']), None)
+    llm_result = next((r for r in results if 'LLM-Enhanced NSGA-II' in r['algorithm']), None)
+    standard_result = next((r for r in results if 'Standard NSGA-II' in r['algorithm']), None)
+    standard_llmpop_result = next((r for r in results if 'Standard_LLMPop NSGA-II' in r['algorithm']), None)
 
     if not llm_result or not standard_result:
         print("Could not find both LLM and Standard results for 3D plotting.")
@@ -426,32 +445,36 @@ def pareto_3dplot_comparison(results, idx):
     # Get Pareto history for animation
     llm_history = llm_result.get('pareto_history', [])
     standard_history = standard_result.get('pareto_history', [])
+    stdllmpop_history = standard_llmpop_result.get('pareto_history', [])
 
-    if not llm_history or not standard_history:
+    if not llm_history or not standard_history or not stdllmpop_history:
         print("No Pareto history data available for 3D animation.")
         return
 
     # Convert to numpy arrays
     llm_costs_history = [np.array([ind for ind in gen if len(ind) >= 3]) for gen in llm_history]
     standard_costs_history = [np.array([ind for ind in gen if len(ind) >= 3]) for gen in standard_history]
+    stdllmpop_costs_history = [np.array([ind for ind in gen if len(ind) >= 3]) for gen in stdllmpop_history]
 
     # Filter out empty generations
     llm_costs_history = [gen for gen in llm_costs_history if gen.size > 0]
     standard_costs_history = [gen for gen in standard_costs_history if gen.size > 0]
+    stdllmpop_costs_history = [gen for gen in stdllmpop_costs_history if gen.size > 0]
 
-    if not llm_costs_history or not standard_costs_history:
+    if not llm_costs_history or not standard_costs_history or not stdllmpop_costs_history:
         print("No valid Pareto history data for 3D animation.")
         return
 
     # Compute stable axis limits across all generations
     all_llm_costs = np.vstack([gen for gen in llm_costs_history if gen.size > 0])
     all_standard_costs = np.vstack([gen for gen in standard_costs_history if gen.size > 0])
+    all_stdllmpop_costs = np.vstack([gen for gen in stdllmpop_costs_history if gen.size > 0])
 
-    if all_llm_costs.size == 0 or all_standard_costs.size == 0:
+    if all_llm_costs.size == 0 or all_standard_costs.size == 0 or all_stdllmpop_costs.size == 0:
         print("No cost data available for axis limits.")
         return
 
-    all_costs = np.vstack([all_llm_costs, all_standard_costs])
+    all_costs = np.vstack([all_llm_costs, all_standard_costs, all_stdllmpop_costs])
     x_min, x_max = np.min(all_costs[:, 0]), np.max(all_costs[:, 0])
     y_min, y_max = np.min(all_costs[:, 1]), np.max(all_costs[:, 1])
     z_min, z_max = np.min(all_costs[:, 2]), np.max(all_costs[:, 2])
@@ -460,13 +483,14 @@ def pareto_3dplot_comparison(results, idx):
     ax = fig.add_subplot(111, projection='3d')
 
     # Initialize scatter plots for both algorithms
-    scat_llm = ax.scatter([], [], [], c='blue', s=50, alpha=0.7, edgecolors='black', label='LLM-Enhanced')
-    scat_standard = ax.scatter([], [], [], c='red', s=50, alpha=0.7, edgecolors='black', label='Standard')
+    scat_llm = ax.scatter([], [], [], c='blue', s=50, alpha=0.7, edgecolors='black', label='LLM_NSGA-II')
+    scat_standard = ax.scatter([], [], [], c='red', s=50, alpha=0.7, edgecolors='black', label='NSGA-II')
+    scat_stdllmpop = ax.scatter([], [], [], c='green', s=50, alpha=0.7, edgecolors='black', label='NSGA-II with GPT-5 init pop')
 
-    ax.set_xlabel('F1', fontsize=12)
-    ax.set_ylabel('F2', fontsize=12)
-    ax.set_zlabel('F3', fontsize=12)
-    ax.set_title('3D Pareto Front Evolution: LLM-Enhanced vs Standard', fontsize=14)
+    ax.set_xlabel('F1', fontsize=12, fontweight='bold')
+    ax.set_ylabel('F2', fontsize=12, fontweight='bold')
+    ax.set_zlabel('F3', fontsize=12, fontweight='bold')
+    ax.set_title('3D Pareto Front Evolution: LLM-NSGA-II vs NSGA-II vs NSGA-II with GPT-5 init pop', fontsize=14)
     ax.grid(True, alpha=0.3)
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
@@ -479,7 +503,8 @@ def pareto_3dplot_comparison(results, idx):
     def init():
         scat_llm._offsets3d = ([], [], [])
         scat_standard._offsets3d = ([], [], [])
-        return (scat_llm, scat_standard)
+        scat_stdllmpop._offsets3d = ([], [], [])
+        return (scat_llm, scat_standard, scat_stdllmpop)
 
     def update(frame_idx):
         # Update LLM scatter
@@ -497,6 +522,14 @@ def pareto_3dplot_comparison(results, idx):
             scat_standard._offsets3d = (xs, ys, zs)
         else:
             scat_standard._offsets3d = ([], [], [])
+            
+        # Update stdllmpop scatter
+        if frame_idx < len(stdllmpop_costs_history) and stdllmpop_costs_history[frame_idx].size > 0:
+            frame_costs = stdllmpop_costs_history[frame_idx]
+            xs, ys, zs = frame_costs[:, 0], frame_costs[:, 1], frame_costs[:, 2]
+            scat_stdllmpop._offsets3d = (xs, ys, zs)
+        else:
+            scat_stdllmpop._offsets3d = ([], [], [])
 
         ax.set_title(f'3D Pareto Front Evolution (Generation {frame_idx + 1})')
         return (scat_llm, scat_standard)
@@ -557,15 +590,16 @@ def pareto_3dplot_comparison(results, idx):
 
 def plot_objective_trends(results, idx):
     """Plot comparison of min and mean objective values over generations."""
-    llm_result = next((r for r in results if 'LLM' in r['algorithm']), None)
-    standard_result = next((r for r in results if 'Standard' in r['algorithm']), None)
+    llm_result = next((r for r in results if 'LLM-Enhanced NSGA-II' in r['algorithm']), None)
+    standard_result = next((r for r in results if 'Standard NSGA-II' in r['algorithm']), None)
+    standard_llmpop_result = next((r for r in results if 'Standard_LLMPop NSGA-II' in r['algorithm']), None)
 
-    if not llm_result or not standard_result:
+    if not llm_result or not standard_result or not standard_llmpop_result:
         print("Could not find both LLM and Standard results for objective plotting.")
         return
 
     # Check if data exists
-    if not llm_result.get('min_objs') or not standard_result.get('min_objs'):
+    if not llm_result.get('min_objs') or not standard_result.get('min_objs') or not standard_llmpop_result.get('min_objs'):
         print("Objective data ('min_objs' or 'mean_objs') not found in results.")
         return
 
@@ -578,11 +612,14 @@ def plot_objective_trends(results, idx):
         ax = axes[0, i]
         llm_min_obj = [gen[i] for gen in llm_result['min_objs']]
         std_min_obj = [gen[i] for gen in standard_result['min_objs']]
-        min_len = min(len(llm_min_obj), len(std_min_obj))
+        stdllmpop_min_obj = [gen[i] for gen in standard_llmpop_result['min_objs']]
+        min_len = min(len(llm_min_obj), len(std_min_obj), len(stdllmpop_min_obj))
 
         ax.plot(range(min_len), llm_min_obj[:min_len], label=f"LLM_NSGA-II (Final: {llm_min_obj[-1]:.4f})", color='blue', linestyle='-')
         ax.plot(range(min_len), std_min_obj[:min_len], label=f"NSGA-II (Final: {std_min_obj[-1]:.4f})", color='red', linestyle='-')
+        ax.plot(range(min_len), stdllmpop_min_obj[:min_len], label=f"NSGA-II with GPT-5 init pop(Final: {stdllmpop_min_obj[-1]:.4f})", color='green', linestyle='-')
         ax.set_title(f'Min Objective {i+1}')
+        ax.set_xlabel('Generation')
         ax.set_ylabel('Value')
         ax.grid(True, alpha=0.4)
         ax.legend()
@@ -599,10 +636,12 @@ def plot_objective_trends(results, idx):
         ax = axes[1, i]
         llm_mean_obj = [gen[i] for gen in llm_result['mean_objs']]
         std_mean_obj = [gen[i] for gen in standard_result['mean_objs']]
+        stdllmpop_mean_obj = [gen[i] for gen in standard_llmpop_result['mean_objs']]
         min_len = min(len(llm_mean_obj), len(std_mean_obj))
 
         ax.plot(range(min_len), llm_mean_obj[:min_len], label=f"LLM_NSGA-II (Final: {llm_mean_obj[-1]:.4f})", color='cyan', linestyle='--')
         ax.plot(range(min_len), std_mean_obj[:min_len], label=f"NSGA-II (Final: {std_mean_obj[-1]:.4f})", color='magenta', linestyle='--')
+        ax.plot(range(min_len), stdllmpop_mean_obj[:min_len], label=f"NSGA-II with GPT-5 init pop(Final: {stdllmpop_mean_obj[-1]:.4f})", color='lime', linestyle='--')
         ax.set_title(f'Mean Objective {i+1}')
         ax.set_xlabel('Generation')
         ax.set_ylabel('Value')
@@ -629,68 +668,69 @@ def main():
     NUM_OF_RUN = 10
     run_results = [] # [[LLM_NSGA_II_result, NSGA_II_result], ...]
     for r in range(NUM_OF_RUN):
-        print(f"\nRun {r+1}")
-        # Create a queue to collect results
-        result_queue = mp.Queue()
+        if r == 1:
+            print(f"\nRun {r+1}")
+            # Create a queue to collect results
+            result_queue = mp.Queue()
 
-        # Create processes for both algorithms
-        llm_process = mp.Process(
-            target=run_llm_nsga2,
-            args=(problem, result_queue, "LLM-Enhanced NSGA-II")
-        )
+            # Create processes for both algorithms
+            llm_process = mp.Process(
+                target=run_llm_nsga2,
+                args=(problem, result_queue, "LLM-Enhanced NSGA-II")
+            )
 
-        standard_process = mp.Process(
-            target=run_standard_nsga2_RandomPop,
-            args=(problem, result_queue, "Standard NSGA-II", r+1)
-        )
-        
-        standard_llmpop_process = mp.Process(
-            target=run_standard_nsga2_LLMPop,
-            args=(problem, result_queue, "Standard_LLMPop NSGA-II", r+1)
-        )
+            standard_process = mp.Process(
+                target=run_standard_nsga2_RandomPop,
+                args=(problem, result_queue, "Standard NSGA-II", r+1)
+            )
+            
+            standard_llmpop_process = mp.Process(
+                target=run_standard_nsga2_LLMPop,
+                args=(problem, result_queue, "Standard_LLMPop NSGA-II", r+1)
+            )
 
-        # Start both processes
-        print("Starting parallel execution...")
-        start_time = time.time()
+            # Start both processes
+            print("Starting parallel execution...")
+            start_time = time.time()
 
-        llm_process.start()
-        standard_process.start()
-        standard_llmpop_process.start()
+            llm_process.start()
+            standard_process.start()
+            standard_llmpop_process.start()
 
-        # Collect results first, then join. This is a more robust pattern.
-        results = []
-        for _ in range(3): # We expect two results
-            try:
-                # Wait for a result to appear in the queue
-                result = result_queue.get(timeout=3600) # Generous 1-hour timeout
-                results.append(result)
-            except Exception as e:
-                print(f"[ERROR] Did not receive a result from a process: {e}")
-                traceback.print_exc()
-                break # Exit loop if a result is not received
+            # Collect results first, then join. This is a more robust pattern.
+            results = []
+            for _ in range(3): # We expect two results
+                try:
+                    # Wait for a result to appear in the queue
+                    result = result_queue.get(timeout=3600) # Generous 1-hour timeout
+                    results.append(result)
+                except Exception as e:
+                    print(f"[ERROR] Did not receive a result from a process: {e}")
+                    traceback.print_exc()
+                    break # Exit loop if a result is not received
 
-        total_time = time.time() - start_time
-        print(f"Total execution time: {total_time:.2f} seconds")
+            total_time = time.time() - start_time
+            print(f"Total execution time: {total_time:.2f} seconds")
 
-        # Now that results are collected, join the processes
-        llm_process.join(timeout=60)
-        standard_process.join(timeout=60)
-        standard_llmpop_process.join(timeout=60)
+            # Now that results are collected, join the processes
+            llm_process.join(timeout=60)
+            standard_process.join(timeout=60)
+            standard_llmpop_process.join(timeout=60)
 
-        # If any process is still alive after collecting results, terminate it
-        if llm_process.is_alive():
-            print("[WARN] LLM-Enhanced process did not terminate after collecting results. Forcing termination...")
-            llm_process.terminate()
-            llm_process.join()
-        if standard_process.is_alive():
-            print("[WARN] Standard process did not terminate after collecting results. Forcing termination...")
-            standard_process.terminate()
-            standard_process.join()
-        if standard_llmpop_process.is_alive():
-            print("[WARN] Standard_llmpop process did not terminate after collecting results. Forcing termination...")
-            standard_llmpop_process.terminate()
-            standard_llmpop_process.join()
-        run_results.append(results)
+            # If any process is still alive after collecting results, terminate it
+            if llm_process.is_alive():
+                print("[WARN] LLM-Enhanced process did not terminate after collecting results. Forcing termination...")
+                llm_process.terminate()
+                llm_process.join()
+            if standard_process.is_alive():
+                print("[WARN] Standard process did not terminate after collecting results. Forcing termination...")
+                standard_process.terminate()
+                standard_process.join()
+            if standard_llmpop_process.is_alive():
+                print("[WARN] Standard_llmpop process did not terminate after collecting results. Forcing termination...")
+                standard_llmpop_process.terminate()
+                standard_llmpop_process.join()
+            run_results.append(results)
     std_max_costs = []
     llm_max_costs = []
     stdllmpop_max_costs = []
@@ -737,43 +777,20 @@ def main():
     stdllmpop_max_cost = np.max(stdllmpop_max_costs, axis=0)
     reference_point = np.max([std_max_cost, llm_max_cost, stdllmpop_max_cost], axis=0) *1.1
     for idx, rr in enumerate(run_results):
-        llm_result = None
-        standard_result = None
-        stdllmpop_result = None
-        for result in rr:
-            if 'LLM-Enhanced NSGA-II' in result['algorithm']:
-                llm_result = result
-            elif 'Standard NSGA-II' in result['algorithm']:
-                standard_result = result
-            elif 'Standard_LLMPop NSGA-II' in result['algorithm']:
-                stdllmpop_result = result
-        from convergence_metrics import ConvergenceMetrics
-        metrics = ConvergenceMetrics()
-        llm_hypervolume_history = metrics.hypervolume(llm_pareto_fronts_lists[idx], reference_point)
-        standard_hypervolume_history = metrics.hypervolume(std_pareto_fronts_lists[idx], reference_point)
-        stdllmpop_hypervolume_history = metrics.hypervolume(stdllmpop_pareto_fronts_lists[idx], reference_point)
-        text_output = (
-            f"llm HV: {llm_hypervolume_history[-1]:.4f}\n"
-            f"std HV: {standard_hypervolume_history[-1]:.4f}\n"
-            f"stdllmpop HV: {stdllmpop_hypervolume_history[-1]:.4f}\n\n"
-            f"llm Spread: {llm_result['spread'][-1]:.4f}\n"
-            f"std Spread: {standard_result['spread'][-1]:.4f}\n"
-            f"stdllmpop Spread: {stdllmpop_result['spread'][-1]:.4f}\n\n"
-            f"llm Spacing: {llm_result['spacing'][-1]:.4f}\n"
-            f"std Spacing: {standard_result['spacing'][-1]:.4f}\n"
-            f"stdllmpop Spacing: {stdllmpop_result['spacing'][-1]:.4f}\n\n")
-        plt.figure(figsize=(10, 4))
-        plt.text(
-            0.01, 0.5,
-            text_output,
-            fontsize=12,
-            verticalalignment='center',
-            horizontalalignment='left',
-            family='monospace'
-        )
-        plt.axis('off')
-        plt.savefig(f"comparison_binary_indicators_Run{idx+1}.png", dpi=300, bbox_inches='tight')
-        plt.close()
+        if len(rr) == 3:
+            print(f"Generating comparison plots for Run {idx+1}...")
+            plot_comparison(rr,
+                            std_pareto_fronts_lists[idx],
+                            llm_pareto_fronts_lists[idx],
+                            stdllmpop_pareto_fronts_lists[idx],
+                            reference_point,
+                            idx)
+            pareto_3dplot_comparison(rr, idx)
+            plot_objective_trends(rr, idx)
+        else:
+            print(f"in __file__ Expected 2 results, got {len(rr)}")
+            for result in rr:
+                print(f"Result: {result.get('algorithm', 'Unknown')} - Error: {result.get('error', 'None')}")
         
 if __name__ == "__main__":
     # Required for Windows multiprocessing
