@@ -1,0 +1,29 @@
+{
+  "parameters": {
+    "NT": 10,
+    "ST": 0.5,
+    "M": 1000,
+    "L": 1,
+    "A": 3,
+    "B": 2,
+    "G": 1,
+    "V": 100,
+    "W": 50
+  },
+  "nodes_data": [
+    {
+      "NodeFacalities": 2,
+      "NodeSaftyLevel": 0.6,
+      "NodePopulation": 100,
+      "XCoordinate": 100,
+      "YCoordinate": 200
+    },
+    {
+      "NodeFacalities": 1,
+      "NodeSaftyLevel": 0.4,
+      "NodePopulation": 150,
+      "XCoordinate": 150,
+      "YCoordinate": 250
+    }
+  ]
+}
