@@ -1,9 +1,6 @@
 @extends('app')
 @push('styles')
     <style>
-        #map{
-            min-height: 100vh;
-        }
         .dropdown-menu {
             max-height: 200px;
             overflow-y: auto;
@@ -14,6 +11,9 @@
             min-width: 200px;
         }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    @vite('resources/css/home/home.css')
 @endpush
 
 @php
@@ -27,12 +27,62 @@
 @endphp
 
 @section('content')
-    <div class="position-fixed container-fluid p-0 m-0 vh-100 overflow-hidden">
-        <div id="map"></div>
+    {{-- map --}}
+    <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
+    {{-- Items & Tables --}}
+    <div class="position-absolute bottom-0 start-0 d-flex flex-row w-auto mb-3" style="z-index: 2">
+        {{-- Items --}}
+        <div
+            class="itemside bg-white border-1 border-stone-200 fade-out-left d-flex flex-column w-auto p-3 gap-3 justify-content-center rounded-5 ml-3 shadow"
+            style="z-index: 2">
+            @for ($i = 0; $i < 5; $i++)
+                <div class="items">
+                    <a href="#"><img src="{{ asset('/images/warehouse-with-truck.svg') }}"
+                            class="mx-auto d-block w-16 h-16 border-2 border-stone-600 p-1 imgitems"
+                            style="border-radius: 50%;" alt="..." id="dc"></a>
+                    <div class="textitems lh-1 d-flex justify-content-center font-bold mt-1" style="font-size: 80%">
+                        Distribution center</div>
+                </div>
+            @endfor
+        </div>
+        {{-- Tables --}}
+        <div class="itemstable d-flex flex-column d-none fade-in-right rounded-e-xl bg-white" style="z-index: 1">
+            <div class="border d-flex">search</div>
+            <table class="table table-hover mt-2">
+                <thead>
+                    <tr>
+                        <th scope="col">id</th>
+                        <th scope="col">name</th>
+                        <th scope="col">capacity</th>
+                        <th scope="col">cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">1</th>
+                        <td>Mark</td>
+                        <td>Otto</td>
+                        <td>@mdn</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">2</th>
+                        <td>Jacob</td>
+                        <td>Thornton</td>
+                        <td>@fat</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" class="text-wrap">3</th>
+                        <td>Larry the Bird</td>
+                        <td>Thornton</td>
+                        <td>@twitter</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    
+
     <!-- Modal for adding points -->
-    <div dir="rtl" class="modal fade" id="addPointModal" tabindex="-1" aria-labelledby="addPointModalLabel" aria-hidden="true">
+    {{-- <div dir="rtl" class="modal fade" id="addPointModal" tabindex="-1" aria-labelledby="addPointModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div dir="ltr" class="modal-header">
@@ -95,20 +145,20 @@
     </div>
     <div dir="rtl" id="editPointModal" class="modal fade" tabindex="-1" aria-labelledby="editPointModalLabel" aria-hidden="true">
         <x-edit_point></x-edit_point>
-    </div>
+    </div> --}}
 @endsection
 
 @push('scripts')
     <script>
         Points = {
-            IDC : @json($idc_points),
-            EC : @json($ec_points),
-            DA : @json($da_points),
-            TMC : @json($tmc_points),
-            H : @json($H_points)
+            IDC: @json($idc_points),
+            EC: @json($ec_points),
+            DA: @json($da_points),
+            TMC: @json($tmc_points),
+            H: @json($H_points)
         };
     </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     @vite('resources/js/home/home.js')
 @endpush
-
-

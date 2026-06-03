@@ -5,6 +5,9 @@ export const map_tiles = {
     3: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     4: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png',
 }
+// L.tileLayer(map_tiles[1], {
+//     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// }).addTo(map);
 export let lineGroup = L.layerGroup().addTo(map);
 export let markerGroup = L.layerGroup().addTo(map);
 export let idc_icon = L.icon({

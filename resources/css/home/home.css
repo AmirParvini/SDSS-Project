@@ -1,0 +1,45 @@
+.imgitems{
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+    transition: transform 0.2s, box-shadow 0.2s ;
+}
+.textitems{
+    transition: border-bottom 0.05s ease;
+}
+.items:hover .imgitems{
+    transform: translate(-2px, -2px);
+    box-shadow: 2px 5px 15px rgba(0, 0, 0, 0.2);
+}
+.items:hover .textitems{
+    border-bottom: 2px solid black;
+}
+
+/* وضعیت پایه المان */
+.fade-out-left {
+    opacity: 1;
+    /* transition: نوع انیمیشن | زمان | نوع شتاب */
+    /* ease-out باعث می‌شود انیمیشن سریع شروع شده و در انتها سرعتش کم شود */
+    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1), 
+                opacity 0.2s ease-out;
+    padding: 10px;
+    padding-left: 40px;
+}
+
+.fade-in-right {
+    opacity: 0;
+    transform: translateX(-120px);
+    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1), 
+                opacity 0.2s ease-out;
+}
+
+.fade-in-right.moved {
+    transform: translateX(-30px); /* ۱۲۰ پیکسل حرکت به راست */
+    opacity: 1;
+    padding: 10px;
+    padding-left: 40px;
+}
+
+/* کلاسی که بعد از کلیک شدن اضافه می‌شود و انیمیشن را استارت می‌زند */
+.fade-out-left.moved {
+    transform: translateX(-120px); /* ۱۲۰ پیکسل حرکت به راست */
+    opacity: 0;                   /* محو شدن کامل */
+}
