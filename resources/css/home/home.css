@@ -1,3 +1,11 @@
+p {
+    line-height: 100%;
+    font-size: 14px;
+    padding: 4px;
+}
+.itemstable{
+    max-width: 500px;
+}
 .imgitems{
     box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
     transition: transform 0.2s, box-shadow 0.2s ;
@@ -18,7 +26,7 @@
     opacity: 1;
     /* transition: نوع انیمیشن | زمان | نوع شتاب */
     /* ease-out باعث می‌شود انیمیشن سریع شروع شده و در انتها سرعتش کم شود */
-    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1), 
+    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
                 opacity 0.2s ease-out;
     padding: 10px;
     padding-left: 40px;
@@ -27,7 +35,7 @@
 .fade-in-right {
     opacity: 0;
     transform: translateX(-120px);
-    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1), 
+    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
                 opacity 0.2s ease-out;
 }
 

@@ -1,10 +1,6 @@
-import { map, map_tiles, markerGroup } from "./map_init.js";
+import { map, minimap, map_tiles, markerGroup } from "./map_init.js";
 import ShowPoints from "./show_points.js";
 $(function () {
-    L.tileLayer(map_tiles[4], {
-        attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
     // let polyline = L.polyline(path, {
     //         color: 'red',       // رنگ خط
     //         weight: 5,          // ضخامت خط
@@ -208,18 +204,17 @@ $(function () {
 
     // fade-in/out itmes table
     $(".imgitems").on("click", function (e) {
-        if ($(".itemstable").hasClass("d-none")){
+        if ($(".itemstable").hasClass("d-none")) {
             $(".itemstable").removeClass("fade-out-left d-none");
-            setTimeout(()=>{
+            setTimeout(() => {
                 $(".itemstable").addClass("moved");
             }, 10);
-        }
-        else {
+        } else {
             $(".itemstable").addClass("fade-out-left");
-            setTimeout(()=>{
+            setTimeout(() => {
                 $(".itemstable").addClass("d-none");
             }, 100);
-            $(".itemstable").removeClass("moved")
+            $(".itemstable").removeClass("moved");
         }
     });
 });

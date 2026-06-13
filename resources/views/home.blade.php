@@ -29,55 +29,97 @@
 @section('content')
     {{-- map --}}
     <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
+
     {{-- Items & Tables --}}
     <div class="position-absolute bottom-0 start-0 d-flex flex-row w-auto mb-3" style="z-index: 2">
         {{-- Items --}}
-        <div
-            class="itemside bg-white border-1 border-stone-200 fade-out-left d-flex flex-column w-auto p-3 gap-3 justify-content-center rounded-5 ml-3 shadow"
+        <div class="itemside bg-white border-1 border-stone-200 fade-out-left d-flex flex-column w-auto p-3 gap-3 justify-content-center rounded-5 ml-3 shadow"
             style="z-index: 2">
             @for ($i = 0; $i < 5; $i++)
                 <div class="items">
                     <a href="#"><img src="{{ asset('/images/warehouse-with-truck.svg') }}"
-                            class="mx-auto d-block w-16 h-16 border-2 border-stone-600 p-1 imgitems"
+                            class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
                             style="border-radius: 50%;" alt="..." id="dc"></a>
-                    <div class="textitems lh-1 d-flex justify-content-center font-bold mt-1" style="font-size: 80%">
-                        Distribution center</div>
+                    <div class="textitems lh-1 d-flex justify-content-center mt-1">
+                        <p class="mb-0 font-bold" style="font-size: 12px">Distribution center</p>
+                    </div>
                 </div>
             @endfor
         </div>
         {{-- Tables --}}
-        <div class="itemstable d-flex flex-column d-none fade-in-right rounded-e-xl bg-white" style="z-index: 1">
+        <div class="itemstable shadow-lg border-1 border-stone-200 d-flex flex-column d-none fade-in-right rounded-e-xl bg-white"
+            style="z-index: 1">
             <div class="border d-flex">search</div>
             <table class="table table-hover mt-2">
                 <thead>
                     <tr>
-                        <th scope="col">id</th>
-                        <th scope="col">name</th>
-                        <th scope="col">capacity</th>
-                        <th scope="col">cost</th>
+                        <th scope="col">
+                            <p>Id</p>
+                        </th>
+                        <th scope="col">
+                            <p>Name</p>
+                        </th>
+                        <th scope="col">
+                            <p>Capacity</p>
+                        </th>
+                        <th scope="col">
+                            <p>Cost</p>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <th scope="row">1</th>
-                        <td>Mark</td>
-                        <td>Otto</td>
-                        <td>@mdn</td>
-                    </tr>
-                    <tr>
-                        <th scope="row">2</th>
-                        <td>Jacob</td>
-                        <td>Thornton</td>
-                        <td>@fat</td>
-                    </tr>
-                    <tr>
-                        <th scope="row" class="text-wrap">3</th>
-                        <td>Larry the Bird</td>
-                        <td>Thornton</td>
-                        <td>@twitter</td>
+                        <th scope="row">
+                            <p>1</p>
+                        </th>
+                        <td>
+                            <p>Mark</p>
+                        </td>
+                        <td>
+                            <p>Otto</p>
+                        </td>
+                        <td>
+                            <p>@mdb</p>
+                        </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    {{-- Node properties container --}}
+    <div class="node-card shadow-xl position-absolute top-0 end-0 mt-14 mr-3 p-3 rounded-5 bg-white border-1 border-stone-200"
+        style="z-index: 2">
+        <!-- Header -->
+        <div class="node-card-header">
+            <h6>Node Properties</h6>
+        </div>
+        <!-- Properties -->
+        <div class="node-props flex-column m-2">
+            @for ($i = 0; $i < 5; $i++)
+                <div class="row border-bottom">
+                    <div class="col p-0">
+                        <p class="mb-0">Id</p>
+                    </div>
+                    <div class="col-1">:</div>
+                    <div class="col p-0">
+                        <p class="mb-0">-</p>
+                    </div>
+                </div>
+            @endfor
+        </div>
+        <!-- Map -->
+        <div id="minimap" style="height: 100px"></div>
+        <!-- Actions -->
+        <div class="card-actions mt-2 row d-flex justify-center gap-1">
+            <button class="btn btn-primary col-4 h-25 d-flex flex-row align-items-center w-auto p-1">
+                <p class="m-0 font-bold" style="font-size: 11px">Edit</p>
+                <i class="fa-solid fa-pen-to-square w-3"></i>
+            </button>
+            <button class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center w-auto p-1">
+                <p class="m-0 font-bold" style="font-size: 11px">Delete</p>
+                <i class="fa-solid fa-trash" style="width: 10px"></i>
+            </button>
         </div>
     </div>
 
@@ -149,6 +191,9 @@
 @endsection
 
 @push('scripts')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    @vite('resources/js/home/home.js')
     <script>
         Points = {
             IDC: @json($idc_points),
@@ -158,7 +203,4 @@
             H: @json($H_points)
         };
     </script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    @vite('resources/js/home/home.js')
 @endpush
