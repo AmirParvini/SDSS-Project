@@ -108,7 +108,7 @@
                 </div>
             @endfor
         </div>
-        <!-- Map -->
+        <!-- MiniMap -->
         <div id="minimap" style="height: 100px"></div>
         <!-- Actions -->
         <div class="card-actions mt-2 row d-flex justify-center gap-1">
