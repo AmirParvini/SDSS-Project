@@ -1,0 +1,32 @@
+{
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "javascript.suggest.autoImports": true,
+    "typescript.suggest.autoImports": true,
+    "emmet.includeLanguages": {
+        "javascript": "javascriptreact",
+        "typescript": "typescriptreact"
+    },
+    "files.associations": {
+        "*.js": "javascript",
+        "*.mjs": "javascript",
+        "*.cjs": "javascript"
+    },
+    "javascript.preferences.includePackageJsonAutoImports": "auto",
+    "search.exclude": {
+        "**/.git": true,
+        "**/node_modules": false,
+        "**/public/build": true,
+        "**/storage": true
+    },
+    "files.exclude": {
+        "**/storage": true
+    },
+    "typescript.preferences.quoteStyle": "double",
+    "javascript.preferences.quoteStyle": "double",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always",
+        "source.organizeImports": "always"
+    }
+}
