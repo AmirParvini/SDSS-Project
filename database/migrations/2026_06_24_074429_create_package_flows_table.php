@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('e_c_s', function (Blueprint $table) {
-            // $table->dropColumn('area');
-            $table->integer('area')->after('name');
+        Schema::create('package_flows', function (Blueprint $table) {
+            $table->id();
+            $table->integer('solution_id');
+            $table->integer('source_id');
+            $table->integer('target_id');
+            $table->integer('flow');
+            $table->decimal('flow_cost', 10, 2);
         });
     }
 
@@ -22,9 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('e_c_s', function (Blueprint $table) {
-            // $table->dropColumn('area');
-            // $table->integer('area')->after('name');
-        });
+        Schema::dropIfExists('package_flows');
     }
 };

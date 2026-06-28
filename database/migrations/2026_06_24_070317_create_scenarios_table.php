@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('damaged_areas', function (Blueprint $table) {
+        Schema::create('scenarios', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->integer('affected_pop');
-            $table->float('lat');
-            $table->float('lng');
+            $table->string('name', 100);
+            $table->string('description', 255);
+            $table->integer('active');
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('damaged_areas');
+        Schema::dropIfExists('scenarios');
     }
 };

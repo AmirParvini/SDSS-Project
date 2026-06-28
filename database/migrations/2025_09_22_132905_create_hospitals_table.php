@@ -12,12 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('hospitals', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
+            $table->id('node_id');
             $table->integer('capacity');
-            $table->float('lat');
-            $table->float('lng');
-            $table->timestamps();
         });
     }
 

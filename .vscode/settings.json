@@ -16,10 +16,10 @@
         "**/.git": true,
         "**/node_modules": false,
         "**/public/build": true,
-        "**/storage": true
+        "**/storage": false
     },
     "files.exclude": {
-        "**/storage": true
+        "**/storage": false
     },
     "typescript.preferences.quoteStyle": "double",
     "javascript.preferences.quoteStyle": "double",
@@ -28,5 +28,8 @@
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "always",
         "source.organizeImports": "always"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
     }
 }

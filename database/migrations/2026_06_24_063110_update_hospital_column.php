@@ -11,8 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('idc_ec_path', function (Blueprint $table) {
-            $table->text('path')->change();
+        Schema::table('hospitals', function (Blueprint $table) {
+            $table->dropColumn('name');
+            $table->dropColumn('lat');
+            $table->dropColumn('lng');
+            $table->dropTimestamps();
+            $table->renameColumn('id', 'node_id');
         });
     }
 
@@ -21,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('idc_ec_path', function (Blueprint $table) {
-            //
-        });
+        //
     }
 };

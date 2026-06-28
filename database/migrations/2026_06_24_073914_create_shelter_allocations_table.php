@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('i_d_c_s', function (Blueprint $table) {
+        Schema::create('shelter_allocations', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->integer('capacity');
-            $table->integer('fixed_cost');
-            $table->float('lat');
-            $table->float('lng');
-            $table->timestamps();
+            $table->integer('solution_id');
+            $table->integer('source_id');
+            $table->integer('target_id');
+            $table->integer('flow');
+            $table->decimal('distance', 10, 2);
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('i_d_c_s');
+        Schema::dropIfExists('shelter_allocations');
     }
 };

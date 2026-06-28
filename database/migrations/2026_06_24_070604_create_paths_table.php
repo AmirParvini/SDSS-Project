@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('da_tmc_path', function (Blueprint $table) {
+        Schema::create('paths', function (Blueprint $table) {
             $table->id();
-            $table->integer('da_id');
-            $table->integer('tmc_id');
-            $table->float('distance');
-            $table->float('distance_helicopter');
-            $table->text('path');
+            $table->integer('source_id');
+            $table->integer('target_id');
+            $table->string('path_type', 10);
+            $table->decimal('distance', 10, 2);
+            $table->text('geometry');
+            $table->timestamps();
         });
     }
 
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('da_tmc_path');
+        Schema::dropIfExists('paths');
     }
 };

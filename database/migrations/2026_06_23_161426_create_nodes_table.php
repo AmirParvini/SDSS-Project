@@ -11,8 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('da_h_path', function (Blueprint $table) {
-            $table->text('path')->change();
+        Schema::create('nodes', function (Blueprint $table) {
+            $table->id();
+            $table->integer('scenario_id');
+            $table->string('type', 25);
+            $table->string('name', 100);
+            $table->text('geometry');
+            $table->timestamps();
         });
     }
 
@@ -21,8 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('da_h_path', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('nodes');
     }
 };

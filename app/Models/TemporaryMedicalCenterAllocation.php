@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class DAtoHospitalPath extends Model
+class TemporaryMedicalCenterAllocation extends Model
 {
-    protected $table = 'da_h_path';
+    //
 }

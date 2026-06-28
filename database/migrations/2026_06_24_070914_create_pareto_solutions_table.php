@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('da_h_path', function (Blueprint $table) {
+        Schema::create('pareto_solutions', function (Blueprint $table) {
             $table->id();
-            $table->integer('da_id');
-            $table->integer('h_id');
-            $table->float('distance');
-            $table->float('distance_helicopter');
-            $table->text('path');
+            $table->integer('scenario_id');
+            $table->decimal('z1', 10, 2);
+            $table->decimal('z2', 10, 2);
+            $table->decimal('z3', 10, 2);
         });
     }
 
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('da_h_path');
+        Schema::dropIfExists('pareto_solutions');
     }
 };

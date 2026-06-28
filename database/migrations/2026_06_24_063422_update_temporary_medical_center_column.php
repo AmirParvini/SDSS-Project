@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('idc_ec_path', function (Blueprint $table) {
-            $table->id();
-            $table->integer('idc_id');
-            $table->integer('ec_id');
-            $table->float('distance');
-            $table->text('path');
+        Schema::table('temporary_medical_centers', function (Blueprint $table) {
+            // $table->dropColumn('name');
+            // $table->dropColumn('lat');
+            // $table->dropColumn('lng');
+            $table->dropColumn('fixed_cost');
+            // $table->dropTimestamps();
+            // $table->renameColumn('id', 'node_id');
         });
     }
 
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('idc_ec_path');
+        //
     }
 };
