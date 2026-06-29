@@ -33,6 +33,7 @@ from .optimization.ranking import DominanceComparator, Ranking
 from .optimization.repair import ChromosomeRepair
 from .optimization.selection import CrowdingTournamentSelection
 
+import json
 
 @dataclass
 class HumanitarianOptimizer:
@@ -57,22 +58,18 @@ class HumanitarianOptimizer:
         solutions = self.solve()
         if path:
             self.writer.to_file(solutions, path)
-        return self.writer.to_string(solutions)
+        return json.dumps(solutions, ensure_ascii=False, indent=2)
 
 
 def build_optimizer(
-    distance_loader: DistanceLoader,
-    scenario_config: Optional[ScenarioConfig] = None,
+    problem: ProblemData,    
     nsga_config: Optional[NSGA2Config] = None,
     *,
     initializer: Optional[PopulationInitializer] = None,
     checkpoint: Optional[CheckpointRepository] = None,
 ) -> HumanitarianOptimizer:
     """Assemble a fully-wired :class:`HumanitarianOptimizer`."""
-    scenario_config = scenario_config or ScenarioConfig()
     nsga_config = nsga_config or NSGA2Config()
-
-    problem = build_problem_data(scenario_config, distance_loader.load())
 
     # Shared services (used by both the evaluator and the decoder -> DRY).
     repair = ChromosomeRepair(problem)

@@ -124,7 +124,7 @@ class SolutionDecoder:
         problem = self._problem
         for idx, raw_row in enumerate(chromosome.severe_split):
             row = np.array(raw_row) / sum(raw_row)
-            severe = problem.severe_injured[problem.da_id[idx]]
+            severe = problem.severe_injured[f'{problem.da_id[idx]}']
             for h_idx, j in enumerate(row):
                 if j <= 0:
                     continue
@@ -150,7 +150,7 @@ class SolutionDecoder:
         n_hosp = problem.n_hospitals
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
-            minor = problem.minor_injured[problem.da_id[idx]]
+            minor = problem.minor_injured[f'{problem.da_id[idx]}']
             for h_idx, j in enumerate(row[:n_hosp]):
                 if j <= 0:
                     continue
@@ -178,19 +178,19 @@ class SolutionDecoder:
         records: List[dict] = []
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
-            minor = problem.minor_injured[problem.da_id[idx]]
+            minor = problem.minor_injured[f'{problem.da_id[idx]}']
             for tmc_idx, j in enumerate(row[n_hosp:]):
                 if j <= 0:
                     continue
                 tmc_id = problem.tmc_id[tmc_idx]
-                if minor * j > tmc_cap[tmc_id]:
+                if minor * j > tmc_cap[f'{tmc_id}']:
                     self._accumulate(
-                        tmc_shortage, tmc_id, round(minor * j) - tmc_cap[tmc_id]
+                        tmc_shortage, tmc_id, round(minor * j) - tmc_cap[f'{tmc_id}']
                     )
-                    tmc_cap[tmc_id] = 0
+                    tmc_cap[f'{tmc_id}'] = 0
                 else:
                     # LEGACY: reads capacity at ``legacy_idx`` (preserved bug).
-                    tmc_cap[tmc_id] = tmc_cap[problem.tmc_id[legacy_idx]] - round(
+                    tmc_cap[f'{tmc_id}'] = tmc_cap[f'{problem.tmc_id[legacy_idx]}'] - round(
                         minor * j
                     )
                 # LEGACY: uses the leftover ``legacy_idx`` ground ratio column.
@@ -207,17 +207,17 @@ class SolutionDecoder:
         self, target, facility_id, injured, cap_table, key_table
     ) -> None:
         """Replicate the original capacity-consumption + shortage bookkeeping."""
-        if injured > cap_table[facility_id]:
-            delta = round(injured) - cap_table[facility_id]
+        if injured > cap_table[f'{facility_id}']:
+            delta = round(injured) - cap_table[f'{facility_id}']
             # LEGACY: the "already seen?" test uses ``key_table`` which, for the
             # moderate hospital pass, is the *severe* shortage dict.
             if facility_id in key_table:
                 target[facility_id] = target.get(facility_id, 0) + delta
             else:
                 target[facility_id] = delta
-            cap_table[facility_id] = 0
+            cap_table[f'{facility_id}'] = 0
         else:
-            cap_table[facility_id] -= round(injured)
+            cap_table[f'{facility_id}'] -= round(injured)
 
     @staticmethod
     def _accumulate(table: Dict[int, float], key: int, delta: float) -> None:

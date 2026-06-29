@@ -57,7 +57,7 @@ class ProblemData:
     tmc_id: List[int]
 
     # Demographics (keyed by damage-area id)
-    affected_pop: Dict[int, float]
+    affected_pop: Dict[int, int]
     severe_injured: Dict[int, float]
     minor_injured: Dict[int, float]
     homeless: Dict[int, float]

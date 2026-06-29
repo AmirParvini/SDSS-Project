@@ -15,8 +15,8 @@ import logging
 import os
 
 from hsc_optimizer.app import build_optimizer
-from hsc_optimizer.config.data_loader import JsonDistanceLoader
-from hsc_optimizer.config.scenario import ScenarioConfig
+from hsc_optimizer.config.data_loader import JsonDistanceLoader, InMemoryDistanceLoader
+from hsc_optimizer.config.scenario import ScenarioConfig, StdinConfig, StdinData
 from hsc_optimizer.optimization.checkpoint import PickleCheckpointRepository
 from hsc_optimizer.optimization.factory import ChromosomeFactory
 from hsc_optimizer.optimization.initialization import (
@@ -33,7 +33,8 @@ def main() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     parameters_path = os.path.join(here, "HSC_Parameters.json")
 
-    scenario = ScenarioConfig()
+    stdin_data = StdinData.get_data()
+    scenario = StdinConfig(data_dict=stdin_data)
     nsga_config = NSGA2Config(
         max_iter=5,
         pop_size=150,
@@ -42,7 +43,8 @@ def main() -> None:
         resume=False,
     )
 
-    distance_loader = JsonDistanceLoader(parameters_path)
+    distance_loader = InMemoryDistanceLoader(stdin_data['distances'])
+
 
     # Optional: seed the initial population from a JSON file, otherwise random.
     seed_path = os.path.join(here, "initial_population.json")
@@ -55,12 +57,10 @@ def main() -> None:
     else:
         initializer = RandomInitializer(factory)
 
-    checkpoint = PickleCheckpointRepository(
-        os.path.join(here, "exports", "random_initial_pop_checkpoint", "nsga2_checkpoint.pkl"))
+    checkpoint = None
 
     optimizer = build_optimizer(
-        distance_loader=distance_loader,
-        scenario_config=scenario,
+        problem,
         nsga_config=nsga_config,
         initializer=initializer,
         checkpoint=checkpoint,

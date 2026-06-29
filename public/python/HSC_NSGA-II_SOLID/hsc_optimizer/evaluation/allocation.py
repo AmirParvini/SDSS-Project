@@ -38,14 +38,14 @@ class ShelterAllocationService:
             ec_id: 0 for ec_list in da_ec.values() for ec_id in ec_list
         }
         for da_id, ec_id_list in da_ec.items():
-            share = problem.homeless[da_id] / len(ec_id_list)
+            share = problem.homeless[f'{da_id}'] / len(ec_id_list)
             for ec_id in ec_id_list:
                 total_potential_demand[ec_id] += share
 
         # Capacity-aware allocation.
         for da_id, ec_id_list in da_ec.items():
-            homeless_count = problem.homeless[da_id]
-            available_caps = [remaining_capacity[v] for v in ec_id_list]
+            homeless_count = problem.homeless[f'{da_id}']
+            available_caps = [remaining_capacity[f'{v}'] for v in ec_id_list]
             total_available = sum(available_caps)
 
             if total_available >= homeless_count:
@@ -59,23 +59,23 @@ class ShelterAllocationService:
                     )
                     allocations[da_id][ec_id] = alloc
                     dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
-                    remaining_capacity[ec_id] -= alloc
+                    remaining_capacity[f'{ec_id}'] -= alloc
                     demand[ec_id] += math.ceil(alloc / 5)
                     total_weighted_dist += alloc * dist
                     remaining_pop -= alloc
             else:
                 for ec_id in ec_id_list:
-                    alloc = remaining_capacity[ec_id]
+                    alloc = remaining_capacity[f'{ec_id}']
                     allocations[da_id][ec_id] = alloc
                     dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
                     demand[ec_id] += math.ceil(alloc / 5)
                     total_weighted_dist += alloc * dist
-                    remaining_capacity[ec_id] = 0
+                    remaining_capacity[f'{ec_id}'] = 0
                 total_shortage += homeless_count - total_available
 
         # Final per-shelter shortage relative to its initial capacity.
         for ec_id in ec_shortages:
-            initial_cap = problem.capacity.shelter[ec_id]
+            initial_cap = problem.capacity.shelter[f'{ec_id}']
             if total_potential_demand[ec_id] > initial_cap:
                 ec_shortages[ec_id] = total_potential_demand[ec_id] - initial_cap
 

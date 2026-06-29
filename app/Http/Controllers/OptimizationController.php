@@ -18,7 +18,7 @@ class OptimizationController extends Controller
         try {
             $result = $orchestrator->run(
                 scenarioId: $request['scenario_id'],
-                pythonPath: 'public/python/HSC_NSGA-II_SOLID/run_test.py',
+                pythonPath: 'public/python/HSC_NSGA-II_SOLID/run.py',
                 timeout: 1800,
             );
             return response()->json([
@@ -33,6 +33,7 @@ class OptimizationController extends Controller
                 'status'  => 'error',
                 'message' => 'An error occurred while executing the Python script.',
                 'detail'  => $e->getMessage(),
+                'errorOutput'  => $e->getErrorOutput(),
             ], 500);
 
         } catch (Throwable $e) {
@@ -41,6 +42,7 @@ class OptimizationController extends Controller
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Internal server error! (500)',
+                'detail' => $e->getMessage()
             ], 500);
         }
     }

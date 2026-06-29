@@ -160,7 +160,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         model = problem.severe_death_model
         for idx, raw_row in enumerate(chromosome.severe_split):
             row = np.array(raw_row) / sum(raw_row)
-            severe = problem.severe_injured[problem.da_id[idx]]
+            severe = problem.severe_injured[f'{problem.da_id[idx]}']
             for h_idx, j in enumerate(row):
                 if j <= 0:
                     continue
@@ -195,7 +195,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         n_hosp = problem.n_hospitals
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
-            minor = problem.minor_injured[problem.da_id[idx]]
+            minor = problem.minor_injured[f'{problem.da_id[idx]}']
             for h_idx, j in enumerate(row[:n_hosp]):
                 if j <= 0:
                     continue
@@ -233,18 +233,18 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         legacy_idx = n_hosp - 1
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
-            minor = problem.minor_injured[problem.da_id[idx]]
+            minor = problem.minor_injured[f'{problem.da_id[idx]}']
             for tmc_idx, j in enumerate(row[n_hosp:]):
                 if j <= 0:
                     continue
                 tmc_id = problem.tmc_id[tmc_idx]
-                if minor * j > tmc_cap[tmc_id]:
-                    metrics.tmc_shortage += round(minor * j) - tmc_cap[tmc_id]
-                    tmc_cap[tmc_id] = 0
+                if minor * j > tmc_cap[f'{tmc_id}']:
+                    metrics.tmc_shortage += round(minor * j) - tmc_cap[f'{tmc_id}']
+                    tmc_cap[f'{tmc_id}'] = 0
                 else:
                     # LEGACY: reads capacity at ``legacy_idx`` (a bug preserved
                     # for numerical parity with the original implementation).
-                    tmc_cap[tmc_id] = tmc_cap[problem.tmc_id[legacy_idx]] - round(
+                    tmc_cap[f'{tmc_id}'] = tmc_cap[f'{problem.tmc_id[legacy_idx]}'] - round(
                         minor * j
                     )
                 ground_ratio = chromosome.moderate_ground_ratio[idx][legacy_idx]
@@ -266,17 +266,17 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
     def _consume_capacity(
         self, cap_table, facility_id, injured, metrics, shortage_attr
     ) -> None:
-        if injured > cap_table[facility_id]:
+        if injured > cap_table[f'{facility_id}']:
             setattr(
                 metrics,
                 shortage_attr,
                 getattr(metrics, shortage_attr)
                 + round(injured)
-                - cap_table[facility_id],
+                - cap_table[f'{facility_id}'],
             )
-            cap_table[facility_id] = 0
+            cap_table[f'{facility_id}'] = 0
         else:
-            cap_table[facility_id] -= round(injured)
+            cap_table[f'{facility_id}'] -= round(injured)
 
     def _add_transport(self, injured, ground_ratio, injured_type, metrics) -> None:
         plan = self._transport.plan(injured, ground_ratio, injured_type)

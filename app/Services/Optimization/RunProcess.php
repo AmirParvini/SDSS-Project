@@ -15,9 +15,9 @@ class RunProcess
         $process->wait();
         if (!$process->isSuccessful()) {
             throw OptimizationProcessException::fromFailedProcess($process);
-            }
-            $output = json_decode($process->getOutput(), true);
-            if (!is_array($output)) {
+        }
+        $output = json_decode($process->getOutput(), true);
+        if (!is_array($output)) {
             throw OptimizationProcessException::invalidOutput($process->getOutput());
         }
         return $output;
