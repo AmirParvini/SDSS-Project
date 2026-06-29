@@ -51,7 +51,8 @@ class HumanitarianOptimizer:
 
     def solve(self) -> List[dict]:
         """Run the optimiser and decode the front into solution records."""
-        return self.decoder.decode(self.optimize())
+        chromosomes, pareto_pops = self.optimize()
+        return self.decoder.decode(chromosomes, pareto_pops)
 
     def solve_to_json(self, path: Optional[str] = None) -> str:
         """Solve and serialise; optionally also write to ``path``."""

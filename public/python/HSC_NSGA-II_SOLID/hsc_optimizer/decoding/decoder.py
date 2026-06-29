@@ -17,6 +17,7 @@ from typing import Dict, List
 
 import numpy as np
 
+from ..optimization.individual import Individual
 from ..domain.chromosome import Chromosome
 from ..domain.problem_data import ProblemData
 from ..domain.results import TransportPlan
@@ -40,11 +41,11 @@ class SolutionDecoder:
         self._allocator = allocator
         self._transport = transport
 
-    def decode(self, chromosomes: List[Chromosome]) -> List[dict]:
-        return [self._decode_one(idx, chrom) for idx, chrom in enumerate(chromosomes)]
+    def decode(self, chromosomes: List[Chromosome], pareto_pops: List[Individual]) -> List[dict]:
+        return [self._decode_one(idx+1, chrom, pareto_pops[idx]) for idx, chrom in enumerate(chromosomes)]
 
     # -- per-solution -------------------------------------------------------
-    def _decode_one(self, solution_id: int, chromosome: Chromosome) -> dict:
+    def _decode_one(self, solution_id: int, chromosome: Chromosome, pareto_pop: Individual) -> dict:
         from copy import deepcopy
 
         problem = self._problem
@@ -77,6 +78,9 @@ class SolutionDecoder:
 
         return {
             "solution_id": solution_id,
+            "F1(Homless weighted distance)": pareto_pop.normal_cost[0],
+            "F2(Unmet demand)": pareto_pop.cost[1],
+            "F3(Cumulative death probability)": pareto_pop.normal_cost[2],
             "package_flows": package_flows,
             "shelter_allocations": shelter_allocations,
             "hospital_allocations": hospital_allocations,
@@ -141,7 +145,7 @@ class SolutionDecoder:
                     chromosome.severe_ground_ratio[idx][h_idx],
                     TransportPlanner.SEVERE,
                 )
-                records.append(self._severe_record(problem.da_id[idx], h_idx, plan))
+                records.append(self._severe_record(problem.da_id[idx], hospital_id, plan))
 
     def _moderate_to_hospital(
         self, chromosome, hospital_cap, records, shortage_severe, shortage_moderate
@@ -169,7 +173,7 @@ class SolutionDecoder:
                     chromosome.moderate_ground_ratio[idx][h_idx],
                     TransportPlanner.MODERATE,
                 )
-                records.append(self._moderate_record(problem.da_id[idx], h_idx, plan))
+                records.append(self._moderate_record(problem.da_id[idx], hospital_id, plan))
 
     def _moderate_to_tmc(self, chromosome, tmc_cap, tmc_shortage) -> List[dict]:
         problem = self._problem
@@ -199,7 +203,7 @@ class SolutionDecoder:
                     chromosome.moderate_ground_ratio[idx][legacy_idx],
                     TransportPlanner.MODERATE,
                 )
-                records.append(self._moderate_record(problem.da_id[idx], tmc_idx, plan))
+                records.append(self._moderate_record(problem.da_id[idx], tmc_id, plan))
         return records
 
     # -- helpers -----------------------------------------------------------

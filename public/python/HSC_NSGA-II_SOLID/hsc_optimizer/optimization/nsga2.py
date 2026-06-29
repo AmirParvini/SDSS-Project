@@ -85,7 +85,7 @@ class NSGA2:
             logger.info("Iteration %d: Pareto members = %d", iteration + 1, len(pareto_pop))
             self._save_checkpoint(iteration, pop, fronts, pareto_history)
 
-        return [ind.chromosome for ind in pareto_pop]
+        return [ind.chromosome for ind in pareto_pop], pareto_pop
 
     # -- initialisation / resume -------------------------------------------
     def _initialise_state(self):
