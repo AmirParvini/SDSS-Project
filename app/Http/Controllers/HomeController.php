@@ -1,22 +1,33 @@
 <?php
 
 namespace App\Http\Controllers;
-
-use App\Models\DamagedArea;
-use App\Models\EC;
-use App\Models\Hospital;
-use App\Models\IDC;
-use App\Models\TMC;
-use Illuminate\Http\Request;
+use App\Models\HscParameter;
+use App\Services\ScenarioService;
+use App\Services\NodeDataService;
+use App\Support\GeoJsonConverter;
 
 class HomeController extends Controller
 {
-    function index() {
-        $idc_points = IDC::all();
-        $ec_points = EC::all();
-        $da_points = DamagedArea::all();
-        $tmc_points = TMC::all();
-        $H_points = Hospital::all();
-        return view('home', compact('idc_points', 'ec_points', 'da_points', 'tmc_points', 'H_points'));
+
+    public function __construct(
+        private ScenarioService $scenarioService,
+        private NodeDataService $nodeDataService,
+        private GeoJsonConverter $geoJsonConverter
+    ) {}
+
+    public function index()
+    {
+        $scenarioId = $this->scenarioService->getActiveScenarioId();
+
+        $nodesByType = $this->nodeDataService->getNodesForScenario($scenarioId);
+
+        $hscParameters = HscParameter::where('scenario_id', $scenarioId)->get();
+
+        $geojsonNodes = $this->geoJsonConverter->convert($nodesByType);
+
+        return response()->json([
+            'hsc_parameters' => $hscParameters,
+            'geojson_nodes' => $geojsonNodes,
+        ]);
     }
 }
