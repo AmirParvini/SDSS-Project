@@ -7,4 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Node extends Model
 {
     protected $fillable = ['type', 'name', 'geometry'];
+
+    protected $casts = [
+        'area' => 'float',
+        'capacity' => 'int',
+        'affected_pop' => 'int'
+    ];
 }
