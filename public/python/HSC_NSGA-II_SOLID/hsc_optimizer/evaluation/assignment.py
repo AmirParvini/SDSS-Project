@@ -42,4 +42,4 @@ class DamageShelterAssigner:
         da_ec_alloc: Dict[int, List[int]] = defaultdict(list)
         for idx, area in enumerate(damaged_areas):
             da_ec_alloc[area].append(selected_shelters[idx])
-        return da_ec_alloc
+        return da_ec_alloc, len(selected_shelters)

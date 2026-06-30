@@ -41,6 +41,14 @@ class SolutionDecoder:
         self._allocator = allocator
         self._transport = transport
 
+        self.package_flow_cost = 0
+        self.package_cost = 0
+        self.ground_vehicle_cost = 0
+        self.air_vehicle_cost = 0
+        self.shelter_establish_cost = 0
+        self.tmc_establish_cost = 0
+        self.total_cost = 0
+
     def decode(self, chromosomes: List[Chromosome], pareto_pops: List[Individual]) -> List[dict]:
         return [self._decode_one(idx+1, chrom, pareto_pops[idx]) for idx, chrom in enumerate(chromosomes)]
 
@@ -52,7 +60,8 @@ class SolutionDecoder:
         hospital_cap = deepcopy(problem.capacity.hospital)
         tmc_cap = deepcopy(problem.capacity.tmc)
 
-        da_ec_alloc = self._assigner.assign(chromosome)
+        da_ec_alloc, num_selected_ec = self._assigner.assign(chromosome)
+        self.shelter_establish_cost = num_selected_ec * problem.cost['ec_cost']
         allocation = self._allocator.allocate(da_ec_alloc)
         demand = allocation.demand
 
@@ -74,13 +83,16 @@ class SolutionDecoder:
             shortage_severe,
             shortage_moderate,
         )
-        tmc_allocations = self._moderate_to_tmc(chromosome, tmc_cap, tmc_shortage)
-
+        tmc_allocations, num_tmc = self._moderate_to_tmc(chromosome, tmc_cap, tmc_shortage)
+        self.tmc_establish_cost = num_tmc * problem.cost['tmc_cost']
+        self.total_cost = self.package_flow_cost + self.package_cost + self.ground_vehicle_cost +\
+              self.air_vehicle_cost + self.shelter_establish_cost + self.tmc_establish_cost +\
+                self.total_cost
         return {
             "solution_id": solution_id,
-            "F1(Homless weighted distance)": pareto_pop.normal_cost[0],
-            "F2(Unmet demand)": pareto_pop.cost[1],
-            "F3(Cumulative death probability)": pareto_pop.normal_cost[2],
+            "F1": pareto_pop.normal_cost[0],
+            "F2": pareto_pop.cost[1],
+            "F3": pareto_pop.normal_cost[2],
             "package_flows": package_flows,
             "shelter_allocations": shelter_allocations,
             "hospital_allocations": hospital_allocations,
@@ -88,6 +100,15 @@ class SolutionDecoder:
             "solution_hospital_shortage_severe": shortage_severe,
             "solution_hospital_shortage_moderate": shortage_moderate,
             "solution_tmc_shortage": tmc_shortage,
+            "costs": {
+                "package_flow_cost": self.package_flow_cost,
+                "package_cost": self.package_cost,
+                "ground_vehicle_cost": self.ground_vehicle_cost,
+                "air_vehicle_cost": self.air_vehicle_cost,
+                "shelter_establish_cost": self.shelter_establish_cost,
+                "tmc_establish_cost": self.tmc_establish_cost,
+                "total_cost": self.total_cost
+            }
         }
 
     # -- sections -----------------------------------------------------------
@@ -111,14 +132,15 @@ class SolutionDecoder:
             shelter_id = problem.ec_id[idx]
             dist = problem.distance.dc_to_shelter[f"{dc},{shelter_id}"]
             flow = math.ceil(chromosome.shelter_flow_ratio[idx] * demand[shelter_id])
+            self.package_cost += flow * problem['reliefpackage_cost']
             flow_cost = dist * problem.cost["reliefpackage_transportation_cost"] * flow
+            self.package_flow_cost += flow_cost
             records.append(
                 {
                     "source_id": dc,
                     "target_id": shelter_id,
                     "flow": flow,
-                    "flow_cost": flow_cost,
-                }
+                    "flow_cost": flow_cost,                }
             )
         return records
 
@@ -145,6 +167,8 @@ class SolutionDecoder:
                     chromosome.severe_ground_ratio[idx][h_idx],
                     TransportPlanner.SEVERE,
                 )
+                self.ground_vehicle_cost += plan.ground_cost
+                self.air_vehicle_cost += plan.air_cost
                 records.append(self._severe_record(problem.da_id[idx], hospital_id, plan))
 
     def _moderate_to_hospital(
@@ -173,6 +197,8 @@ class SolutionDecoder:
                     chromosome.moderate_ground_ratio[idx][h_idx],
                     TransportPlanner.MODERATE,
                 )
+                self.ground_vehicle_cost += plan.ground_cost
+                self.air_vehicle_cost += plan.air_cost
                 records.append(self._moderate_record(problem.da_id[idx], hospital_id, plan))
 
     def _moderate_to_tmc(self, chromosome, tmc_cap, tmc_shortage) -> List[dict]:
@@ -180,6 +206,7 @@ class SolutionDecoder:
         n_hosp = problem.n_hospitals
         legacy_idx = n_hosp - 1  # LEGACY: leftover ``h_idx`` from the hospital loop
         records: List[dict] = []
+        n_tmc = []
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
             minor = problem.minor_injured[f'{problem.da_id[idx]}']
@@ -187,6 +214,7 @@ class SolutionDecoder:
                 if j <= 0:
                     continue
                 tmc_id = problem.tmc_id[tmc_idx]
+                n_tmc.append(tmc_id)
                 if minor * j > tmc_cap[f'{tmc_id}']:
                     self._accumulate(
                         tmc_shortage, tmc_id, round(minor * j) - tmc_cap[f'{tmc_id}']
@@ -203,8 +231,11 @@ class SolutionDecoder:
                     chromosome.moderate_ground_ratio[idx][legacy_idx],
                     TransportPlanner.MODERATE,
                 )
+                self.ground_vehicle_cost += plan.ground_cost
+                self.air_vehicle_cost += plan.air_cost
                 records.append(self._moderate_record(problem.da_id[idx], tmc_id, plan))
-        return records
+        num_tmc = len(set(n_tmc))
+        return records, num_tmc
 
     # -- helpers -----------------------------------------------------------
     def _record_shortage(
