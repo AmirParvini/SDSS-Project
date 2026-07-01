@@ -15,6 +15,37 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     @vite('resources/css/home/home.css')
 @endpush
+
+@php
+    $node_types = [
+        'dc' => [
+            'class' => 'dc',
+            'item_img' => asset('/images/warehouse-with-truck.svg'),
+            'elias' => 'Distribution Center'
+        ],
+        'ec' => [
+            'class' => 'ec',
+            'item_img' => asset('/images/sturdy-house-shelter.svg'),
+            'elias' => 'shelter'
+        ],
+        'da' => [
+            'class' => 'da',
+            'item_img' => asset('/images/broken-building.svg'),
+            'elias' => 'Affected Area'
+        ],
+        'h' => [
+            'class' => 'h',
+            'item_img' => asset('/images/hospital-building-cross.svg'),
+            'elias' => 'Hospital'
+        ],
+        'tmc' => [
+            'class' => 'tmc',
+            'item_img' => asset('/images/tent-with-medical-cross.svg'),
+            'elias' => 'Temporary Medical Center'
+        ]
+    ];
+@endphp
+
 @section('content')
     {{-- map --}}
     <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
@@ -24,16 +55,16 @@
         {{-- Items --}}
         <div class="itemside bg-white border-1 border-stone-200 fade-out-left d-flex flex-column w-auto p-3 gap-3 justify-content-center rounded-5 ml-3 shadow"
             style="z-index: 2">
-            @for ($i = 0; $i < 5; $i++)
-                <div class="items">
-                    <a href="#"><img src="{{ asset('/images/warehouse-with-truck.svg') }}"
-                            class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
-                            style="border-radius: 50%;" alt="..." id="dc"></a>
-                    <div class="textitems lh-1 d-flex justify-content-center mt-1">
-                        <p class="mb-0 font-bold" style="font-size: 12px">Distribution center</p>
-                    </div>
+            @foreach ($node_types as $key => $value)    
+            <div class="items">
+                <a href="#"><img src="{{$value['item_img']}}"
+                        class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
+                        style="border-radius: 50%;" alt="..." id="dc"></a>
+                <div class="textitems lh-1 d-flex justify-content-center mt-1">
+                    <p class="mb-0 font-bold" style="font-size: 12px">{{$value['elias']}}</p>
                 </div>
-            @endfor
+            </div>
+            @endforeach
         </div>
         {{-- Tables --}}
         <div class="itemstable shadow-lg border-1 border-stone-200 d-flex flex-column d-none fade-in-right rounded-e-xl bg-white"
@@ -87,10 +118,10 @@
         <div class="node-props flex-column m-2">
             <x-node_properties.general-properties id="generic_prop">
             <div class="props">
-                <x-node_properties.ec-properties class="d-none ec" />
-                <x-node_properties.da-properties class="d-none da" />
-                <x-node_properties.tmc-properties class="d-none tmc" />
-                <x-node_properties.h-properties class="d-none h" />
+                <x-node_properties.ec-properties class="d-none {{$node_types['ec']['class']}}" />
+                <x-node_properties.da-properties class="d-none {{$node_types['da']['class']}}" />
+                <x-node_properties.tmc-properties class="d-none {{$node_types['tmc']['class']}}" />
+                <x-node_properties.h-properties class="d-none {{$node_types['h']['class']}}" />
             </div>
         </x-node_properties.general-properties>
         </div>

@@ -26,7 +26,7 @@
         </div>
         <div class="col-1">:</div>
         <div class="col p-0">
-            <textarea class="mb-0 name node_name w-100" disabled="{{$input_status}}"></textarea>
+            <textarea class="mb-0 name node_name w-100" style="direction: rtl;" disabled="{{$input_status}}"></textarea>
         </div>
     </div>
     <div class="row border-bottom py-1">
