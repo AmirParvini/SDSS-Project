@@ -1,6 +1,106 @@
-import { map, minimap, map_tiles, markerGroup } from "./map_init.js";
-import ShowPoints from "./show_points.js";
+import axios from "axios";
+import { map } from "./map_init.js";
+
 $(function () {
+    // fade-in/out itmes table
+    $(".imgitems").on("click", function (e) {
+        if ($(".itemstable").hasClass("d-none")) {
+            $(".itemstable").removeClass("fade-out-left d-none");
+            setTimeout(() => {
+                $(".itemstable").addClass("moved");
+            }, 10);
+        } else {
+            $(".itemstable").addClass("fade-out-left");
+            setTimeout(() => {
+                $(".itemstable").addClass("d-none");
+            }, 100);
+            $(".itemstable").removeClass("moved");
+        }
+    });
+
+    // تعریف آیکون‌های سفارشی برای هر نوع نقطه
+    const nodeIcons = {
+        dc: L.divIcon({
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/jqisugjj.json"\
+                trigger="loop"\
+                delay="1000"\
+                colors="primary:#2516c7"\
+                style="width:20px;height:20px">\
+                    </lord-icon>',
+            iconSize: [20, 20],
+            iconAnchor: [20 / 2, 20],
+            popupAnchor: [0, -20 - 4],
+        }),
+        da: L.divIcon({
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/izzyzruz.json"\
+                trigger="loop"\
+                colors="primary:#c71f16"\
+                style="width:20px;height:20px;">\
+                    </lord-icon>',
+            iconSize: [20, 20],
+            iconAnchor: [20 / 2, 20],
+            popupAnchor: [0, -20 - 4],
+        }),
+        ec: L.divIcon({
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/ewtxwele.json"\
+                trigger="loop"\
+                delay="1000"\
+                colors="primary:#109121"\
+                style="width:15px;height:15px">\
+                    </lord-icon>',
+            iconAnchor: [20 / 2, 20],
+            popupAnchor: [0, -20 - 4],
+        }),
+        tmc: L.icon({
+            iconUrl: "https://img.icons8.com/?size=100&id=Tc1f4oIX57Up&format=png&color=DE2AB1",
+            iconSize: [15, 15],
+            iconAnchor: [20 / 2, 20],
+            popupAnchor: [0, -20 - 4],
+        }),
+        h: L.icon({
+            iconUrl: "https://img.icons8.com/?size=100&id=11934&format=png&color=000000",
+            iconSize: [20, 20],
+            iconAnchor: [20 / 2, 20],
+            popupAnchor: [0, -20 - 4],
+        }),
+    };
+
+    
+    // Loading HSC nodes and parameters when entering the app
+    const featureGroups = {
+        dc: new L.FeatureGroup(),
+        ec: new L.FeatureGroup(),
+        da: new L.FeatureGroup(),
+        tmc: new L.FeatureGroup(),
+        h: new L.FeatureGroup(),
+    };
+
+    let geojsonNodes = null;
+    let hscParameters = null;
+
+    axios.get("http://127.0.0.1:8000/load_data").then((response) => {
+        geojsonNodes = response.data.geojson_nodes;
+        console.log(geojsonNodes)
+        hscParameters = response.data.hsc_parameters;
+        L.geoJSON(geojsonNodes, {
+            pointToLayer: (feature, latlng) => {
+                const type = feature.properties.type;
+                const icon = nodeIcons[type] ?? defaultIcon;
+                const marker = L.marker(latlng, { icon });
+                if (featureGroups[type]) {
+                    marker.addTo(featureGroups[type]).addTo(map);
+                }
+                return marker;
+            },
+        });
+    });
+
     // let polyline = L.polyline(path, {
     //         color: 'red',       // رنگ خط
     //         weight: 5,          // ضخامت خط
@@ -201,20 +301,4 @@ $(function () {
     //             }
     //         });
     // });
-
-    // fade-in/out itmes table
-    $(".imgitems").on("click", function (e) {
-        if ($(".itemstable").hasClass("d-none")) {
-            $(".itemstable").removeClass("fade-out-left d-none");
-            setTimeout(() => {
-                $(".itemstable").addClass("moved");
-            }, 10);
-        } else {
-            $(".itemstable").addClass("fade-out-left");
-            setTimeout(() => {
-                $(".itemstable").addClass("d-none");
-            }, 100);
-            $(".itemstable").removeClass("moved");
-        }
-    });
 });

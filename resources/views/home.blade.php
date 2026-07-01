@@ -195,12 +195,5 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     @vite('resources/js/home/home.js')
     <script>
-        Points = {
-            IDC: @json($idc_points),
-            EC: @json($ec_points),
-            DA: @json($da_points),
-            TMC: @json($tmc_points),
-            H: @json($H_points)
-        };
     </script>
 @endpush

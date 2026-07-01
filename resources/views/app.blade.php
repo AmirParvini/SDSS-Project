@@ -8,6 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"> --}}
     <script src="https://kit.fontawesome.com/76408496e4.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
     <title>@yield('title', 'SDSS')</title>
