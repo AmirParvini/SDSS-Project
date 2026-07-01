@@ -12,8 +12,9 @@ use App\Http\Controllers\SolvingController;
 use App\Http\Controllers\TMCController;
 use Illuminate\Support\Facades\Route;
 
-// Route::get("/", [HomeController::class, 'index'])->name('home');
-Route::get("/", [OptimizationController::class, 'optimize'])->name('optima');
+Route::view('/', 'home');
+Route::get("/load_data", [HomeController::class, 'index'])->name('load_data');
+// Route::get("/", [OptimizationController::class, 'optimize'])->name('optima');
 // Route::post('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::get('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::post('/api/config/getdata',[ConfigurationController::class, 'getdata'])->name('configuration.getdata');
