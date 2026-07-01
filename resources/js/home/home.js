@@ -30,8 +30,8 @@ $(function () {
                 style="width:20px;height:20px">\
                     </lord-icon>',
             iconSize: [20, 20],
-            iconAnchor: [20 / 2, 20],
-            popupAnchor: [0, -20 - 4],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
         }),
         da: L.divIcon({
             className: "",
@@ -42,8 +42,8 @@ $(function () {
                 style="width:20px;height:20px;">\
                     </lord-icon>',
             iconSize: [20, 20],
-            iconAnchor: [20 / 2, 20],
-            popupAnchor: [0, -20 - 4],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
         }),
         ec: L.divIcon({
             className: "",
@@ -54,24 +54,37 @@ $(function () {
                 colors="primary:#109121"\
                 style="width:15px;height:15px">\
                     </lord-icon>',
-            iconAnchor: [20 / 2, 20],
-            popupAnchor: [0, -20 - 4],
+            iconAnchor: [7.5, 7.5],
+            popupAnchor: [0, -7.5],
         }),
         tmc: L.icon({
-            iconUrl: "https://img.icons8.com/?size=100&id=Tc1f4oIX57Up&format=png&color=DE2AB1",
+            iconUrl:
+                "https://img.icons8.com/?size=100&id=Tc1f4oIX57Up&format=png&color=DE2AB1",
             iconSize: [15, 15],
-            iconAnchor: [20 / 2, 20],
-            popupAnchor: [0, -20 - 4],
+            iconAnchor: [7.5, 7.5],
+            popupAnchor: [0, -7.5],
         }),
         h: L.icon({
-            iconUrl: "https://img.icons8.com/?size=100&id=11934&format=png&color=000000",
+            iconUrl:
+                "https://img.icons8.com/?size=100&id=11934&format=png&color=000000",
             iconSize: [20, 20],
-            iconAnchor: [20 / 2, 20],
-            popupAnchor: [0, -20 - 4],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
         }),
     };
 
-    
+    const pulsingIcon = L.divIcon({
+        className: "custom-pulsing-icon", // کلاس اصلی
+        html: `
+      <div class="ping-container">
+        <div class="ring" ></div>
+        <div class="ring"></div>
+      </div>
+    `,
+        iconAnchor: [5, 5], // قرار دادن مرکز دایره روی مختصات دقیق
+        popupAnchor: [0, -2.5],
+    });
+
     // Loading HSC nodes and parameters when entering the app
     const featureGroups = {
         dc: new L.FeatureGroup(),
@@ -84,22 +97,27 @@ $(function () {
     let geojsonNodes = null;
     let hscParameters = null;
 
-    axios.get("http://127.0.0.1:8000/load_data").then((response) => {
-        geojsonNodes = response.data.geojson_nodes;
-        console.log(geojsonNodes)
-        hscParameters = response.data.hsc_parameters;
-        L.geoJSON(geojsonNodes, {
-            pointToLayer: (feature, latlng) => {
-                const type = feature.properties.type;
-                const icon = nodeIcons[type] ?? defaultIcon;
-                const marker = L.marker(latlng, { icon });
-                if (featureGroups[type]) {
-                    marker.addTo(featureGroups[type]).addTo(map);
-                }
-                return marker;
-            },
-        });
-    });
+    axios
+        .get("http://127.0.0.1:8000/load_data")
+        .then((response) => {
+            geojsonNodes = response.data.geojson_nodes;
+            console.log(geojsonNodes);
+            hscParameters = response.data.hsc_parameters;
+            L.geoJSON(geojsonNodes, {
+                pointToLayer: (feature, latlng) => {
+                    const type = feature.properties.type;
+                    const icon = nodeIcons[type] ?? defaultIcon;
+                    const marker = L.marker(latlng, {
+                        icon: icon,
+                        properties: feature.properties,
+                    });
+                    if (featureGroups[type]) {
+                        marker.addTo(featureGroups[type]).addTo(map);
+                    }
+                    return marker;
+                },
+            });
+        })
 
     // let polyline = L.polyline(path, {
     //         color: 'red',       // رنگ خط

@@ -8,6 +8,8 @@ export const map_tiles = {
     5: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 }
 map.whenReady(()=>{
+    map.createPane('backgroundMarkers');
+    map.getPane('backgroundMarkers').style.zIndex = '590';
     L.tileLayer(map_tiles[4]).addTo(map);
     L.tileLayer(map_tiles[4]).addTo(minimap);
     let boundingBox;
