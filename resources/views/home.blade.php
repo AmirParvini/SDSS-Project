@@ -15,17 +15,6 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     @vite('resources/css/home/home.css')
 @endpush
-
-@php
-    $point_types = [
-        'IDC' => 'مرکز توزیع اقلام امدادی',
-        'EC' => 'پناهگاه',
-        'DA' => 'منطقه آسیب دیده',
-        'H' => 'بیمارستان',
-        'TMC' => 'مرکز درمانی موقت',
-    ];
-@endphp
-
 @section('content')
     {{-- map --}}
     <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
@@ -96,17 +85,14 @@
         </div>
         <!-- Properties -->
         <div class="node-props flex-column m-2">
-            @for ($i = 0; $i < 5; $i++)
-                <div class="row border-bottom">
-                    <div class="col p-0">
-                        <p class="mb-0">Id</p>
-                    </div>
-                    <div class="col-1">:</div>
-                    <div class="col p-0">
-                        <p class="mb-0">-</p>
-                    </div>
-                </div>
-            @endfor
+            <x-node_properties.general-properties id="generic_prop">
+            <div class="props">
+                <x-node_properties.ec-properties class="d-none ec" />
+                <x-node_properties.da-properties class="d-none da" />
+                <x-node_properties.tmc-properties class="d-none tmc" />
+                <x-node_properties.h-properties class="d-none h" />
+            </div>
+        </x-node_properties.general-properties>
         </div>
         <!-- MiniMap -->
         <div id="minimap" style="height: 100px"></div>
@@ -194,6 +180,4 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     @vite('resources/js/home/home.js')
-    <script>
-    </script>
 @endpush

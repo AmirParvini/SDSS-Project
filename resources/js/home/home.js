@@ -117,7 +117,32 @@ $(function () {
                     return marker;
                 },
             });
-        })
+        }).then(() => {
+            var pulish_marker = new L.Marker();
+            Object.entries(featureGroups).forEach(([type, featureGroup]) => {
+                featureGroup.on("click", (e) => {
+                    pulish_marker.removeFrom(map);
+                    pulish_marker = L.marker(e.latlng, {
+                        icon: pulsingIcon,
+                        pane: "backgroundMarkers",
+                    }).addTo(map);
+                    $("#generic_prop").find(".lat").val(e.latlng.lat);
+                    $("#generic_prop").find(".lng").val(e.latlng.lng);
+                    const props = e.layer.feature.properties;
+                    const node_type = e.layer.feature.properties.type;
+                    $('.props').children().addClass('d-none');
+                    $(`.${node_type}`).removeClass('d-none');
+                    Object.entries(props).forEach(([prop, val]) => {
+                        var elementTag = $("#generic_prop").find(`.${prop}`)
+                        if (elementTag.is("input")) {
+                            elementTag.val(val);
+                        } else {
+                            elementTag.text(val);
+                        }
+                    });
+                });
+            });
+        });
 
     // let polyline = L.polyline(path, {
     //         color: 'red',       // رنگ خط
