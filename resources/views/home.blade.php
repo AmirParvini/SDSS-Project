@@ -78,10 +78,10 @@
 
     {{-- Node properties container --}}
     <div class="node-card shadow-xl position-absolute top-0 end-0 mt-14 mr-3 p-3 rounded-5 bg-white border-1 border-stone-200"
-        style="z-index: 2">
+        style="z-index: 2; width: 250px;">
         <!-- Header -->
         <div class="node-card-header">
-            <h6>Node Properties</h6>
+            <h6 class="font-bold">Node Properties</h6>
         </div>
         <!-- Properties -->
         <div class="node-props flex-column m-2">

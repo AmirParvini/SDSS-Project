@@ -3,6 +3,11 @@ p {
     font-size: 14px;
     padding: 4px;
 }
+
+input, textarea {
+  font-size: 14px !important;
+}
+
 .itemstable{
     max-width: 500px;
 }
@@ -50,6 +55,13 @@ p {
 .fade-out-left.moved {
     transform: translateX(-120px); /* ۱۲۰ پیکسل حرکت به راست */
     opacity: 0;                   /* محو شدن کامل */
+}
+
+.node_name {
+  max-width: auto;
+    max-height: fit-content;
+    resize: none;
+    overflow-wrap: break-word;
 }
 
 /* ظرف اصلی برای نگه‌داری مارکر و امواج */

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { map } from "./map_init.js";
+import { da_icon, dc_icon, ec_icon, h_icon, map, puls_icon, tmc_icon } from "./map_init.js";
 
 $(function () {
     // fade-in/out itmes table
@@ -20,70 +20,14 @@ $(function () {
 
     // تعریف آیکون‌های سفارشی برای هر نوع نقطه
     const nodeIcons = {
-        dc: L.divIcon({
-            className: "",
-            html: '<lord-icon\
-                src="https://cdn.lordicon.com/jqisugjj.json"\
-                trigger="loop"\
-                delay="1000"\
-                colors="primary:#2516c7"\
-                style="width:20px;height:20px">\
-                    </lord-icon>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -5],
-        }),
-        da: L.divIcon({
-            className: "",
-            html: '<lord-icon\
-                src="https://cdn.lordicon.com/izzyzruz.json"\
-                trigger="loop"\
-                colors="primary:#c71f16"\
-                style="width:20px;height:20px;">\
-                    </lord-icon>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -5],
-        }),
-        ec: L.divIcon({
-            className: "",
-            html: '<lord-icon\
-                src="https://cdn.lordicon.com/ewtxwele.json"\
-                trigger="loop"\
-                delay="1000"\
-                colors="primary:#109121"\
-                style="width:15px;height:15px">\
-                    </lord-icon>',
-            iconAnchor: [7.5, 7.5],
-            popupAnchor: [0, -7.5],
-        }),
-        tmc: L.icon({
-            iconUrl:
-                "https://img.icons8.com/?size=100&id=Tc1f4oIX57Up&format=png&color=DE2AB1",
-            iconSize: [15, 15],
-            iconAnchor: [7.5, 7.5],
-            popupAnchor: [0, -7.5],
-        }),
-        h: L.icon({
-            iconUrl:
-                "https://img.icons8.com/?size=100&id=11934&format=png&color=000000",
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -5],
-        }),
+        dc: dc_icon,
+        da: da_icon,
+        ec: ec_icon,
+        tmc: tmc_icon,
+        h: h_icon,
     };
 
-    const pulsingIcon = L.divIcon({
-        className: "custom-pulsing-icon", // کلاس اصلی
-        html: `
-      <div class="ping-container">
-        <div class="ring" ></div>
-        <div class="ring"></div>
-      </div>
-    `,
-        iconAnchor: [5, 5], // قرار دادن مرکز دایره روی مختصات دقیق
-        popupAnchor: [0, -2.5],
-    });
+    const pulsingIcon = puls_icon;
 
     // Loading HSC nodes and parameters when entering the app
     const featureGroups = {
@@ -134,7 +78,7 @@ $(function () {
                     $(`.${node_type}`).removeClass('d-none');
                     Object.entries(props).forEach(([prop, val]) => {
                         var elementTag = $("#generic_prop").find(`.${prop}`)
-                        if (elementTag.is("input")) {
+                        if (elementTag.is("textarea") || elementTag.is("input")) {
                             elementTag.val(val);
                         } else {
                             elementTag.text(val);

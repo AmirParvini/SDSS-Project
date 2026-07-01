@@ -33,33 +33,66 @@ map.whenReady(()=>{
     });
 });
 
-export let lineGroup = L.layerGroup().addTo(map);
-export let markerGroup = L.layerGroup().addTo(map);
-export let idc_icon = L.icon({
-    iconUrl: 'images/map/distributioncenter.png',
-    iconSize: [20, 20],
-    iconAnchor: [10, 20],
-    popupAnchor: [0, -20]
-});
-export let ec_icon = L.icon({
-    iconUrl: 'images/map/shelter.png',
-    iconSize: [20, 20],
-    iconAnchor: [10, 20],
-    popupAnchor: [0, -20]
-});
+export let dc_icon = L.divIcon({
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/jqisugjj.json"\
+                trigger="loop"\
+                delay="1000"\
+                colors="primary:#2516c7"\
+                style="width:20px;height:20px">\
+                    </lord-icon>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
+        });
+export let ec_icon = L.divIcon({
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/ewtxwele.json"\
+                trigger="loop"\
+                delay="1000"\
+                colors="primary:#109121"\
+                style="width:15px;height:15px">\
+                    </lord-icon>',
+            iconAnchor: [7.5, 7.5],
+            popupAnchor: [0, -7.5],
+        });
 export let h_icon = L.icon({
-    iconUrl: 'images/map/Hospital.png',
-    iconSize: [20, 20],
-    iconAnchor: [10, 20],
-    popupAnchor: [0, -20]
-});
+            iconUrl:
+                "https://img.icons8.com/?size=100&id=11934&format=png&color=000000",
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
+        });
 export let da_icon = L.divIcon({
-    className: "custom-icon",
-    html: '<div style="width: 10px; height: 10px; background-color: red; border-radius: 100%;"></div>',
-});
+            className: "",
+            html: '<lord-icon\
+                src="https://cdn.lordicon.com/izzyzruz.json"\
+                trigger="loop"\
+                colors="primary:#c71f16"\
+                style="width:20px;height:20px;">\
+                    </lord-icon>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -5],
+        });
 export let tmc_icon = L.icon({
-    iconUrl: 'images/map/Reliefshelter.png',
-    iconSize: [20, 20],
-    iconAnchor: [10, 20],
-    popupAnchor: [0, -20]
-});
+            iconUrl:
+                "https://img.icons8.com/?size=100&id=Tc1f4oIX57Up&format=png&color=DE2AB1",
+            iconSize: [15, 15],
+            iconAnchor: [7.5, 7.5],
+            popupAnchor: [0, -7.5],
+        });
+
+export let puls_icon = L.divIcon({
+        className: "custom-pulsing-icon", // کلاس اصلی
+        html: `
+      <div class="ping-container">
+        <div class="ring" ></div>
+        <div class="ring"></div>
+      </div>
+    `,
+        iconAnchor: [5, 5], // قرار دادن مرکز دایره روی مختصات دقیق
+        popupAnchor: [0, -2.5],
+    }); 
