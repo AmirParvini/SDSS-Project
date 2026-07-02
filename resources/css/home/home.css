@@ -1,8 +1,13 @@
 p {
-    line-height: 100%;
+    line-height: 1.4;
     font-size: 14px;
     padding: 4px;
     margin-bottom: 0px !important;
+}
+
+.itemstable table tbody td p {
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 input,
@@ -77,14 +82,8 @@ textarea {
     min-width: 200px;
 }
 
-/* Sticky table header and scroll settings */
-.itemstable {
-    overflow-y: auto !important;
-    overflow-x: auto !important;
-}
 
 .itemstable table {
-    margin-top: 0 !important;
     border-collapse: separate;
     border-spacing: 0;
     width: 100%;

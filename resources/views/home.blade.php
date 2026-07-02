@@ -1,7 +1,7 @@
 @extends('app')
 @push('styles')
     <style>
-        
+
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -49,8 +49,7 @@
             style="z-index: 2">
             @foreach ($node_types as $key => $value)
                 <div class="items">
-                    <a href="#"><img src="{{ $value['item_img'] }}"
-                            data-type="{{ $key }}"
+                    <a href="#"><img src="{{ $value['item_img'] }}" data-type="{{ $key }}"
                             class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
                             style="border-radius: 50%;" alt="..."></a>
                     <div class="textitems lh-1 d-flex justify-content-center mt-1">
@@ -60,17 +59,19 @@
             @endforeach
         </div>
         {{-- Tables --}}
-        <div class="itemstable shadow-lg border-1 border-stone-200 d-flex flex-column d-none fade-in-right rounded-e-xl bg-white"
-            style="z-index: 1; max-width: 500px; overflow: scroll">
-            <div class="border d-flex">search</div>
-            <table class="table table-hover mt-2">
-                <thead>
-                
-                </thead>
-                <tbody>
-                    
-                </tbody>
-            </table>
+        <div class="itemstable pt-0 shadow-lg border-1 border-stone-200 d-flex flex-column d-none fade-in-right rounded-e-xl bg-white"
+            style="z-index: 1; max-width: 450px;">
+            <div class="border d-flex sticky-top my-2 bg-white" style="z-index: 11;">search</div>
+            <div style="overflow: auto;">
+                <table class="table table-hover">
+                    <thead>
+
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -85,14 +86,10 @@
         <div class="node-props flex-column m-2">
             <x-node_properties.general-properties id="generic_prop">
                 <div class="props">
-                    <x-node_properties.ec-properties
-                        class="d-none {{ $node_types['ec']['class'] }}" />
-                    <x-node_properties.da-properties
-                        class="d-none {{ $node_types['da']['class'] }}" />
-                    <x-node_properties.tmc-properties
-                        class="d-none {{ $node_types['tmc']['class'] }}" />
-                    <x-node_properties.h-properties
-                        class="d-none {{ $node_types['h']['class'] }}" />
+                    <x-node_properties.ec-properties class="d-none {{ $node_types['ec']['class'] }}" />
+                    <x-node_properties.da-properties class="d-none {{ $node_types['da']['class'] }}" />
+                    <x-node_properties.tmc-properties class="d-none {{ $node_types['tmc']['class'] }}" />
+                    <x-node_properties.h-properties class="d-none {{ $node_types['h']['class'] }}" />
                 </div>
             </x-node_properties.general-properties>
         </div>
