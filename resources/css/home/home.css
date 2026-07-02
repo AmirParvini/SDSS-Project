@@ -2,27 +2,28 @@ p {
     line-height: 100%;
     font-size: 14px;
     padding: 4px;
+    margin-bottom: 0px !important;
 }
 
-input, textarea {
-  font-size: 14px !important;
+input,
+textarea {
+    font-size: 14px !important;
 }
 
-.itemstable{
-    max-width: 500px;
-}
-.imgitems{
+.imgitems {
     box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
-    transition: transform 0.2s, box-shadow 0.2s ;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
 }
-.textitems{
+.textitems {
     transition: border-bottom 0.05s ease;
 }
-.items:hover .imgitems{
+.items:hover .imgitems {
     transform: translate(-2px, -2px);
     box-shadow: 2px 5px 15px rgba(0, 0, 0, 0.2);
 }
-.items:hover .textitems{
+.items:hover .textitems {
     border-bottom: 2px solid black;
 }
 
@@ -31,8 +32,9 @@ input, textarea {
     opacity: 1;
     /* transition: نوع انیمیشن | زمان | نوع شتاب */
     /* ease-out باعث می‌شود انیمیشن سریع شروع شده و در انتها سرعتش کم شود */
-    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
-                opacity 0.2s ease-out;
+    transition:
+        transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
+        opacity 0.2s ease-out;
     padding: 10px;
     padding-left: 40px;
 }
@@ -40,8 +42,9 @@ input, textarea {
 .fade-in-right {
     opacity: 0;
     transform: translateX(-120px);
-    transition: transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
-                opacity 0.2s ease-out;
+    transition:
+        transform 0.3s cubic-bezier(0.5, 0.5, 0.25, 1),
+        opacity 0.2s ease-out;
 }
 
 .fade-in-right.moved {
@@ -54,58 +57,89 @@ input, textarea {
 /* کلاسی که بعد از کلیک شدن اضافه می‌شود و انیمیشن را استارت می‌زند */
 .fade-out-left.moved {
     transform: translateX(-120px); /* ۱۲۰ پیکسل حرکت به راست */
-    opacity: 0;                   /* محو شدن کامل */
+    opacity: 0; /* محو شدن کامل */
 }
 
 .node_name {
-  max-width: auto;
+    max-width: auto;
     max-height: fit-content;
     resize: none;
     overflow-wrap: break-word;
 }
 
+.dropdown-menu {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdown-toggle {
+    width: auto;
+    min-width: 200px;
+}
+
+/* Sticky table header and scroll settings */
+.itemstable {
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+}
+
+.itemstable table {
+    margin-top: 0 !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.itemstable table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa; /* standard light background */
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+}
+
 /* ظرف اصلی برای نگه‌داری مارکر و امواج */
 .ping-container {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+    position: relative;
+    width: 10px;
+    height: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* ساختار حلقه‌های موج */
 .ring {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 120, 255, 0.4);
-  border-radius: 50%;
-  opacity: 0;
-  z-index: 1;
-  /* اعمال انیمیشن */
-  animation: ripple 1.5s cubic-bezier(0.25, 0, 0, 1) infinite;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 120, 255, 0.4);
+    border-radius: 50%;
+    opacity: 0;
+    z-index: 1;
+    /* اعمال انیمیشن */
+    animation: ripple 1.5s cubic-bezier(0.25, 0, 0, 1) infinite;
 }
 
 /* ایجاد فاصله زمانی (Delay) بین موج‌ها برای پشت سر هم دیده شدن */
 .ring:nth-child(2) {
-  animation-delay: 0.1s;
+    animation-delay: 0.1s;
 }
 .ring:nth-child(2) {
-  animation-delay: 0.3s;
+    animation-delay: 0.3s;
 }
 
 /* تعریف انیمیشن موج */
 @keyframes ripple {
-  0% {
-    transform: scale(0.5);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1; /* موج ظاهر می‌شود */
-  }
-  100% {
-    transform: scale(4); /* موج بزرگ می‌شود */
-    opacity: 0; /* و کاملاً محو می‌شود */
-  }
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1; /* موج ظاهر می‌شود */
+    }
+    100% {
+        transform: scale(4); /* موج بزرگ می‌شود */
+        opacity: 0; /* و کاملاً محو می‌شود */
+    }
 }

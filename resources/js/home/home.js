@@ -1,22 +1,99 @@
 import axios from "axios";
-import { da_icon, dc_icon, ec_icon, h_icon, map, puls_icon, tmc_icon } from "./map_init.js";
+import {
+    da_icon,
+    dc_icon,
+    ec_icon,
+    h_icon,
+    map,
+    puls_icon,
+    tmc_icon,
+} from "./map_init.js";
 
 $(function () {
+    let currentActiveType = null;
+
     // fade-in/out itmes table
     $(".imgitems").on("click", function (e) {
+        const type = $(this).data("type");
+        
+        // Dynamically adjust max-height of table to match itemside height
+        const itemsideHeight = $(".itemside").innerHeight();
+        $(".itemstable").css("max-height", itemsideHeight + "px").css("min-height", itemsideHeight + "px");
+
         if ($(".itemstable").hasClass("d-none")) {
             $(".itemstable").removeClass("fade-out-left d-none");
             setTimeout(() => {
                 $(".itemstable").addClass("moved");
             }, 10);
+            currentActiveType = type;
+            populateTable(type);
         } else {
-            $(".itemstable").addClass("fade-out-left");
-            setTimeout(() => {
-                $(".itemstable").addClass("d-none");
-            }, 100);
-            $(".itemstable").removeClass("moved");
+            if (currentActiveType === type) {
+                $(".itemstable").addClass("fade-out-left");
+                setTimeout(() => {
+                    $(".itemstable").addClass("d-none");
+                }, 100);
+                $(".itemstable").removeClass("moved");
+                currentActiveType = null;
+            } else {
+                currentActiveType = type;
+                populateTable(type);
+            }
         }
     });
+
+    function populateTable(type) {
+        const table = $(".itemstable table");
+        const thead = table.find("thead");
+        const tbody = table.find("tbody");
+
+        thead.empty();
+        tbody.empty();
+
+        if (!featureGroups[type]) return;
+
+        const layers = featureGroups[type].getLayers();
+        if (layers.length === 0) {
+            thead.append(`<tr><th scope="col">No Data</th></tr>`);
+            tbody.append(`<tr><td class="text-center text-muted py-3">No data available</td></tr>`);
+            return;
+        }
+
+        // Ensure lat and lng are present in all layer properties dynamically
+        layers.forEach((layer) => {
+            const props = layer.feature ? layer.feature.properties : (layer.options.properties || {});
+            const latlng = layer.getLatLng();
+            if (props.lat === undefined) {
+                props.lat = latlng.lat.toFixed(2);
+            }
+            if (props.lng === undefined) {
+                props.lng = latlng.lng.toFixed(2);
+            }
+        });
+
+        const firstLayerProps = layers[0].feature ? layers[0].feature.properties : (layers[0].options.properties || {});
+        const keys = Object.keys(firstLayerProps);
+
+        let headerRow = "<tr>";
+        keys.forEach(key => {
+            headerRow += `<th scope="col"><p>${key}</p></th>`;
+        });
+        headerRow += "</tr>";
+        thead.append(headerRow);
+
+        layers.forEach((layer) => {
+            const props = layer.feature ? layer.feature.properties : (layer.options.properties || {});
+            const latlng = layer.getLatLng();
+
+            let rowHtml = `<tr style="cursor: pointer;" class="table-row-item" data-id="${props.id || ''}" data-lat="${latlng.lat}" data-lng="${latlng.lng}">`;
+            keys.forEach(key => {
+                const val = props[key] !== undefined ? props[key] : "-";
+                rowHtml += `<td><p>${val}</p></td>`;
+            });
+            rowHtml += "</tr>";
+            tbody.append(rowHtml);
+        });
+    }
 
     // تعریف آیکون‌های سفارشی برای هر نوع نقطه
     const nodeIcons = {
@@ -61,7 +138,8 @@ $(function () {
                     return marker;
                 },
             });
-        }).then(() => {
+        })
+        .then(() => {
             var pulish_marker = new L.Marker();
             Object.entries(featureGroups).forEach(([type, featureGroup]) => {
                 featureGroup.on("click", (e) => {
@@ -74,11 +152,14 @@ $(function () {
                     $("#generic_prop").find(".lng").val(e.latlng.lng);
                     const props = e.layer.feature.properties;
                     const node_type = e.layer.feature.properties.type;
-                    $('.props').children().addClass('d-none');
-                    $(`.${node_type}`).removeClass('d-none');
+                    $(".props").children().addClass("d-none");
+                    $(`.${node_type}`).removeClass("d-none");
                     Object.entries(props).forEach(([prop, val]) => {
-                        var elementTag = $("#generic_prop").find(`.${prop}`)
-                        if (elementTag.is("textarea") || elementTag.is("input")) {
+                        var elementTag = $("#generic_prop").find(`.${prop}`);
+                        if (
+                            elementTag.is("textarea") ||
+                            elementTag.is("input")
+                        ) {
                             elementTag.val(val);
                         } else {
                             elementTag.text(val);

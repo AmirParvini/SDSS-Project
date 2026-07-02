@@ -1,4 +1,4 @@
-<div {{$attributes}}>
+<div {{ $attributes }}>
     <div class="row border-bottom py-1">
         <div class="col-auto p-0">
             <p class="mb-0 font-bold">capacity</p>

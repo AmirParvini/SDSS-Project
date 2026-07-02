@@ -1,15 +1,7 @@
 @extends('app')
 @push('styles')
     <style>
-        .dropdown-menu {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .dropdown-toggle {
-            width: auto;
-            min-width: 200px;
-        }
+        
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -21,28 +13,28 @@
         'dc' => [
             'class' => 'dc',
             'item_img' => asset('/images/warehouse-with-truck.svg'),
-            'elias' => 'Distribution Center'
+            'elias' => 'Distribution Center',
         ],
         'ec' => [
             'class' => 'ec',
             'item_img' => asset('/images/sturdy-house-shelter.svg'),
-            'elias' => 'shelter'
+            'elias' => 'shelter',
         ],
         'da' => [
             'class' => 'da',
             'item_img' => asset('/images/broken-building.svg'),
-            'elias' => 'Affected Area'
+            'elias' => 'Affected Area',
         ],
         'h' => [
             'class' => 'h',
             'item_img' => asset('/images/hospital-building-cross.svg'),
-            'elias' => 'Hospital'
+            'elias' => 'Hospital',
         ],
         'tmc' => [
             'class' => 'tmc',
             'item_img' => asset('/images/tent-with-medical-cross.svg'),
-            'elias' => 'Temporary Medical Center'
-        ]
+            'elias' => 'Temporary Medical Center',
+        ],
     ];
 @endphp
 
@@ -51,57 +43,32 @@
     <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
 
     {{-- Items & Tables --}}
-    <div class="position-absolute bottom-0 start-0 d-flex flex-row w-auto mb-3" style="z-index: 2">
+    <div class="position-absolute bottom-0 start-0 d-flex flex-row align-items-end w-auto mb-3" style="z-index: 2">
         {{-- Items --}}
         <div class="itemside bg-white border-1 border-stone-200 fade-out-left d-flex flex-column w-auto p-3 gap-3 justify-content-center rounded-5 ml-3 shadow"
             style="z-index: 2">
-            @foreach ($node_types as $key => $value)    
-            <div class="items">
-                <a href="#"><img src="{{$value['item_img']}}"
-                        class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
-                        style="border-radius: 50%;" alt="..." id="dc"></a>
-                <div class="textitems lh-1 d-flex justify-content-center mt-1">
-                    <p class="mb-0 font-bold" style="font-size: 12px">{{$value['elias']}}</p>
+            @foreach ($node_types as $key => $value)
+                <div class="items">
+                    <a href="#"><img src="{{ $value['item_img'] }}"
+                            data-type="{{ $key }}"
+                            class="mx-auto d-block w-12 h-12 border-2 border-stone-600 p-1 imgitems"
+                            style="border-radius: 50%;" alt="..."></a>
+                    <div class="textitems lh-1 d-flex justify-content-center mt-1">
+                        <p class="mb-0 font-bold" style="font-size: 12px">{{ $value['elias'] }}</p>
+                    </div>
                 </div>
-            </div>
             @endforeach
         </div>
         {{-- Tables --}}
         <div class="itemstable shadow-lg border-1 border-stone-200 d-flex flex-column d-none fade-in-right rounded-e-xl bg-white"
-            style="z-index: 1">
+            style="z-index: 1; max-width: 500px; overflow: scroll">
             <div class="border d-flex">search</div>
             <table class="table table-hover mt-2">
                 <thead>
-                    <tr>
-                        <th scope="col">
-                            <p>Id</p>
-                        </th>
-                        <th scope="col">
-                            <p>Name</p>
-                        </th>
-                        <th scope="col">
-                            <p>Capacity</p>
-                        </th>
-                        <th scope="col">
-                            <p>Cost</p>
-                        </th>
-                    </tr>
+                
                 </thead>
                 <tbody>
-                    <tr>
-                        <th scope="row">
-                            <p>1</p>
-                        </th>
-                        <td>
-                            <p>Mark</p>
-                        </td>
-                        <td>
-                            <p>Otto</p>
-                        </td>
-                        <td>
-                            <p>@mdb</p>
-                        </td>
-                    </tr>
+                    
                 </tbody>
             </table>
         </div>
@@ -117,13 +84,17 @@
         <!-- Properties -->
         <div class="node-props flex-column m-2">
             <x-node_properties.general-properties id="generic_prop">
-            <div class="props">
-                <x-node_properties.ec-properties class="d-none {{$node_types['ec']['class']}}" />
-                <x-node_properties.da-properties class="d-none {{$node_types['da']['class']}}" />
-                <x-node_properties.tmc-properties class="d-none {{$node_types['tmc']['class']}}" />
-                <x-node_properties.h-properties class="d-none {{$node_types['h']['class']}}" />
-            </div>
-        </x-node_properties.general-properties>
+                <div class="props">
+                    <x-node_properties.ec-properties
+                        class="d-none {{ $node_types['ec']['class'] }}" />
+                    <x-node_properties.da-properties
+                        class="d-none {{ $node_types['da']['class'] }}" />
+                    <x-node_properties.tmc-properties
+                        class="d-none {{ $node_types['tmc']['class'] }}" />
+                    <x-node_properties.h-properties
+                        class="d-none {{ $node_types['h']['class'] }}" />
+                </div>
+            </x-node_properties.general-properties>
         </div>
         <!-- MiniMap -->
         <div id="minimap" style="height: 100px"></div>
