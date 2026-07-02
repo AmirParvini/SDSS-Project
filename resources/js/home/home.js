@@ -93,6 +93,26 @@ $(function () {
             rowHtml += "</tr>";
             tbody.append(rowHtml);
         });
+
+        tbody.find(".table-row-item").on("click", function() {
+            const rowId = $(this).data("id");
+            const rowLat = parseFloat($(this).data("lat"));
+            const rowLng = parseFloat($(this).data("lng"));
+
+            map.setView([rowLat, rowLng], 15);
+
+            const targetLayer = layers.find(l => {
+                const props = l.feature ? l.feature.properties : (l.options.properties || {});
+                return props.id == rowId;
+            });
+
+            if (targetLayer) {
+                featureGroups[type].fire("click", {
+                    latlng: targetLayer.getLatLng(),
+                    layer: targetLayer
+                });
+            }
+        });
     }
 
     // تعریف آیکون‌های سفارشی برای هر نوع نقطه
