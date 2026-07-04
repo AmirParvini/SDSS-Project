@@ -15,10 +15,12 @@ $(function () {
     // fade-in/out itmes table
     $(".imgitems").on("click", function (e) {
         const type = $(this).data("type");
-        
+
         // Dynamically adjust max-height of table to match itemside height
         const itemsideHeight = $(".itemside").innerHeight();
-        $(".itemstable").css("max-height", itemsideHeight + "px").css("min-height", itemsideHeight + "px");
+        $(".itemstable")
+            .css("max-height", itemsideHeight + "px")
+            .css("min-height", itemsideHeight + "px");
 
         if ($(".itemstable").hasClass("d-none")) {
             $(".itemstable").removeClass("fade-out-left d-none");
@@ -55,13 +57,17 @@ $(function () {
         const layers = featureGroups[type].getLayers();
         if (layers.length === 0) {
             thead.append(`<tr><th scope="col">No Data</th></tr>`);
-            tbody.append(`<tr><td class="text-center text-muted py-3">No data available</td></tr>`);
+            tbody.append(
+                `<tr><td class="text-center text-muted py-3">No data available</td></tr>`,
+            );
             return;
         }
 
         // Ensure lat and lng are present in all layer properties dynamically
         layers.forEach((layer) => {
-            const props = layer.feature ? layer.feature.properties : (layer.options.properties || {});
+            const props = layer.feature
+                ? layer.feature.properties
+                : layer.options.properties || {};
             const latlng = layer.getLatLng();
             if (props.lat === undefined) {
                 props.lat = latlng.lat.toFixed(2);
@@ -71,22 +77,26 @@ $(function () {
             }
         });
 
-        const firstLayerProps = layers[0].feature ? layers[0].feature.properties : (layers[0].options.properties || {});
+        const firstLayerProps = layers[0].feature
+            ? layers[0].feature.properties
+            : layers[0].options.properties || {};
         const keys = Object.keys(firstLayerProps);
 
         let headerRow = "<tr>";
-        keys.forEach(key => {
+        keys.forEach((key) => {
             headerRow += `<th scope="col"><p>${key}</p></th>`;
         });
         headerRow += "</tr>";
         thead.append(headerRow);
 
         layers.forEach((layer) => {
-            const props = layer.feature ? layer.feature.properties : (layer.options.properties || {});
+            const props = layer.feature
+                ? layer.feature.properties
+                : layer.options.properties || {};
             const latlng = layer.getLatLng();
 
-            let rowHtml = `<tr style="cursor: pointer;" class="table-row-item" data-id="${props.id || ''}" data-lat="${latlng.lat}" data-lng="${latlng.lng}">`;
-            keys.forEach(key => {
+            let rowHtml = `<tr style="cursor: pointer;" class="table-row-item" data-id="${props.id || ""}" data-lat="${latlng.lat}" data-lng="${latlng.lng}">`;
+            keys.forEach((key) => {
                 const val = props[key] !== undefined ? props[key] : "-";
                 rowHtml += `<td><p>${val}</p></td>`;
             });
@@ -94,22 +104,24 @@ $(function () {
             tbody.append(rowHtml);
         });
 
-        tbody.find(".table-row-item").on("click", function() {
+        tbody.find(".table-row-item").on("click", function () {
             const rowId = $(this).data("id");
             const rowLat = parseFloat($(this).data("lat"));
             const rowLng = parseFloat($(this).data("lng"));
 
             map.setView([rowLat, rowLng], 15);
 
-            const targetLayer = layers.find(l => {
-                const props = l.feature ? l.feature.properties : (l.options.properties || {});
+            const targetLayer = layers.find((l) => {
+                const props = l.feature
+                    ? l.feature.properties
+                    : l.options.properties || {};
                 return props.id == rowId;
             });
 
             if (targetLayer) {
                 featureGroups[type].fire("click", {
                     latlng: targetLayer.getLatLng(),
-                    layer: targetLayer
+                    layer: targetLayer,
                 });
             }
         });
@@ -142,7 +154,6 @@ $(function () {
         .get("http://127.0.0.1:8000/load_data")
         .then((response) => {
             geojsonNodes = response.data.geojson_nodes;
-            console.log(geojsonNodes);
             hscParameters = response.data.hsc_parameters;
             L.geoJSON(geojsonNodes, {
                 pointToLayer: (feature, latlng) => {
@@ -163,6 +174,18 @@ $(function () {
             var pulish_marker = new L.Marker();
             Object.entries(featureGroups).forEach(([type, featureGroup]) => {
                 featureGroup.on("click", (e) => {
+                    if (
+                        $("#edit-btn").hasClass("disabled") &&
+                        $("#delete-btn").hasClass("disabled")
+                    ) {
+                        $("#edit-btn").removeClass("disabled");
+                        $("#delete-btn").removeClass("disabled");
+                    }
+                    if (!$("#save-actions").hasClass("d-none")) {
+                        $("#save-actions").addClass("d-none");
+                        $("#edit-actions").removeClass("d-none");
+                        cancel_btn_event();
+                    }
                     pulish_marker.removeFrom(map);
                     pulish_marker = L.marker(e.latlng, {
                         icon: pulsingIcon,
@@ -188,6 +211,42 @@ $(function () {
                 });
             });
         });
+
+    $("#edit-btn").on("click", function () {
+        edit_btn_event();
+    });
+    $("#cancel-btn").on("click", function () {
+        delete_btn_event();
+    });
+    
+    $("#cancel-btn").on("click", function () {
+        cancel_btn_event();
+    });
+    $("#cancel-btn").on("click", function () {
+        save_btn_event();
+    });
+
+    function edit_btn_event() {
+        let El_actions = $("#edit-btn").parents(".actions");
+        El_actions.children().addClass("d-none");
+        El_actions.find("#save-actions").removeClass("d-none");
+        $(".node-props")
+            .find("input, textarea")
+            .each(function () {
+                $(this).prop("disabled", false);
+            });
+    }
+
+    function cancel_btn_event() {
+        let El_actions = $("#cancel-btn").parents(".actions");
+        El_actions.children().addClass("d-none");
+        El_actions.find("#edit-actions").removeClass("d-none");
+        $(".node-props")
+            .find("input, textarea")
+            .each(function () {
+                $(this).prop("disabled", true);
+            });
+    }
 
     // let polyline = L.polyline(path, {
     //         color: 'red',       // رنگ خط
