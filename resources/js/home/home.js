@@ -70,10 +70,10 @@ $(function () {
                 : layer.options.properties || {};
             const latlng = layer.getLatLng();
             if (props.lat === undefined) {
-                props.lat = latlng.lat.toFixed(2);
+                props.lat = latlng.lat.toFixed(4);
             }
             if (props.lng === undefined) {
-                props.lng = latlng.lng.toFixed(2);
+                props.lng = latlng.lng.toFixed(4);
             }
         });
 
@@ -149,6 +149,7 @@ $(function () {
 
     let geojsonNodes = null;
     let hscParameters = null;
+    var pulish_marker = new L.Marker();
 
     axios
         .get("http://127.0.0.1:8000/load_data")
@@ -171,7 +172,6 @@ $(function () {
             });
         })
         .then(() => {
-            var pulish_marker = new L.Marker();
             Object.entries(featureGroups).forEach(([type, featureGroup]) => {
                 featureGroup.on("click", (e) => {
                     if (
@@ -191,38 +191,54 @@ $(function () {
                         icon: pulsingIcon,
                         pane: "backgroundMarkers",
                     }).addTo(map);
-                    $("#generic_prop").find(".lat").val(e.latlng.lat);
-                    $("#generic_prop").find(".lng").val(e.latlng.lng);
+                    let lat = $("#generic_prop").find(".lat");
+                    let lng = $("#generic_prop").find(".lng");
+                    lat.val(e.latlng.lat);
+                    lat[0].defaultValue = e.latlng.lat;
+                    lng.val(e.latlng.lng);
+                    lng[0].defaultValue = e.latlng.lng;
                     const props = e.layer.feature.properties;
                     const node_type = e.layer.feature.properties.type;
                     $(".props").children().addClass("d-none");
                     $(`.${node_type}`).removeClass("d-none");
-                    Object.entries(props).forEach(([prop, val]) => {
-                        var elementTag = $("#generic_prop").find(`.${prop}`);
-                        if (
-                            elementTag.is("textarea") ||
-                            elementTag.is("input")
-                        ) {
-                            elementTag.val(val);
-                        } else {
-                            elementTag.text(val);
-                        }
-                    });
+                    node_prop_display (node_type, props);
                 });
             });
         });
 
-    $("#edit-btn").on("click", function () {
+    function node_prop_display(node_type, props) {
+        Object.entries(props).forEach(([prop, val]) => {
+            var elementTag = $("#generic_prop")
+                .find(`.${node_type}`)
+                .find(`.${prop}`);
+            if (elementTag.length === 0) {
+                elementTag = $("#generic_prop").find(`.${prop}`);
+            }
+            if (elementTag.is("textarea") || elementTag.is("input")) {
+                elementTag.val(val);
+                if (elementTag[0]) elementTag[0].defaultValue = val;
+            } else {
+                elementTag.text(val);
+                if (elementTag[0]) elementTag[0].defaultValue = val;
+            }
+        });
+    }
+
+    $("#edit-btn").on("click", function (e) {
+        e.preventDefault(); // Prevent default form submission
         edit_btn_event();
     });
-    $("#cancel-btn").on("click", function () {
+    $("#delete-btn").on("click", function (e) {
+        e.preventDefault(); // Prevent default form submission
         delete_btn_event();
     });
-    
-    $("#cancel-btn").on("click", function () {
+
+    $("#cancel-btn").on("click", function (e) {
+        e.preventDefault(); // Prevent default form submission
         cancel_btn_event();
     });
-    $("#cancel-btn").on("click", function () {
+    $("#save-btn").on("click", function (e) {
+        e.preventDefault(); // Prevent default form submission
         save_btn_event();
     });
 
@@ -244,208 +260,134 @@ $(function () {
         $(".node-props")
             .find("input, textarea")
             .each(function () {
+                // ۱. بازگرداندن مقدار به مقدار پیش‌فرض اولیه
+                this.value = this.defaultValue;
+                // ۲. غیرفعال کردن فیلد
                 $(this).prop("disabled", true);
             });
     }
 
-    // let polyline = L.polyline(path, {
-    //         color: 'red',       // رنگ خط
-    //         weight: 5,          // ضخامت خط
-    //         opacity: 0.7        // شفافیت
-    //     }).addTo(map);
-    //     map.fitBounds(polyline.getBounds());
-    // let SP = new ShowPoints();
-    // const points_json = [];
-    // SP.loadpoints(Points); //Points sent from home.blade
-    // Object.entries(Points).forEach(([pointType, points]) => {
-    //     if (points && Array.isArray(points)) {
-    //         points.forEach(point => {
-    //             points_json.push({
-    //                 type: pointType,
-    //                 point: point
-    //             });
-    //         });
-    //     }
-    // });
-    // console.log('points_json:', points_json);
-    // // Map click event to add point
-    // const modal = new bootstrap.Modal($("#addPointModal"));
-    // map.on("click", function (e) {
-    //     $("#pointLat").val(e.latlng.lat);
-    //     $("#pointLng").val(e.latlng.lng);
-    //     modal.show();
-    // });
+    function save_btn_event() {
+        const form = $(".node-card");
+        const idRaw = form.find(".id").text();
+        const id = idRaw && idRaw !== "-" ? idRaw : null;
+        const type = form.find(".type").text();
+        const url = id ? `/nodes/${id}` : "/nodes";
+        const method = id ? "PUT" : "POST";
 
-    // const elementVisibility = SP.elementVisibility;
-    // $(".form-select").on("change", function () {
-    //     let selectedValue = $(this).val();
-    //     let visibility = elementVisibility[selectedValue];
-    //     if (visibility) {
-    //         Object.keys(visibility).forEach(key => {
-    //             const element = $("#" + key);
-    //             if (visibility[key]) {
-    //                 element.addClass("d-none");
-    //             } else {
-    //                 element.removeClass("d-none");
-    //             }
-    //         });
-    //     }
-    // });
+        const data = {};
+        form.find("*").not(":hidden").serializeArray().forEach((item) => {
+            data[item.name] = item.value;
+        });
 
-    // const points_icon = SP.iconMap;
+        console.log(data);
+        data.id = id;
+        data.type = type;
 
-    // // Save point
-    // const params = {
-    //         IDC: { capacity: "#idc_Capacity", cost: "#pointCost"},
-    //         EC: { demand: "#pointDemand"},
-    //         TMC: { capacity: "#h_tmc_Capacity", cost: "#pointCost"},
-    //         H: { capacity: "#h_tmc_Capacity"},
-    //         DA: { injured: "#pointInjured"}
-    //     };
-    // $("#savePoint").on("click", function () {
-    //     const formData = new FormData();
-    //     formData.append("name", $("#pointName").val());
-    //     formData.append("lat", $("#pointLat").val());
-    //     formData.append("lng", $("#pointLng").val());
-    //     formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
-    //     let fields = params[$(".form-select").val()];
-    //     Object.keys(fields).forEach(key => {
-    //         console.log(key, $(fields[key]).val());
-    //         formData.append(key, $(fields[key]).val());
-    //     });
-    //     fetch(`/${$(".form-select").val()}`, {
-    //         method: "POST",
-    //         body: formData,
-    //     })
-    //         .then((response) => {
-    //             if (!response.ok) {
-    //                 return response.text().then((text) => {
-    //                     throw new Error(`HTTP ${response.status}: ${text}`);
-    //                 });
-    //             }
-    //             return response.json();
-    //         })
-    //         .then((data) => {
-    //             if (data.success) {
-    //                 // Add marker to map
-    //                 const lat = $("#pointLat").val();
-    //                 const lng = $("#pointLng").val();
-    //                 const name = $("#pointName").val();
-    //                 console.log(points_icon[$(".form-select").val()])
-    //                 const marker = L.marker([lat, lng], {icon: points_icon[$(".form-select").val()]})
-    //                     .addTo(markerGroup);
-    //                 // Add click event to the marker
-    //                 const point = data.point;
-    //                 const pointType = data.pointtype
-    //                 marker.id = point.id;
-    //                 SP.markersById[point.id] = marker;
-    //                 console.log('point.id:', point.id);
-    //                 marker.on('click', function(e) {
-    //                     SP.editmodal.show();
-    //                     SP.selectmarkerid = point.id;
-    //                     SP.selectmarkertype = pointType;
-    //                     $("#pointType .form-control").val(
-    //                         SP.typeNames[pointType]
-    //                     );
-    //                     $("#pointNameEdit .form-control").val(point.name);
-    //                     $("#pointLatEdit .form-control").val(point.lat);
-    //                     $("#pointLngEdit .form-control").val(point.lng);
-    //                     $(".showinput").hide();
-    //                     Object.entries(SP.params[pointType]).forEach(
-    //                         ([param, elementid]) => {
-    //                             $("#pointType").show();
-    //                             $("#pointNameEdit").show();
-    //                             $("#pointLatEdit").show();
-    //                             $("#pointLngEdit").show();
-    //                             $(elementid).show();
-    //                             $(`${elementid} .form-control`).val(
-    //                                 point[param]
-    //                             );
-    //                         }
-    //                     );
-    //                 });
-    //                 modal.hide();
-    //                 $("#addPointForm")[0].reset();
-    //                 let popupContent = `<div dir="rtl" class="text-center">`;
-    //                     popupContent += `<b>${pointType}</b><br>`;
-    //                     popupContent += `<b>نام:</b> ${
-    //                         point.name || "نامشخص"
-    //                     }<br>`;
-    //                     // Add specific information based on point type
-    //                     if (pointType === "da_points" && point.injured) {
-    //                         popupContent += `<b>تعداد مجروحین:</b> ${point.injured}<br>`;
-    //                     } else if (pointType === "ec_points" && point.demand) {
-    //                         popupContent += `<b>تقاضا:</b> ${point.demand}<br>`;
-    //                     } else if (
-    //                         (pointType === "idc_points" ||
-    //                             pointType === "tmc_points" ||
-    //                             pointType === "H_points") &&
-    //                         point.capacity
-    //                     ) {
-    //                         popupContent += `<b>ظرفیت:</b> ${point.capacity}<br>`;
-    //                     }
+        axios({
+            method: method,
+            url: url,
+            data: data,
+        })
+            .then((response) => {
+                if (response.data.success) {
+                    alert("Saved successfully!");
+                    // Update map and table without full page reload
+                    updateNodeOnMap(data.id, data.type, data);
+                    populateTable(data.type);
+                    cancel_btn_event(); // Revert to disabled state after save
+                } else {
+                    alert("Error: " + response.data.message);
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while saving.");
+            });
+    }
 
-    //                     if (point.cost) {
-    //                         popupContent += `<b>هزینه:</b> ${point.cost} دلار<br>`;
-    //                     }
+    function delete_btn_event() {
+        const idRaw = $("#generic_prop").find(".id").text();
+        const id = idRaw && idRaw !== "-" ? idRaw : null;
+        const type = $("#generic_prop").find(".type").text();
+        if (!id) {
+            alert("No node selected for deletion.");
+            return;
+        }
 
-    //                     popupContent += `</div>`;
+        if (!confirm("Are you sure you want to delete this node?")) {
+            return;
+        }
 
-    //                     marker.bindPopup(popupContent);
+        axios
+            .delete(`/nodes/${id}`)
+            .then((response) => {
+                if (response.data.success) {
+                    alert("Deleted successfully!");
+                    removeNodeFromMap(id, type);
+                    populateTable(type);
+                    resetNodeProperties(); // Clear form and disable inputs/buttons
+                } else {
+                    alert("Error: " + response.data.message);
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while deleting.");
+            });
+    }
 
-    //                     // Add hover effects
-    //                     marker.on("mouseover", function () {
-    //                         this.openPopup();
-    //                     });
+    function resetNodeProperties() {
+        $("#edit-btn").addClass("disabled");
+        $("#delete-btn").addClass("disabled");
 
-    //                     marker.on("mouseout", function () {
-    //                         this.closePopup();
-    //                     });
-    //             } else {
-    //                 alert(
-    //                     "Error saving point: " +
-    //                         (data.message || JSON.stringify(data.errors))
-    //                 );
-    //             }
-    //         })
-    //         .catch((error) => {
-    //             console.error("Error:", error);
-    //             alert("Error saving point");
-    //         });
-    // });
+        $("#generic_prop").find(".id").text("-");
+        $("#generic_prop").find(".type").text("-");
 
-    // $("#deletePoint").on("click", function () {
-    //     console.log("Deleting point:", SP.selectmarkertype, SP.selectmarkerid);
-    //     fetch(`/${SP.selectmarkertype}/${SP.selectmarkerid}`, {
-    //         method: "DELETE",
-    //         headers: {
-    //             "X-CSRF-TOKEN": document
-    //                 .querySelector('meta[name="csrf-token"]')
-    //                 .getAttribute("content"),
-    //             "Content-Type": "application/json",
-    //         },
-    //     })
-    //         .then((response) => {
-    //             if (!response.ok) {
-    //                 return response.text().then((text) => {
-    //                     throw new Error(`HTTP ${response.status}: ${data.message}`);
-    //                 });
-    //             }
-    //             return response.json();
-    //         })
-    //         .then((data) => {
-    //             if (data.success) {
-    //                 try {
-    //                     markerGroup.removeLayer(
-    //                         SP.markersById[SP.selectmarkerid]
-    //                     );
-    //                     delete SP.markersById[SP.selectmarkerid];
-    //                     SP.editmodal.hide();
-    //                     alert("Point deleted successfully");
-    //                 } catch (e) {
-    //                     console.error("Error removing marker:", e);
-    //                 }
-    //             }
-    //         });
-    // });
+        $(".node-props")
+            .find("input, textarea")
+            .each(function () {
+                this.value = "";
+                this.defaultValue = "";
+                $(this).prop("disabled", true);
+            });
+
+        $(".props").children().addClass("d-none");
+    }
+
+    function updateNodeOnMap(id, type, newData) {
+        featureGroups[type].eachLayer(function (layer) {
+            if (layer.feature && layer.feature.properties.id == id) {
+                // Update properties
+                for (const key in newData) {
+                    if (newData.hasOwnProperty(key)) {
+                        layer.feature.properties[key] = newData[key];
+                    }
+                }
+                // Update latlng if changed
+                if (newData.lat && newData.lng) {
+                    layer.setLatLng([newData.lat, newData.lng]);
+                    pulish_marker.removeFrom(map);
+                    pulish_marker = L.marker(layer.getLatLng(), {
+                        icon: pulsingIcon,
+                        pane: "backgroundMarkers",
+                    }).addTo(map);
+                }
+                // Optionally, update popup content here if needed
+                let props = layer.feature.properties;
+                console.log(props);
+                node_prop_display(type, props);
+            }
+        });
+    }
+
+    function removeNodeFromMap(id, type) {
+        featureGroups[type].eachLayer(function (layer) {
+            if (layer.feature && layer.feature.properties.id == id) {
+                featureGroups[type].removeLayer(layer);
+                map.removeLayer(layer);
+            }
+        });
+        pulish_marker.removeFrom(map);
+    }
 });

@@ -5,7 +5,7 @@
         </div>
         <div class="col-1">:</div>
         <div class="col p-0">
-            <input class="mb-0 capacity w-100" type="text" disabled='false'>
+            <input name="capacity" class="mb-0 capacity w-100" type="text" disabled='false'>
         </div>
     </div>
 </div>

@@ -76,8 +76,9 @@
     </div>
 
     {{-- Node properties container --}}
-    <div class="node-card shadow-xl position-absolute top-0 end-0 mt-14 mr-3 p-3 rounded-5 bg-white border-1 border-stone-200"
+    <form class="node-card shadow-xl position-absolute top-0 end-0 mt-14 mr-3 p-3 rounded-5 bg-white border-1 border-stone-200"
         style="z-index: 2; width: 250px;">
+        @csrf
         <!-- Header -->
         <div class="node-card-header">
             <h6 class="font-bold">Node Properties</h6>
@@ -118,7 +119,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </form>
 
     <!-- Modal for adding points -->
     {{-- <div dir="rtl" class="modal fade" id="addPointModal" tabindex="-1" aria-labelledby="addPointModalLabel" aria-hidden="true">

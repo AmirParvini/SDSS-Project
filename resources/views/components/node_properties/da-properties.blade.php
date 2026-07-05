@@ -5,7 +5,7 @@
         </div>
         <div class="col-1">:</div>
         <div class="col p-0">
-            <input class="mb-0 affected_pop w-100" type="number" step="0.01" disabled='true'>
+            <input name="affected_pop" class="mb-0 affected_pop w-100" type="number" disabled='true'>
         </div>
     </div>
 </div>
