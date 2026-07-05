@@ -10,6 +10,7 @@ use App\Http\Controllers\IDCController;
 use App\Http\Controllers\OptimizationController;
 use App\Http\Controllers\SolvingController;
 use App\Http\Controllers\TMCController;
+use App\Http\Controllers\NodeCrudController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home');
@@ -27,3 +28,7 @@ Route::resource('H', HospitalController::class);
 Route::resource('TMC', TMCController::class);
 Route::resource('DA', DamagedAreaController::class);
 Route::post('/damaged-areas', [DamagedAreaController::class, 'store'])->name('damaged-areas.store');
+
+Route::post('/nodes', [NodeCrudController::class, 'store'])->name('nodes.store');
+Route::put('/nodes/{id}', [NodeCrudController::class, 'update'])->name('nodes.update');
+Route::delete('/nodes/{id}', [NodeCrudController::class, 'destroy'])->name('nodes.destroy');
