@@ -76,116 +76,105 @@
     </div>
 
     {{-- Node properties container --}}
-    <form class="node-card shadow-xl position-absolute top-0 end-0 mt-14 mr-3 p-3 rounded-5 bg-white border-1 border-stone-200"
-        style="z-index: 2; width: 250px;">
-        @csrf
-        <!-- Header -->
-        <div class="node-card-header">
-            <h6 class="font-bold">Node Properties</h6>
-        </div>
-        <!-- Properties -->
-        <div class="node-props flex-column m-2">
-            <x-node_properties.general-properties id="generic_prop">
-                <div class="props">
-                    <x-node_properties.ec-properties class="d-none {{ $node_types['ec']['class'] }}" />
-                    <x-node_properties.da-properties class="d-none {{ $node_types['da']['class'] }}" />
-                    <x-node_properties.tmc-properties class="d-none {{ $node_types['tmc']['class'] }}" />
-                    <x-node_properties.h-properties class="d-none {{ $node_types['h']['class'] }}" />
+        <div class="d-flex flex-column gap-3 position-absolute top-0 end-0 mt-14 mr-3">
+            {{-- Node properties container --}}
+            <form
+                class="node-card shadow-xl p-3 rounded-5 bg-white border-1 border-stone-200"
+                style="z-index: 2; width: 250px;">
+                @csrf
+                <!-- Header -->
+                <div class="node-card-header">
+                    <h6 class="font-bold">Node Properties</h6>
                 </div>
-            </x-node_properties.general-properties>
-        </div>
-        <!-- MiniMap -->
-        <div id="minimap" style="height: 100px"></div>
-        <!-- Actions -->
-        <div class="actions">
-            <div id="edit-actions" class="card-actions mt-2 row d-flex justify-center gap-1">
-                <button id="edit-btn" class="btn btn-primary col-4 h-25 d-flex flex-row align-items-center w-auto p-1 disabled">
-                    <p class="m-0 font-bold" style="font-size: 11px">Edit</p>
-                    <i class="fa-solid fa-pen-to-square w-3"></i>
-                </button>
-                <button id="delete-btn" class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center w-auto p-1 disabled">
-                    <p class="m-0 font-bold" style="font-size: 11px">Delete</p>
-                    <i class="fa-solid fa-trash" style="width: 10px"></i>
+                <!-- Properties -->
+                <div class="node-props flex-column m-2">
+                    <x-node_properties.general-properties id="generic_prop">
+                        <div class="props">
+                            <x-node_properties.ec-properties class="d-none {{ $node_types['ec']['class'] }}" />
+                            <x-node_properties.da-properties class="d-none {{ $node_types['da']['class'] }}" />
+                            <x-node_properties.tmc-properties class="d-none {{ $node_types['tmc']['class'] }}" />
+                            <x-node_properties.h-properties class="d-none {{ $node_types['h']['class'] }}" />
+                        </div>
+                    </x-node_properties.general-properties>
+                </div>
+                <!-- MiniMap -->
+                <div id="minimap" style="height: 100px"></div>
+                <!-- Actions -->
+                <div class="actions">
+                    <div id="edit-actions" class="card-actions mt-2 row d-flex justify-center gap-1">
+                        <button id="edit-btn"
+                            class="btn btn-primary col-4 h-25 d-flex flex-row align-items-center w-auto p-1 disabled">
+                            <p class="m-0 font-bold" style="font-size: 11px">Edit</p>
+                            <i class="fa-solid fa-pen-to-square w-3"></i>
+                        </button>
+                        <button id="delete-btn"
+                            class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center w-auto p-1 disabled">
+                            <p class="m-0 font-bold" style="font-size: 11px">Delete</p>
+                            <i class="fa-solid fa-trash" style="width: 10px"></i>
+                        </button>
+                    </div>
+                    <div id="save-actions" class="card-actions mt-2 row d-flex justify-center gap-1 d-none">
+                        <button id="save-btn" class="btn btn-success col-4 h-25 d-flex flex-row align-items-center w-auto p-1">
+                            <p class="m-0 font-bold" style="font-size: 11px">Save</p>
+                            <i class="fa-solid fa-floppy-disk" style="width: 11px"></i>
+                        </button>
+                        <button id="cancel-btn" class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center w-auto p-1">
+                            <p class="m-0 font-bold" style="font-size: 11px">Cancel</p>
+                            <i class="fa-solid fa-ban" style="width: 13px"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            {{-- Add Point Button --}}
+            <div class="add-point-btn d-flex w-auto gap-2 justify-content-center"
+                style="z-index: 2; cursor: pointer;">
+                <button id="addPointBtn" class="btn w-50 btn-primary d-flex flex-row align-items-center justify-content-center p-2 rounded-5 shadow-xl">
+                    <i class="fa-solid fa-plus w-4 h-4"></i>
+                    <p class="m-0 font-bold" style="font-size: 12px">Add Node</p>
                 </button>
             </div>
-            <div id="save-actions" class="card-actions mt-2 row d-flex justify-center gap-1 d-none">
-                <button id="save-btn" class="btn btn-success col-4 h-25 d-flex flex-row align-items-center w-auto p-1">
-                    <p class="m-0 font-bold" style="font-size: 11px">Save</p>
-                    <i class="fa-solid fa-floppy-disk" style="width: 11px"></i>
-                </button>
-                <button id="cancel-btn" class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center w-auto p-1">
-                    <p class="m-0 font-bold" style="font-size: 11px">Cancel</p>
-                    <i class="fa-solid fa-ban" style="width: 13px"></i>
-                </button>
-            </div>
         </div>
-    </form>
 
-    <!-- Modal for adding points -->
-    {{-- <div dir="rtl" class="modal fade" id="addPointModal" tabindex="-1" aria-labelledby="addPointModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div dir="ltr" class="modal-header">
-                    <h5 class="modal-title" id="addPointModalLabel">افزودن مکان جدید</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addPointForm">
-                        <select class="form-select" aria-label="Default select example">
-                            @foreach ($point_types as $key => $value)
-                                <option value="{{ $key }}">{{ $value }}</option>
-                            @endforeach
-                        </select>
-                        <div class="mb-3" id="name">
-                            <label for="pointName" class="form-label">نام</label>
-                            <input type="text" class="form-control" id="pointName" name="name" required>
-                        </div>
-                        <div class="mb-3 d-none" id="demand">
-                            <label for="pointDemand" class="form-label">مساحت پناهگاه</label>
-                            <input type="number" class="form-control" id="pointDemand" name="demand" min="0"
-                                required>
-                        </div>
-                        <div class="mb-3 d-none" id="injured">
-                            <label for="pointInjured" class="form-label">جمعیت تحت تاثر</label>
-                            <input type="number" class="form-control" id="pointInjured" name="injured" min="0"
-                                required>
-                        </div>
-                        <div class="mb-3 d-none" id="h_tmc_capacity">
-                            <label for="pointCapacity" class="form-label">ظرفیت (نفر)</label>
-                            <input type="number" class="form-control read-only" id="h_tmc_Capacity" name="capacity"
-                                value="600" min="0" required>
-                        </div>
-                        <div class="mb-3" id="idc_capacity">
-                            <label for="pointCapacity" class="form-label">ظرفیت (حجم)</label>
-                            <input type="number" class="form-control read-only" id="idc_Capacity" name="capacity"
-                                value="20000" min="0" required>
-                        </div>
-                        <div class="mb-3" id="cost">
-                            <label for="pointCost" class="form-label">هزینه ثابت تاسیس (دلار)</label>
-                            <input type="number" class="form-control" id="pointCost" name="cost" value="50000" required>
-                        </div>
-                        <div class="row">
-                            <div class="col-6">
-                                <label for="lat" class="form-label">lat</label>
-                                <input class="form-control" id="pointLat" name="Lat">
-                            </div>
-                            <div class="col-6">
-                                <label for="lng" class="form-label">lng</label>
-                                <input class="form-control" id="pointLng" name="Lng">
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">لغو</button>
-                    <button type="button" class="btn btn-primary" id="savePoint">ذخیره</button>
-                </div>
+    {{-- Add Point Modal --}}
+    <div id="addPointModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+        style="z-index: 3;">
+        <div class="bg-white rounded-5 shadow-lg w-96 p-4">
+            <div class="flex justify-between items-center mb-3">
+                <h5 class="text-lg font-bold">Add New Point</h5>
+                <button type="button" id="closeAddModal" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
             </div>
+            <form id="addPointForm" style="width: 100%;">
+                @csrf
+                <div class="row border-bottom py-1">
+                    <div class="col-3 p-0">
+                        <p class="mb-0 font-bold">Type</p>
+                    </div>
+                    <div class="col p-0">
+                        <select id="pointTypeSelect" class="form-select w-full" name="type">
+                            <option value="" disabled selected>Select type</option>
+                            <option value="dc">Distribution Center</option>
+                            <option value="ec">Shelter</option>
+                            <option value="da">Affected Area</option>
+                            <option value="h">Hospital</option>
+                            <option value="tmc">Temporary Medical Center</option>
+                        </select>
+                    </div>
+                </div>
+                <x-node_properties.general-properties id="generic_prop_add">
+                    <div class="props">
+                        <x-node_properties.ec-properties class="d-none {{ $node_types['ec']['class'] }}" />
+                        <x-node_properties.da-properties class="d-none {{ $node_types['da']['class'] }}" />
+                        <x-node_properties.tmc-properties class="d-none {{ $node_types['tmc']['class'] }}" />
+                        <x-node_properties.h-properties class="d-none {{ $node_types['h']['class'] }}" />
+                    </div>
+                </x-node_properties.general-properties>
+                <div class="mt-3 flex justify-end gap-2">
+                    <button type="button" id="saveAddBtn" class="btn btn-success">Save</button>
+                    <button type="button" id="cancelAddBtn" class="btn btn-danger">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
-    <div dir="rtl" id="editPointModal" class="modal fade" tabindex="-1" aria-labelledby="editPointModalLabel" aria-hidden="true">
-        <x-edit_point></x-edit_point>
-    </div> --}}
 @endsection
 
 @push('scripts')
