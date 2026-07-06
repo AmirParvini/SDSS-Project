@@ -5,6 +5,10 @@ p {
     margin-bottom: 0px !important;
 }
 
+button {
+    pointer-events: auto;
+}
+
 .itemstable table tbody td p {
     white-space: normal;
     word-wrap: break-word;

@@ -15,26 +15,7 @@
 </head>
 
 <body>
-    <div class="container-fluid p-0 m-0 vh-100 d-flex flex-column overflow-hidden">
-        {{-- Header --}}
-        <div class=" shadow-sm w-100 rounded-b-xl bg-white pl-5" style="z-index: 2">
-            <ul class="nav nav-underline">
-                <li class="nav-item pr-4">
-                    <a class="nav-link active" aria-current="page" href="#">Dashboar</a>
-                </li>
-                <li class="nav-item pr-4">
-                    <a class="nav-link" href="#">Data (HSC Parameters)</a>
-                </li>
-                <li class="nav-item pr-4">
-                    <a class="nav-link" href="#">Reports</a>
-                </li>
-            </ul>
-        </div>
-        {{-- Contents --}}
-        <div class="position-absolute dashboard container-fluid p-0 m-0 vh-100" style="z-index: 1">
-            @yield('content')
-        </div>
-    </div>
+    @yield('content')
 </body>
 @stack('scripts')
 {{-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> --}}
