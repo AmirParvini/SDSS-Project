@@ -1,29 +1,36 @@
 <?php
 
 namespace App\Support;
- 
+
+use App\Models\Shelter;
+
 class NodeTypeRegistry
 {
     public static function definitions(): array
     {
         return [
-            'shelter' => [
+            'ec' => [
+                'model' => \App\Models\Shelter::class,
                 'table' => 'shelters',
                 'select' => ['shelters.area'],
             ],
-            'distribution_center' => [
+            'dc' => [
+                'model' => \App\Models\DistributionCenter::class,
                 'table' => 'distribution_centers',
                 'select' => [],
             ],
-            'affected_area' => [
+            'da' => [
+                'model' => \App\Models\AffectedArea::class,
                 'table' => 'affected_areas',
                 'select' => ['affected_areas.affected_pop'],
             ],
-            'temporary_medical_center' => [
+            'tmc' => [
+                'model' => \App\Models\TemporaryMedicalCenter::class,
                 'table' => 'temporary_medical_centers',
                 'select' => ['temporary_medical_centers.capacity'],
             ],
-            'hospital' => [
+            'h' => [
+                'model' => \App\Models\Hospital::class,
                 'table' => 'hospitals',
                 'select' => ['hospitals.capacity'],
             ],

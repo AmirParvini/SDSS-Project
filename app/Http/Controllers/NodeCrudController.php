@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Scenario;
 use App\Support\NodeTypeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NodeCrudController extends Controller
 {
@@ -20,18 +22,6 @@ class NodeCrudController extends Controller
 
         $type = $request->type;
         $registry = NodeTypeRegistry::definitions();
-        
-        if (!isset($registry[$type])) {
-            // Handle cases where the type mapping might be different (e.g. 'dc' instead of 'distribution_center' as per home.blade.php vs NodeTypeRegistry)
-            $typeMap = [
-                'dc' => 'distribution_center',
-                'ec' => 'shelter',
-                'da' => 'affected_area',
-                'tmc' => 'temporary_medical_center',
-                'h' => 'hospital'
-            ];
-            $type = $typeMap[$type] ?? $type;
-        }
 
         if (!isset($registry[$type])) {
             return response()->json(['success' => false, 'message' => 'Invalid node type: ' . $request->type], 400);
@@ -40,9 +30,10 @@ class NodeCrudController extends Controller
         $table = $registry[$type]['table'];
 
         DB::beginTransaction();
+        $activeScenario = Scenario::where('active', 1)->first();
         try {
             $nodeId = DB::table('nodes')->insertGetId([
-                'scenario_id' => $request->scenario_id ?? 1,
+                'scenario_id' => $activeScenario->id,
                 'type' => $type,
                 'name' => $request->name,
                 'geometry' => json_encode([
@@ -53,7 +44,9 @@ class NodeCrudController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $specificData = $request->only($this->getSpecificFields($type));
+            $model_class = $registry[$type]['model'];
+            $fields = $model_class ? (new $model_class)->getFillable() : [];
+            $specificData = $request->only($fields);
             $specificData['node_id'] = $nodeId;
 
             DB::table($table)->insert($specificData);
@@ -77,17 +70,6 @@ class NodeCrudController extends Controller
 
         $type = $request->type;
         $registry = NodeTypeRegistry::definitions();
-        
-        if (!isset($registry[$type])) {
-            $typeMap = [
-                'dc' => 'distribution_center',
-                'ec' => 'shelter',
-                'da' => 'affected_area',
-                'tmc' => 'temporary_medical_center',
-                'h' => 'hospital'
-            ];
-            $type = $typeMap[$type] ?? $type;
-        }
 
         if (!isset($registry[$type])) {
             return response()->json(['success' => false, 'message' => 'Invalid node type'], 400);
@@ -106,7 +88,10 @@ class NodeCrudController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $specificFields = $this->getSpecificFields($type);
+            $model_class = $registry[$type]['model'];
+            $fields = $model_class ? (new $model_class)->getFillable() : [];
+            $specificData = $request->only($fields);
+
             if (!empty($specificFields)) {
                 $specificData = $request->only($specificFields);
                 DB::table($table)->where('node_id', $id)->update($specificData);
@@ -145,17 +130,5 @@ class NodeCrudController extends Controller
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-    }
-
-    private function getSpecificFields($type)
-    {
-        $fields = [
-            'shelter' => ['area'],
-            'distribution_center' => [],
-            'affected_area' => ['affected_pop'],
-            'temporary_medical_center' => ['capacity'],
-            'hospital' => ['capacity'],
-        ];
-        return $fields[$type] ?? [];
     }
 }
