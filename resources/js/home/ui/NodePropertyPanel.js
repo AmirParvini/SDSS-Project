@@ -2,12 +2,12 @@
 // -----------------------------------------------------------------------------
 // پنل سمت راست: نمایش پراپرتی‌های نود، حالت‌های ویرایش/لغو، و استخراج داده‌ی فرم.
 // اصل SRP: فقط DOMِ فرم/پنل را می‌شناسد. منطق ذخیره/حذف (API) اینجا نیست؛
-//         این پنل فقط داده می‌دهد و رویداد می‌فرستد (onSave / onDelete) و
+//         این پنل فقط داده می‌دهد و رویداد می‌فرستد (onUpdate / onDelete) و
 //         Controller تصمیم می‌گیرد چه اتفاقی بیفتد.
 // -----------------------------------------------------------------------------
 export default class NodePropertyPanel {
     constructor() {
-        this.onSave = null; // (formData) => void
+        this.onUpdate = null; // (formData) => void
         this.onDelete = null; // (id, type) => void
     }
 
@@ -25,7 +25,9 @@ export default class NodePropertyPanel {
 
         $("#save-btn").on("click", (e) => {
             e.preventDefault();
-            if (this.onSave) this.onSave(this.getFormData());
+            if (this.onUpdate) {
+                this.onUpdate(this.getFormData());
+            }
         });
 
         $("#delete-btn").on("click", (e) => {
@@ -107,8 +109,7 @@ export default class NodePropertyPanel {
     getFormData() {
         const form = $(".node-card");
         const data = {};
-        form
-            .find("*")
+        form.find("*")
             .not(":hidden")
             .serializeArray()
             .forEach((item) => {

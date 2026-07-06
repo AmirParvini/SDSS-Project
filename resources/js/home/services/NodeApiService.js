@@ -22,11 +22,18 @@ export default class NodeApiService {
     }
 
     // ایجاد یا ویرایش یک نود. وجود id تعیین می‌کند POST است یا PUT.
-    saveNode(data) {
-        const isUpdate = Boolean(data.id);
+    updateNode(data) {
         return this.http({
-            method: isUpdate ? "PUT" : "POST",
-            url: isUpdate ? `/nodes/${data.id}` : "/nodes",
+            method: "PUT",
+            url:`/nodes/${data.id}`,
+            data,
+        }).then((res) => res.data);
+    }
+
+    createNode(data) {
+        return this.http({
+            method: "POST",
+            url:"/nodes",
             data,
         }).then((res) => res.data);
     }

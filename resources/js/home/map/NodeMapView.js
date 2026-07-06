@@ -3,7 +3,7 @@
 // همه‌چیزِ مربوط به نقشه: FeatureGroupها، رندر مارکرها، مارکر ضربان‌دار،
 // و به‌روزرسانی/حذف نودها روی نقشه.
 // اصل SRP: این کلاس فقط «نقشه» را می‌شناسد؛ از DOM، جدول، فرم و API بی‌خبر است.
-// ارتباط با بیرون فقط از طریق یک callback (onNodeClick) انجام می‌شود تا
+// ارتباط با بیرون فقکل از طریق یک callback (onNodeClick) انجام می‌شود تا
 // وابستگی یک‌طرفه بماند (Observer).
 // -----------------------------------------------------------------------------
 import { NODE_ICONS, PULSING_ICON } from "../config/nodeConfig.js";
@@ -15,6 +15,7 @@ export default class NodeMapView {
         this.featureGroups = this._createFeatureGroups();
         this.pulseMarker = new L.Marker();
         this._onNodeClick = null; // handler ثبت‌شده توسط Controller
+        this._mapElement = mapInstance.getContainer();
     }
 
     // برای هر نوع نقطه یک FeatureGroup جدا می‌سازد.
@@ -44,6 +45,7 @@ export default class NodeMapView {
             },
         });
         this._bindFeatureGroupClicks();
+        this._bindMapClick();
     }
 
     // ---- رویداد کلیک روی نودها ------------------------------------------------
@@ -51,16 +53,32 @@ export default class NodeMapView {
         this._onNodeClick = handler;
     }
 
+    onMapClick(handler) {
+        this._onMapClick = handler;
+    }
+
     _bindFeatureGroupClicks() {
         Object.entries(this.featureGroups).forEach(([type, group]) => {
             group.on("click", (e) => {
                 if (!this._onNodeClick) return;
+                const props = e.layer.feature
+                    ? e.layer.feature.properties
+                    : e.layer.options.properties || {};
                 this._onNodeClick({
                     type,
                     latlng: e.latlng,
                     layer: e.layer,
-                    props: e.layer.feature.properties,
+                    props,
                 });
+            });
+        });
+    }
+
+    _bindMapClick() {
+        this.map.on("click", (e) => {
+            if (!this._onMapClick) return;
+            this._onMapClick({
+                latlng: e.latlng,
             });
         });
     }
@@ -72,6 +90,15 @@ export default class NodeMapView {
             icon: PULSING_ICON,
             pane: "backgroundMarkers",
         }).addTo(this.map);
+    }
+
+    // ---- تغییر نشانگر موس ----------------------------------------------------
+    setCursor(cursorStyle) {
+        this._mapElement.style.cursor = cursorStyle;
+    }
+
+    resetCursor() {
+        this._mapElement.style.cursor = "";
     }
 
     removePulse() {
@@ -116,24 +143,46 @@ export default class NodeMapView {
     updateNode(id, type, newData) {
         let updatedProps = null;
         this.featureGroups[type].eachLayer((layer) => {
-            if (layer.feature && layer.feature.properties.id == id) {
+            const props = layer.feature
+                ? layer.feature.properties
+                : layer.options.properties || {};
+            if (props.id == id) {
                 Object.keys(newData).forEach((key) => {
-                    layer.feature.properties[key] = newData[key];
+                    if (layer.feature) {
+                        layer.feature.properties[key] = newData[key];
+                    } else {
+                        layer.options.properties[key] = newData[key];
+                    }
                 });
                 if (newData.lat && newData.lng) {
                     layer.setLatLng([newData.lat, newData.lng]);
                     this.showPulse(layer.getLatLng());
                 }
-                updatedProps = layer.feature.properties;
+                updatedProps = props;
             }
         });
         return updatedProps;
     }
 
+    createNode(node_id, data) {
+        let marker = L.marker([data.lat, data.lng], {
+            icon: NODE_ICONS[data.type],
+            properties: {
+                ...data,
+                id: node_id
+            }
+        })
+        marker.addTo(this.featureGroups[data.type]).addTo(map);
+        return marker;
+    }
+
     // ---- حذف نود از نقشه ------------------------------------------------------
     removeNode(id, type) {
         this.featureGroups[type].eachLayer((layer) => {
-            if (layer.feature && layer.feature.properties.id == id) {
+            const props = layer.feature
+                ? layer.feature.properties
+                : layer.options.properties || {};
+            if (props.id == id) {
                 this.featureGroups[type].removeLayer(layer);
                 this.map.removeLayer(layer);
             }

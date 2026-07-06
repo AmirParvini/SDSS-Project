@@ -11,17 +11,19 @@
 //  - DIP: Controller به وابستگی‌ها از طریق constructor injection وصل است،
 //         نه به پیاده‌سازی‌های مشخص (axios/DOM/Leaflet مستقیم).
 // -----------------------------------------------------------------------------
-import NodeApiService from "./services/NodeApiService.js";
 import NodeMapView from "./map/NodeMapView.js";
-import NodeTableView from "./ui/NodeTableView.js";
+import NodeApiService from "./services/NodeApiService.js";
+import AddPointModal from "./ui/AddPointModal.js";
 import NodePropertyPanel from "./ui/NodePropertyPanel.js";
+import NodeTableView from "./ui/NodeTableView.js";
 
 class HomeController {
-    constructor({ api, mapView, tableView, panel }) {
+    constructor({ api, mapView, tableView, panel, addPointModal }) {
         this.api = api;
         this.mapView = mapView;
         this.tableView = tableView;
         this.panel = panel;
+        this.addPointModal = addPointModal;
         this.hscParameters = null;
     }
 
@@ -40,6 +42,12 @@ class HomeController {
             this.mapView.selectLayerById(type, id);
         });
 
+        // دکمه افزودن نقطه
+        $("#addPointBtn").on("click", () => {
+            this.addPointModal.enterAddMode();
+            this.mapView.setCursor("crosshair");
+        });
+
         // نقشه: کلیک روی نود → فعال‌سازی پنل و نمایش پراپرتی‌ها.
         this.mapView.onNodeClick(({ type, latlng, props }) => {
             this.panel.activateActions();
@@ -49,10 +57,21 @@ class HomeController {
             this.panel.displayProps(type, props);
         });
 
+        // نقشه: کلیک روی نقشه → باز کردن modal افزودن نقطه (در حالت add mode).
+        this.mapView.onMapClick(({ latlng }) => {
+            if (this.addPointModal.isInAddMode()) {
+                this.addPointModal.show(latlng);
+                this.mapView.resetCursor();
+            }
+        });
+
         // پنل: ذخیره/حذف را به use-caseهای Controller واگذار می‌کند.
         this.panel.bind();
-        this.panel.onSave = (data) => this._saveNode(data);
+        this.panel.onUpdate = (data) => this._updateNode(data);
         this.panel.onDelete = (id, type) => this._deleteNode(id, type);
+
+         // Wire add point modal save handler
+        this.addPointModal.onCreate = (data) => this._createNode(data);
     }
 
     // ---- use-case: بارگذاری اولیه ------------------------------------------
@@ -70,9 +89,9 @@ class HomeController {
     }
 
     // ---- use-case: ذخیره (ایجاد/ویرایش) -----------------------------------
-    _saveNode(data) {
+    _updateNode(data) {
         this.api
-            .saveNode(data)
+            .updateNode(data)
             .then((res) => {
                 if (!res.success) {
                     alert("Error: " + res.message);
@@ -83,6 +102,29 @@ class HomeController {
                 if (props) this.panel.displayProps(data.type, props);
                 this.tableView.populate(data.type);
                 this.panel.exitEditMode();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while saving.");
+            });
+    }
+
+    _createNode(data) {
+        this.api
+            .createNode(data)
+            .then((res) => {
+                if (!res.success) {
+                    alert("Error: " + res.message);
+                    return;
+                }
+                alert("Saved successfully!");
+                let marker = this.mapView.createNode(res["node_id"], data);
+                this.mapView.showPulse(marker.getLatLng());
+                this.panel.displayProps(data.type, marker.options.properties);
+                this.tableView.populate(data.type);
+                this.panel.activateActions();
+                this.panel.exitEditMode();
+                this.addPointModal.hide();
             })
             .catch((error) => {
                 console.error(error);
@@ -119,11 +161,15 @@ class HomeController {
 
 // ---- Composition Root: تنها جایی که پیاده‌سازی‌های واقعی به هم گره می‌خورند ---
 $(function () {
+    const addPointModal = new AddPointModal();
+    addPointModal.init();
+
     const controller = new HomeController({
         api: new NodeApiService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),
         panel: new NodePropertyPanel(),
+        addPointModal: addPointModal,
     });
     controller.init();
 });
