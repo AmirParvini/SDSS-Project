@@ -8,6 +8,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\IDCController;
 use App\Http\Controllers\OptimizationController;
+use App\Http\Controllers\ScenarioController;
 use App\Http\Controllers\SolvingController;
 use App\Http\Controllers\TMCController;
 use App\Http\Controllers\NodeCrudController;
@@ -22,13 +23,12 @@ Route::get("/load_data", [HomeController::class, 'index'])->name('load_data');
 // Route::get('/server-info', function () {
 //     phpinfo();
 // });
-Route::resource('IDC', IDCController::class);
-Route::resource('EC', ECController::class);
-Route::resource('H', HospitalController::class);
-Route::resource('TMC', TMCController::class);
-Route::resource('DA', DamagedAreaController::class);
-Route::post('/damaged-areas', [DamagedAreaController::class, 'store'])->name('damaged-areas.store');
 
 Route::post('/nodes', [NodeCrudController::class, 'store'])->name('nodes.store');
 Route::put('/nodes/{id}', [NodeCrudController::class, 'update'])->name('nodes.update');
 Route::delete('/nodes/{id}', [NodeCrudController::class, 'destroy'])->name('nodes.destroy');
+
+Route::put('/select-scenario/{current_scenario_id}', [ScenarioController::class, 'select_scenario'])->name('scenarios.select');
+Route::get('/scenarios', [ScenarioController::class, 'index'])->name('scenarios.index');
+Route::post('/scenarios', [ScenarioController::class, 'store'])->name('scenarios.store');
+Route::put('/scenarios/{current_scenario_id}', [ScenarioController::class, 'update'])->name('scenarios.update');
