@@ -16,6 +16,9 @@ export default class NodeMapView {
         this.pulseMarker = new L.Marker();
         this._onNodeClick = null; // handler ثبت‌شده توسط Controller
         this._mapElement = mapInstance.getContainer();
+        // چون با تعویض سناریو، renderNodes چندین‌بار اجرا می‌شود، رویدادهای کلیک
+        // را فقط «یک‌بار» می‌بندیم تا handlerها تکراری (و چندبار صدا زده) نشوند.
+        this._clicksBound = false;
     }
 
     // برای هر نوع نقطه یک FeatureGroup جدا می‌سازد.
@@ -44,8 +47,26 @@ export default class NodeMapView {
                 return marker;
             },
         });
-        this._bindFeatureGroupClicks();
-        this._bindMapClick();
+        // اتصال رویدادها فقط بار اول؛ FeatureGroupها بین رندرها ثابت می‌مانند.
+        if (!this._clicksBound) {
+            this._bindFeatureGroupClicks();
+            this._bindMapClick();
+            this._clicksBound = true;
+        }
+    }
+
+    // ---- پاک‌سازی کاملِ نقشه (هنگام تعویض/ایجاد سناریو) --------------------------
+    // همه‌ی مارکرها را از تمام FeatureGroupها و از روی نقشه حذف می‌کند تا داده‌ی
+    // سناریوی جدید از صفر رندر شود. خودِ FeatureGroupها حفظ می‌شوند (بایندِ کلیک باقی می‌ماند).
+    clearAll() {
+        Object.keys(this.featureGroups).forEach((type) => {
+            const group = this.featureGroups[type];
+            group.eachLayer((layer) => {
+                group.removeLayer(layer);
+                this.map.removeLayer(layer);
+            });
+        });
+        this.removePulse();
     }
 
     // ---- رویداد کلیک روی نودها ------------------------------------------------

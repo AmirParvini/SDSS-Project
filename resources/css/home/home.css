@@ -9,6 +9,14 @@ button {
     pointer-events: auto;
 }
 
+.scenario-bar option {
+    background: dodgerblue;
+}
+
+#scenarioSelect:focus {
+    box-shadow: none;
+}
+
 .itemstable table tbody td p {
     white-space: normal;
     word-wrap: break-word;

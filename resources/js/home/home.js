@@ -13,22 +13,42 @@
 // -----------------------------------------------------------------------------
 import NodeMapView from "./map/NodeMapView.js";
 import NodeApiService from "./services/NodeApiService.js";
+import ScenarioService from "./services/ScenarioService.js";
 import AddPointModal from "./ui/AddPointModal.js";
 import NodePropertyPanel from "./ui/NodePropertyPanel.js";
 import NodeTableView from "./ui/NodeTableView.js";
+import ScenarioSelector from "./ui/ScenarioSelector.js";
+import ScenarioModal from "./ui/ScenarioModal.js";
 
 class HomeController {
-    constructor({ api, mapView, tableView, panel, addPointModal }) {
+    constructor({
+        api,
+        scenarioApi,
+        mapView,
+        tableView,
+        panel,
+        addPointModal,
+        scenarioSelector,
+        scenarioModal,
+    }) {
         this.api = api;
+        this.scenarioApi = scenarioApi;
         this.mapView = mapView;
         this.tableView = tableView;
         this.panel = panel;
         this.addPointModal = addPointModal;
+        this.scenarioSelector = scenarioSelector;
+        this.scenarioModal = scenarioModal;
         this.hscParameters = null;
     }
 
     init() {
         this._wireEvents();
+        this._wireScenarioEvents();
+
+        // سناریوها را بارگذاری می‌کند (dropdown با پیش‌فرضِ سناریوی فعال) و
+        // داده‌ی سناریوی فعال را روی نقشه می‌آورد. این دو مستقل‌اند.
+        this._loadScenarios();
         this._loadData();
     }
 
@@ -70,11 +90,131 @@ class HomeController {
         this.panel.onUpdate = (data) => this._updateNode(data);
         this.panel.onDelete = (id, type) => this._deleteNode(id, type);
 
-         // Wire add point modal save handler
+        // Wire add point modal save handler
         this.addPointModal.onCreate = (data) => this._createNode(data);
     }
 
+    // اتصال رویدادهای مربوط به سناریو (انتخاب، ایجاد، ویرایش).
+    _wireScenarioEvents() {
+        // تعویض سناریو از روی dropdown.
+        this.scenarioSelector.onSelect = (id) => this._switchScenario(id);
+
+        // دکمه‌ی «ایجاد» → مودالِ خالی.
+        this.scenarioSelector.onCreateClick = () =>
+            this.scenarioModal.openForCreate();
+
+        // دکمه‌ی «ویرایش» → مودال با اطلاعاتِ سناریوی انتخاب‌شده.
+        this.scenarioSelector.onEditClick = () => {
+            const id = this.scenarioSelector.getSelectedId();
+            const current = this.scenarioSelector.getScenarioById(id);
+            if (current) this.scenarioModal.openForEdit(current);
+        };
+
+        // ثبتِ مودال (ایجاد یا ویرایش بسته به mode).
+        this.scenarioModal.onSubmit = (data, mode) => {
+            if (mode === "edit") {
+                this._updateScenario(data);
+            } else {
+                this._createScenario(data);
+            }
+        };
+    }
+
+    // ---- use-case: بارگذاری لیست سناریوها ----------------------------------
+    _loadScenarios() {
+        this.scenarioApi
+            .listScenarios()
+            .then(({ scenarios, activeId }) => {
+                // dropdown به‌صورت پیش‌فرض روی سناریوی فعالِ دیتابیس تنظیم می‌شود.
+                this.scenarioSelector.render(scenarios, activeId);
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while loading scenarios.");
+            });
+    }
+
+    // ---- use-case: تعویض سناریو -------------------------------------------
+    // سناریوی قبلی غیرفعال و سناریوی انتخاب‌شده فعال می‌شود، سپس تمام داده‌های
+    // فرانت ریست و دوباره از صفر بارگذاری می‌شوند.
+    _switchScenario(id) {
+        this.scenarioApi
+            .activateScenario(id)
+            .then((res) => {
+                if (!res.success) {
+                    alert("Error: " + res.message);
+                    return;
+                }
+                this._resetFrontend();
+                this._loadData();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while switching scenario.");
+            });
+    }
+
+    // ---- use-case: ایجاد سناریو -------------------------------------------
+    // مانند رویداد انتخاب سناریو: بک‌اند سناریوی جدید را فعال می‌کند؛ سپس لیست
+    // دوباره خوانده می‌شود (تا سناریوی جدید و فعالِ جدید نمایش داده شوند) و همه‌ی
+    // داده‌های فرانت ریست می‌شوند تا کاربر داده‌ی تازه وارد کند.
+    _createScenario(data) {
+        this.scenarioApi
+            .createScenario(data)
+            .then((res) => {
+                if (!res.success) {
+                    alert("Error: " + res.message);
+                    return null;
+                }
+                this.scenarioModal.close();
+                return this.scenarioApi.listScenarios();
+            })
+            .then((list) => {
+                if (!list) return;
+                this.scenarioSelector.render(list.scenarios, list.activeId);
+                this._resetFrontend();
+                this._loadData();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while creating scenario.");
+            });
+    }
+
+    // ---- use-case: ویرایش سناریو ------------------------------------------
+    // فقط name/description تغییر می‌کند؛ سناریوی فعال عوض نمی‌شود، پس داده‌ها ریست نمی‌شوند.
+    _updateScenario(data) {
+        this.scenarioApi
+            .updateScenario(data)
+            .then((res) => {
+                if (!res.success) {
+                    alert("Error: " + res.message);
+                    return null;
+                }
+                this.scenarioModal.close();
+                return this.scenarioApi.listScenarios();
+            })
+            .then((list) => {
+                if (!list) return;
+                this.scenarioSelector.render(list.scenarios, list.activeId);
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while updating scenario.");
+            });
+    }
+
+    // ---- ریستِ کاملِ داده‌های فرانت ---------------------------------------
+    // پیش از بارگذاری مجددِ داده‌ها فراخوانی می‌شود: نقشه، جدول و پنل پاک می‌شوند.
+    _resetFrontend() {
+        this.mapView.clearAll();
+        this.tableView.reset();
+        this.panel.reset();
+        this.hscParameters = null;
+    }
+
     // ---- use-case: بارگذاری اولیه ------------------------------------------
+    // متد _loadData خودش داده‌های سناریوی اکتیو را از بک‌اند می‌گیرد.
     _loadData() {
         this.api
             .loadData()
@@ -110,6 +250,7 @@ class HomeController {
     }
 
     _createNode(data) {
+        data["scenario_id"] = this.scenarioSelector.getSelectedId()
         this.api
             .createNode(data)
             .then((res) => {
@@ -164,12 +305,21 @@ $(function () {
     const addPointModal = new AddPointModal();
     addPointModal.init();
 
+    const scenarioSelector = new ScenarioSelector();
+    scenarioSelector.init();
+
+    const scenarioModal = new ScenarioModal();
+    scenarioModal.init();
+
     const controller = new HomeController({
         api: new NodeApiService(),
+        scenarioApi: new ScenarioService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),
         panel: new NodePropertyPanel(),
         addPointModal: addPointModal,
+        scenarioSelector: scenarioSelector,
+        scenarioModal: scenarioModal,
     });
     controller.init();
 });

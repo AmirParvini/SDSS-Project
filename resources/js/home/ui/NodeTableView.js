@@ -130,6 +130,16 @@ export default class NodeTableView {
         });
     }
 
+    // پاک‌سازی جدول هنگام ریستِ داده‌ها (تعویض/ایجاد سناریو):
+    // محتوای جدول خالی و جدول بسته می‌شود تا وضعیت به حالت اولیه برگردد.
+    reset() {
+        const $table = $(".itemstable");
+        $table.find("thead").empty();
+        $table.find("tbody").empty();
+        $table.addClass("d-none").removeClass("moved fade-out-left");
+        this.currentActiveType = null;
+    }
+
     _propsOf(layer) {
         return layer.feature
             ? layer.feature.properties
