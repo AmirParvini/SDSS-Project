@@ -45,7 +45,7 @@ class HscParametersController extends Controller
      */
     public function edit(int $scenario_id)
     {
-        $hsc_params = HscParameter::all()->where('scenario_id', $scenario_id);
+        $hsc_params = HscParameter::where('scenario_id', $scenario_id)->get();
         return response()->json(["hsc_parameters" => $hsc_params[0]]);
     }
 
