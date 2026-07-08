@@ -21,7 +21,6 @@ class ScenarioController extends Controller
     function index() {
         $scenarios = Scenario::all();
         $activeId = Scenario::where('active', 1)->value('id');
-        Log::info("activeId = ".$activeId);
         return response()->json(["scenarios" => $scenarios, "activeId" => $activeId]);
     }
 

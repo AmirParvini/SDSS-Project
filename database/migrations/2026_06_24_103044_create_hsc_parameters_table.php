@@ -42,6 +42,7 @@ return new class extends Migration
             $table->decimal('shelter_cost', 10, 2);
             $table->decimal('gv_cost', 10, 2);
             $table->decimal('av_cost', 10, 2);
+            $table->timestamps();
         });
     }
 
