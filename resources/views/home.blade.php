@@ -48,7 +48,7 @@
                 </button>
             </div>
             <div class="">
-                <button
+                <button id="hsc_parameters"
                     class="btn btn-primary d-flex flex-row align-items-center p-2 justify-content-center p-0 p-1 rounded-4 shadow-sm">
                     <p class="m-0 font-bold">HSC Parameters</p>
                 </button>
@@ -64,7 +64,8 @@
                     <button id="createScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">
                         <i class="fa fa-plus" aria-hidden="true" style="width: 15px"></i>
                     </button>
-                    <button id="editScenarioBtn" type="button" class="btn btn-secondary">
+                    <button id="editScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">
+                        <i class="fa-solid fa-pencil" aria-hidden="true" style="width: 15px"></i>
                     </button>
                 </div>
             </div>
@@ -96,6 +97,7 @@
             </div>
         </div>
         <x-modals.add-point-modal style="z-index: 3;" :node_types="$node_types" />
+        <x-modals.hsc-parameters-modal id="hscParamsModal" style="z-index: 3;"/>
     </div>
 @endsection
 
