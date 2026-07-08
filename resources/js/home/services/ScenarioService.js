@@ -30,7 +30,6 @@ export default class ScenarioService {
     // فعال‌سازی سناریوی انتخاب‌شده. مسئولیتِ «غیرفعال‌کردن سناریوی قبلی و
     // فعال‌کردن سناریوی جدید» بر عهده‌ی همین کنترلرِ بک‌اند است تا اتمی بماند.
     activateScenario(id) {
-        console.log(Number(id));
         return this.http({
             method: "PUT",
             url: `${API_BASE_URL}/select-scenario/${Number(id)}`,

@@ -14,31 +14,38 @@
 import NodeMapView from "./map/NodeMapView.js";
 import NodeApiService from "./services/NodeApiService.js";
 import ScenarioService from "./services/ScenarioService.js";
+import HscParameterService from "./services/HscParameterService.js";
 import AddPointModal from "./ui/AddPointModal.js";
 import NodePropertyPanel from "./ui/NodePropertyPanel.js";
 import NodeTableView from "./ui/NodeTableView.js";
 import ScenarioSelector from "./ui/ScenarioSelector.js";
 import ScenarioModal from "./ui/ScenarioModal.js";
+import HscParameterModal from "./ui/HscParameterModal.js";
+import { HSC_PARAMETER_DEFAULTS } from "./config/hscParametersConfig.js";
 
 class HomeController {
     constructor({
         api,
         scenarioApi,
+        hscApi,
         mapView,
         tableView,
         panel,
         addPointModal,
         scenarioSelector,
         scenarioModal,
+        hscModal,
     }) {
         this.api = api;
         this.scenarioApi = scenarioApi;
+        this.hscApi = hscApi;
         this.mapView = mapView;
         this.tableView = tableView;
         this.panel = panel;
         this.addPointModal = addPointModal;
         this.scenarioSelector = scenarioSelector;
         this.scenarioModal = scenarioModal;
+        this.hscModal = hscModal;
         this.hscParameters = null;
     }
 
@@ -92,6 +99,10 @@ class HomeController {
 
         // Wire add point modal save handler
         this.addPointModal.onCreate = (data) => this._createNode(data);
+
+        // دکمه‌ی پارامترهای HSC: باز کردن مودال با مقادیرِ سناریوی فعال (فقط‌خواندنی).
+        $("#hsc_parameters").on("click", () => this._openHscParameters(this.scenarioSelector.getSelectedId()));
+        this.hscModal.onSave = (data) => this._updateHscParameters(data, this.scenarioSelector.getSelectedId());
     }
 
     // اتصال رویدادهای مربوط به سناریو (انتخاب، ایجاد، ویرایش).
@@ -164,20 +175,55 @@ class HomeController {
             .then((res) => {
                 if (!res.success) {
                     alert("Error: " + res.message);
-                    return null;
+                    return Promise.reject("handled");
                 }
                 this.scenarioModal.close();
-                return this.scenarioApi.listScenarios();
+                // ذخیره‌ی مقادیر پیش‌فرضِ HSC برای سناریوی تازه‌فعال‌شده.
+                return this.hscApi.saveParameters(HSC_PARAMETER_DEFAULTS);
             })
+            .then(() => this.scenarioApi.listScenarios())
             .then((list) => {
-                if (!list) return;
                 this.scenarioSelector.render(list.scenarios, list.activeId);
                 this._resetFrontend();
                 this._loadData();
             })
             .catch((error) => {
+                if (error === "handled") return;
                 console.error(error);
                 alert("An error occurred while creating scenario.");
+            });
+    }
+
+    // ---- use-case: پارامترهای HSC -----------------------------------------
+    // باز کردن مودال با مقادیرِ سناریوی فعال. ورودی‌ها به‌صورت پیش‌فرض قفل‌اند.
+    _openHscParameters(scenario_id) {
+        this.hscApi
+            .getParameters(scenario_id)
+            .then((params) => {
+                this.hscModal.display(params);
+                this.hscModal.open();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while loading HSC parameters.");
+            });
+    }
+
+    // ذخیره‌ی پارامترهای ویرایش‌شده و بازگشتِ مودال به حالت فقط‌خواندنی.
+    _updateHscParameters(data, scenario_id) {
+        this.hscApi
+            .updateParameters(data, scenario_id)
+            .then((res) => {
+                if (!res.success) {
+                    alert("Error: " + res.message);
+                    return;
+                }
+                alert("Saved successfully!");
+                this.hscModal.display(data);
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while saving HSC parameters.");
             });
     }
 
@@ -250,7 +296,6 @@ class HomeController {
     }
 
     _createNode(data) {
-        data["scenario_id"] = this.scenarioSelector.getSelectedId()
         this.api
             .createNode(data)
             .then((res) => {
@@ -311,15 +356,20 @@ $(function () {
     const scenarioModal = new ScenarioModal();
     scenarioModal.init();
 
+    const hscModal = new HscParameterModal();
+    hscModal.init();
+
     const controller = new HomeController({
         api: new NodeApiService(),
         scenarioApi: new ScenarioService(),
+        hscApi: new HscParameterService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),
         panel: new NodePropertyPanel(),
         addPointModal: addPointModal,
         scenarioSelector: scenarioSelector,
         scenarioModal: scenarioModal,
+        hscModal: hscModal,
     });
     controller.init();
 });

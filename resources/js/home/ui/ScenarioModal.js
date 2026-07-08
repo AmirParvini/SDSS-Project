@@ -87,7 +87,7 @@ export default class ScenarioModal {
     openForCreate() {
         this._mode = "create";
         this._editingId = null;
-        this._title.text("ایجاد سناریو");
+        this._title.text("Create new scenario");
         this._idInput.val("");
         this._nameInput.val("");
         this._descInput.val("");
@@ -98,7 +98,7 @@ export default class ScenarioModal {
     openForEdit(scenario) {
         this._mode = "edit";
         this._editingId = scenario ? scenario.id : null;
-        this._title.text("ویرایش سناریو");
+        this._title.text("Scenario editing");
         this._idInput.val(scenario ? scenario.id : "");
         this._nameInput.val(scenario ? scenario.name : "");
         this._descInput.val(scenario ? scenario.description || "" : "");
