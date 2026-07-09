@@ -124,7 +124,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         tmc_cap = deepcopy(problem.capacity.tmc)
 
         # Part 3 + shelter allocation.
-        da_ec_alloc = self._assigner.assign(chromosome)
+        da_ec_alloc, num_selected_ec = self._assigner.assign(chromosome)
         allocation = self._allocator.allocate(da_ec_alloc)
         metrics.weighted_distance = allocation.weighted_distance
         metrics.ec_shortage = allocation.total_shortage

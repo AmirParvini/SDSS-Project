@@ -29,7 +29,6 @@ class ChromosomeFactory:
     def create_random(self) -> Chromosome:
         problem = self._problem
         n_shelters = problem.n_shelters
-        n_distribution = problem.n_distribution
         n_damage = problem.n_damage_points
         n_hosp = problem.n_hospitals
         n_tmc = problem.n_temp_medical
@@ -39,7 +38,7 @@ class ChromosomeFactory:
         active_shelters = np.random.choice(n_shelters, n_active, replace=False)
         dc_to_shelter = [0] * n_shelters
         for idx in active_shelters:
-            dc_to_shelter[idx] = random.randint(1, n_distribution)
+            dc_to_shelter[idx] = random.choice(problem.dc_id)
 
         # Part 2: random flow ratios.
         shelter_flow_ratio = [np.random.random() for _ in range(n_shelters)]
