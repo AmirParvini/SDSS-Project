@@ -13,11 +13,13 @@ use App\Http\Controllers\ScenarioController;
 use App\Http\Controllers\SolvingController;
 use App\Http\Controllers\TMCController;
 use App\Http\Controllers\NodeCrudController;
+use App\Http\Controllers\PathController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home');
 Route::get("/load_data", [HomeController::class, 'index'])->name('load_data');
-// Route::get("/", [OptimizationController::class, 'optimize'])->name('optima');
+Route::get("/optima", [OptimizationController::class, 'optimize'])->name('optima');
+Route::get("/path", [PathController::class, 'pathCalculator'])->name('path');
 // Route::post('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::get('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::post('/api/config/getdata',[ConfigurationController::class, 'getdata'])->name('configuration.getdata');
