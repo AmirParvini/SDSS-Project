@@ -132,7 +132,7 @@ class SolutionDecoder:
             shelter_id = problem.ec_id[idx]
             dist = problem.distance.dc_to_shelter[f"{dc},{shelter_id}"]
             flow = math.ceil(chromosome.shelter_flow_ratio[idx] * demand[shelter_id])
-            self.package_cost += flow * problem['reliefpackage_cost']
+            self.package_cost += flow * problem.cost['reliefpackage_cost']
             flow_cost = dist * problem.cost["reliefpackage_transportation_cost"] * flow
             self.package_flow_cost += flow_cost
             records.append(

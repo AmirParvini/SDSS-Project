@@ -136,7 +136,7 @@ class MutationOperator:
 
         # Part 1: reassign a random shelter's distribution centre.
         i = np.random.randint(0, n_shelters)
-        mutated.dc_to_shelter[i] = random.randint(1, problem.n_distribution)
+        mutated.dc_to_shelter[i] = random.choice(problem.dc_id)
 
         # Part 2: perturb a non-zero flow ratio.
         i = np.random.randint(0, n_shelters)
