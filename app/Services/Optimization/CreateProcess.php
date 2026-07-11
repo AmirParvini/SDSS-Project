@@ -12,6 +12,10 @@ class CreateProcess
         $json_data = json_encode($data);
         $process = new Process(['python', $pythonScriptPath]);
         $process->setInput($json_data);
+        $process->setEnv([
+            'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
+            'PATH'       => getenv('PATH'),
+        ]);
         $process->setTimeout($timeout);
         return $process;
     }
