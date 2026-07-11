@@ -5,19 +5,20 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\Optimization\OptimizationOrchestrator;
 use App\Exceptions\OptimizationProcessException;
+use App\Models\Scenario;
 use Illuminate\Http\JsonResponse;
 use Throwable;
 
 class OptimizationController extends Controller
 {
-    public function optimize(Request $request, OptimizationOrchestrator $orchestrator): JsonResponse
+    public function optimize(OptimizationOrchestrator $orchestrator): JsonResponse
     {
         // $validated = $request->validate([
         //     'scenario_id' => ['required', 'integer', 'exists:scenarios,id'],
         //     ]);
         try {
             $result = $orchestrator->run(
-                scenarioId: $request['scenario_id'],
+                scenarioId: Scenario::where('active', 1)->value('id'),
                 pythonPath: 'public/python/HSC_NSGA-II_SOLID/run.py',
                 timeout: 1800,
             );
