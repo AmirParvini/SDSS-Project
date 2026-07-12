@@ -43,7 +43,9 @@ class OptimizationController extends Controller
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Internal server error! (500)',
-                'detail' => $e->getMessage()
+                'detail' => $e->getMessage(),
+                'errorOutput' => $e->getFile(),
+                'line' => $e->getLine(),
             ], 500);
         }
     }

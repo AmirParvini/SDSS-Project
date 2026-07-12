@@ -32,7 +32,7 @@ class BuildData
         $this->da_id = AffectedArea::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('node_id')->toArray();
         $this->h_id = Hospital::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('node_id')->toArray();
         $this->tmc_id = TemporaryMedicalCenter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('node_id')->toArray();
-        $this->hsc_parameters = HscParameter::all()->where('scenario_id', $scenario_id)->toArray();
+        $this->hsc_parameters = HscParameter::query()->where('scenario_id', $scenario_id)->get()->toArray();
         $this->affected_pops = AffectedArea::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('affected_pop', 'node_id')->toArray();
         $this->shelters_area = Shelter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('area', 'node_id')->toArray();
         $this->hospitals_capacity = Hospital::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('capacity', 'node_id')->toArray();

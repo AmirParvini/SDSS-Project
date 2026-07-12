@@ -15,18 +15,20 @@ use App\Models\TemporaryMedicalCenterAllocation;
 class SaveResults
 {
 
-    function store(array $results)
+    function store(array $results, int $scenario_id)
     {
         foreach ($results as $solution) {
-            ParetoSolution::query()->create([
-                'scenario_id' => $solution['scenario_id'],
+            ParetoSolution::insert([
+                'solution_id' => $solution['solution_id'],
+                'scenario_id' => $scenario_id,
                 'z1' => $solution['F1'],
                 'z2' => $solution['F2'],
                 'z3' => $solution['F3'],
             ]);
-            foreach ($solution['package_flow'] as $pf) {
-                PackageFlow::query()->create([
-                    'scenario_id' => $solution['scenario_id'],
+            foreach ($solution['package_flows'] as $pf) {
+                PackageFlow::insert([
+                    'scenario_id' => $scenario_id,
+                    'solution_id' => $solution['solution_id'],
                     'source_id' => $pf['source_id'],
                     'target_id' => $pf['target_id'],
                     'flow' => $pf['flow'],
@@ -34,8 +36,9 @@ class SaveResults
                 ]);
             }
             foreach ($solution['tmc_allocations'] as $ta) {
-                TemporaryMedicalCenterAllocation::query()->create([
-                    'scenario_id' => $solution['scenario_id'],
+                TemporaryMedicalCenterAllocation::insert([
+                    'scenario_id' => $scenario_id,
+                    'solution_id' => $solution['solution_id'],
                     'source_id' => $ta['source_id'],
                     'target_id' => $ta['target_id'],
                     'g_flow_moderate' => $ta['g_flow_moderate'],
@@ -47,40 +50,41 @@ class SaveResults
                 ]);
             }
             foreach ($solution['hospital_allocations'] as $ha) {
-                HospitalAllocation::query()->create([
-                    'scenario_id' => $solution['scenario_id'],
+                HospitalAllocation::insert([
+                    'scenario_id' => $scenario_id,
+                    'solution_id' => $solution['solution_id'],
                     'source_id' => $ha['source_id'],
                     'target_id' => $ha['target_id'],
-                    'g_flow_severe' => $ha['g_flow_severe'],
-                    'num_gv_severe' => $ha['num_gv_severe'],
-                    'g_flow_cost_severe' => $ha['g_flow_cost_severe'],
-                    'a_flow_severe' => $ha['a_flow_severe'],
-                    'num_av_severe' => $ha['num_av_severe'],
-                    'a_flow_cost_severe' => $ha['a_flow_cost_severe'],
-                    'g_flow_moderate' => $ha['g_flow_moderate'],
-                    'num_gv_moderate' => $ha['num_gv_moderate'],
-                    'g_flow_cost_moderate' => $ha['g_flow_cost_moderate'],
-                    'a_flow_moderate' => $ha['a_flow_moderate'],
-                    'num_av_moderate' => $ha['num_av_moderate'],
-                    'a_flow_cost_moderate' => $ha['a_flow_cost_moderate'],
+                    'g_flow_severe' => $ha['g_flow_severe'] ?? 0,
+                    'num_gv_severe' => $ha['num_gv_severe'] ?? 0,
+                    'g_flow_cost_severe' => $ha['g_flow_cost_severe'] ?? 0,
+                    'a_flow_severe' => $ha['a_flow_severe'] ?? 0,
+                    'num_av_severe' => $ha['num_av_severe'] ?? 0,
+                    'a_flow_cost_severe' => $ha['a_flow_cost_severe'] ?? 0,
+                    'g_flow_moderate' => $ha['g_flow_moderate'] ?? 0,
+                    'num_gv_moderate' => $ha['num_gv_moderate']  ?? 0,
+                    'g_flow_cost_moderate' => $ha['g_flow_cost_moderate']  ?? 0,
+                    'a_flow_moderate' => $ha['a_flow_moderate']  ?? 0,
+                    'num_av_moderate' => $ha['num_av_moderate']  ?? 0,
+                    'a_flow_cost_moderate' => $ha['a_flow_cost_moderate']  ?? 0,
                 ]);
             }
             foreach ($solution['shelter_allocations'] as $sa) {
                 $source_id = $sa['source_id'];
                 $target_id = $sa['target_id'];
-                ShelterAllocation::query()->create([
-                    'scenario_id' => $solution['scenario_id'],
+                ShelterAllocation::insert([
+                    'scenario_id' => $scenario_id,
+                    'solution_id' => $solution['solution_id'],
                     'source_id' => $source_id,
                     'target_id' => $target_id,
-                    'flow' => $sa['scenario_id'],
-                    'distance' => Path::query()->where(function ($query) use ($source_id, $target_id) {
-                        $query->whereIn('source_id', $source_id)
-                            ->WhereIn('target_id', $target_id);
-                    }),
+                    'flow' => $sa['flow'],
+                    'distance' => Path::query()->where("source_id", $source_id)->where("target_id", $target_id)
+                    ->where("path_type", "air")->value("distance")
                 ]);
             }
-            Cost::query()->create([
-                'scenario_id' => $solution['costs']['scenario_id'],
+            Cost::insert([
+                'scenario_id' => $scenario_id,
+                'solution_id' => $solution['solution_id'],
                 'package_flow_cost' => $solution['costs']['package_flow_cost'],
                 'package_cost' => $solution['costs']['package_cost'],
                 'ground_vehicle_cost' => $solution['costs']['ground_vehicle_cost'],
