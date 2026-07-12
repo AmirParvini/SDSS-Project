@@ -8,12 +8,17 @@ class OptimizationOrchestrator
         private BuildData $buildData,
         private CreateProcess $createProcess,
         private RunProcess $runProcess,
+        private SaveResults $save_result,
+        private DeleteResults $deleteResults
     ) {}
 
     public function run(int $scenarioId, string $pythonPath, int $timeout): array
     {
         $data = $this->buildData->build($scenarioId);
         $process = $this->createProcess->create($pythonPath, $data, $timeout);
-        return $this->runProcess->run($process, $scenarioId);
+        $results = $this->runProcess->run($process, $scenarioId);
+        $this->deleteResults->delete($scenarioId);
+        $this->save_result->store($results, $scenarioId);
+        return $results;
     }
 }
