@@ -98,27 +98,27 @@ class InMemoryDistanceLoader(DistanceLoader):
 
         for row in self._distances["dc_to_ec"]:
             dc_to_shelter[f"{row['source_id']},{row['target_id']}"] = (
-                float(row["distance"]) // 1000
+                round(float(row["distance"]) / 1000, 4)
             )
 
         for key, value in self._distances["da_to_h"].items():
             if key == 'ground':
                 for ground_dist in value:
-                    da_to_h[f"{ground_dist['source_id']},{ground_dist['target_id']}"] = float(ground_dist["distance"]) // 1000
+                    da_to_h[f"{ground_dist['source_id']},{ground_dist['target_id']}"] = round(float(ground_dist["distance"]) / 1000, 4)
             if key == 'air':
                 for air_dist in value:
-                    da_to_h_helicopter[f"{air_dist['source_id']},{air_dist['target_id']}"] = float(air_dist["distance"]) // 1000
+                    da_to_h_helicopter[f"{air_dist['source_id']},{air_dist['target_id']}"] = round(float(air_dist["distance"]) / 1000, 4)
 
         for row in self._distances["da_to_ec"]:
-            da_to_ec[f"{row['source_id']},{row['target_id']}"] = float(row["distance"])
+            da_to_ec[f"{row['source_id']},{row['target_id']}"] = round(float(row["distance"]), 4)
 
         for key, value in self._distances["da_to_tmc"].items():
             if key == 'ground':
                 for ground_dist in value:
-                    da_to_tmc[f"{ground_dist['source_id']},{ground_dist['target_id']}"] = float(ground_dist["distance"]) // 1000
+                    da_to_tmc[f"{ground_dist['source_id']},{ground_dist['target_id']}"] = round(float(ground_dist["distance"]) / 1000, 4)
             if key == 'air':
                 for air_dist in value:
-                    da_to_tmc_helicopter[f"{air_dist['source_id']},{air_dist['target_id']}"] = float(air_dist["distance"]) // 1000
+                    da_to_tmc_helicopter[f"{air_dist['source_id']},{air_dist['target_id']}"] = round(float(air_dist["distance"]) / 1000, 4)
 
         return Distances(
             dc_to_shelter = dc_to_shelter,

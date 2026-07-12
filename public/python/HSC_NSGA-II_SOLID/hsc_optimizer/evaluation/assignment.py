@@ -24,12 +24,13 @@ class DamageShelterAssigner:
     def assign(self, chromosome: Chromosome) -> Dict[int, List[int]]:
         ec_id = self._problem.ec_id
 
+        # پیدا کردن پناهگاه‌های انتخاب شده بدون تکرار (با فرض اینکه در کروموزوم یکتا هستند)
         selected_shelters = [
             ec_id[idx] for idx, x in enumerate(chromosome.dc_to_shelter) if x != 0
         ]
         damaged_areas = [x for x in chromosome.damage_to_shelter if x != 0]
 
-        # Make the two lists equal length by cycling the shorter one.
+        # هم‌طول کردن دو لیست با متد قبلی شما
         if len(selected_shelters) > len(damaged_areas):
             damaged_areas = list(
                 itertools.islice(itertools.cycle(damaged_areas), len(selected_shelters))
@@ -40,6 +41,11 @@ class DamageShelterAssigner:
             )
 
         da_ec_alloc: Dict[int, List[int]] = defaultdict(list)
+        
         for idx, area in enumerate(damaged_areas):
-            da_ec_alloc[area].append(selected_shelters[idx])
+            shelter = selected_shelters[idx]
+            # اصلاح اصلی: فقط اگر پناهگاه قبلاً برای این منطقه ثبت نشده باشد، اضافه شود
+            if shelter not in da_ec_alloc[area]:
+                da_ec_alloc[area].append(shelter)
+                
         return da_ec_alloc, len(selected_shelters)

@@ -21,6 +21,7 @@ from ..domain.problem_data import (
 
 import sys
 import json
+import math
 
 @dataclass
 class ScenarioConfig:
@@ -168,16 +169,16 @@ class StdinConfig:
 
 def build_problem_data(config: StdinConfig, distances: Distances) -> ProblemData:
     """Assemble an immutable :class:`ProblemData` from config + distances."""
-    severe_injured = {k: v * config.severe_ratio for k, v in config.affected_pop.items()}
-    minor_injured = {k: v * config.minor_ratio for k, v in config.affected_pop.items()}
+    severe_injured = {k: round(v * config.severe_ratio) for k, v in config.affected_pop.items()}
+    minor_injured = {k: round(v * config.minor_ratio) for k, v in config.affected_pop.items()}
     homeless = {
         k: config.affected_pop[f'{k}'] - (severe_injured[f'{k}'] + minor_injured[f'{k}'])
         for k in config.affected_pop
     }
 
     shelter_capacity = {
-        ec_id: (area * config.shelter_area_usage / config.relief_tent_area)
-        * config.relief_tent_capacity
+        ec_id: math.floor((area * config.shelter_area_usage / config.relief_tent_area)
+        * config.relief_tent_capacity)
         for ec_id, area in config.ec_area.items()
     }
 

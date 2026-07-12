@@ -27,36 +27,35 @@ class ShelterAllocationService:
 
         demand = {ec_id: 0 for ec_list in da_ec.values() for ec_id in ec_list}
         allocations: Dict[int, Dict[int, float]] = {da_id: {} for da_id in da_ec}
-        ec_shortages = {ec_id: 0 for ec_list in da_ec.values() for ec_id in ec_list}
+        # مقدار اولیه کمبودها را اعشاری (0.0) در نظر می‌گیریم تا خطای گرد کردن در طول حلقه رخ ندهد
+        ec_shortages = {ec_id: 0.0 for ec_list in da_ec.values() for ec_id in ec_list}
 
         total_shortage = 0
         total_weighted_dist = 0
         remaining_capacity = copy.deepcopy(problem.capacity.shelter)
 
-        # Raw potential demand (ignoring capacity), used only for shortage stats.
-        total_potential_demand = {
-            ec_id: 0 for ec_list in da_ec.values() for ec_id in ec_list
-        }
-        for da_id, ec_id_list in da_ec.items():
-            share = problem.homeless[f'{da_id}'] / len(ec_id_list)
-            for ec_id in ec_id_list:
-                total_potential_demand[ec_id] += share
-
         # Capacity-aware allocation.
         for da_id, ec_id_list in da_ec.items():
             homeless_count = problem.homeless[f'{da_id}']
-            available_caps = [remaining_capacity[f'{v}'] for v in ec_id_list]
+            
+            # استفاده از max(0, ...) برای اطمینان از اینکه ظرفیت‌های منفی احتمالی ناشی از محاسبات دیگر وارد محاسبات نشوند
+            available_caps = [max(0, remaining_capacity[f'{v}']) for v in ec_id_list]
             total_available = sum(available_caps)
 
-            if total_available >= homeless_count:
-                remaining_pop = homeless_count
+            remaining_pop = homeless_count
+
+            if total_available >= homeless_count and total_available > 0:
                 for i, ec_id in enumerate(ec_id_list):
                     is_last = i == len(ec_id_list) - 1
-                    alloc = (
-                        remaining_pop
-                        if is_last
-                        else math.floor(homeless_count * (available_caps[i] / total_available))
-                    )
+                    
+                    if is_last:
+                        # در مرکز آخر، بیشترین مقدار ممکن که ظرفیتش اجازه می‌دهد را تخصیص می‌دهیم
+                        alloc = min(remaining_pop, max(0, remaining_capacity[f'{ec_id}']))
+                    else:
+                        # برای سایر مراکز، سهم متناسب را محاسبه کرده و مطمئن می‌شویم از ظرفیت واقعی بیشتر نشود
+                        calculated_alloc = round(homeless_count * (available_caps[i] / total_available))
+                        alloc = min(calculated_alloc, max(0, remaining_capacity[f'{ec_id}']))
+                    
                     allocations[da_id][ec_id] = alloc
                     dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
                     remaining_capacity[f'{ec_id}'] -= alloc
@@ -64,20 +63,34 @@ class ShelterAllocationService:
                     total_weighted_dist += alloc * dist
                     remaining_pop -= alloc
             else:
+                # اگر ظرفیت کل کمتر از جمعیت بود، تمام ظرفیت باقی‌مانده را تخصیص می‌دهیم
                 for ec_id in ec_id_list:
-                    alloc = remaining_capacity[f'{ec_id}']
+                    alloc = max(0, remaining_capacity[f'{ec_id}'])
                     allocations[da_id][ec_id] = alloc
                     dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
+                    remaining_capacity[f'{ec_id}'] -= alloc
                     demand[ec_id] += math.ceil(alloc / 5)
                     total_weighted_dist += alloc * dist
-                    remaining_capacity[f'{ec_id}'] = 0
-                total_shortage += homeless_count - total_available
+                    remaining_pop -= alloc
+                
+            # -- بخش اصلاح شده: ثبت دقیق و پویای کمبود هر مرکز --
+                # اگر پس از تخصیص، هنوز جمعیتی از این منطقه باقی مانده باشد:
+                if remaining_pop > 0:
+                    total_shortage += remaining_pop
+                    
+                    # توزیع کسریِ این منطقه بین مراکز متصل به آن، بر اساس نسبت ظرفیت اولیه‌شان
+                    initial_caps = [max(0, problem.capacity.shelter[f'{v}']) for v in ec_id_list]
+                    total_init = sum(initial_caps)
+                    
+                    for i, ec_id in enumerate(ec_id_list):
+                        if total_init > 0:
+                            ec_shortages[ec_id] += remaining_pop * (initial_caps[i] / total_init)
+                        else:
+                            # حالت استثنایی که ظرفیت اولیه همه مراکز صفر باشد
+                            ec_shortages[ec_id] += remaining_pop / len(ec_id_list)
 
-        # Final per-shelter shortage relative to its initial capacity.
-        for ec_id in ec_shortages:
-            initial_cap = problem.capacity.shelter[f'{ec_id}']
-            if total_potential_demand[ec_id] > initial_cap:
-                ec_shortages[ec_id] = total_potential_demand[ec_id] - initial_cap
+            # تبدیل مقادیر نهایی کمبود به عدد صحیح (رفع خطاهای جزئی اعشاری)
+            ec_shortages = {k: round(v) for k, v in ec_shortages.items()}
 
         return AllocationResult(
             demand=demand,

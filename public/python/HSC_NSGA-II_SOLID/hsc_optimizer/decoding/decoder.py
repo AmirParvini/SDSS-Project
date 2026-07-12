@@ -97,6 +97,7 @@ class SolutionDecoder:
             "shelter_allocations": shelter_allocations,
             "hospital_allocations": hospital_allocations,
             "tmc_allocations": tmc_allocations,
+            "solution_shelter_shortage": allocation.ec_shortages,
             "solution_hospital_shortage_severe": shortage_severe,
             "solution_hospital_shortage_moderate": shortage_moderate,
             "solution_tmc_shortage": tmc_shortage,
