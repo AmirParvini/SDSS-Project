@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('costs', function (Blueprint $table) {
             $table->id();
+            $table->integer('scenario_id');
             $table->integer('solution_id');
             $table->decimal('package_flow_cost', 10, 2);
             $table->decimal('package_cost', 10, 2);
@@ -20,7 +21,7 @@ return new class extends Migration
             $table->decimal('air_vehicle_cost', 10, 2);
             $table->decimal('shelter_establish_cost', 10, 2);
             $table->decimal('tmc_establish_cost', 10, 2);
-            $table->decimal('total_cost', 10, 2);
+            $table->decimal('total_cost', 15, 2);
             $table->timestamps();
         });
     }

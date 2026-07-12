@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('pareto_solutions', function (Blueprint $table) {
             $table->id();
+            $table->integer('solution_id');
             $table->integer('scenario_id');
             $table->decimal('z1', 10, 2);
             $table->decimal('z2', 10, 2);
