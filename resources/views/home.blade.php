@@ -38,31 +38,43 @@
 @section('content')
     <div class="container-fluid p-0 m-0 vh-100 d-flex flex-column overflow-hidden">
         {{-- Header --}}
-        <div class="d-flex flex-row justify-content-start gap-3 px-3 py-2 w-100 rounded-b-xl pl-5"
+        <div class="d-flex flex-row justify-content-start gap-3 px-3 py-2 w-100 rounded-bottom-4 pl-5 bg-white shadow"
             style="z-index: 2; pointer-events: none">
-            <div class="">
+            <div>
+                <ul class="nav nav-underline">
+                    <li class="nav-item pr-4">
+                        <a class="nav-link active" aria-current="page" href="#">Dashboar</a>
+                    </li>
+                    <li class="nav-item pr-4">
+                        <a class="nav-link" href="#">Reports</a>
+                    </li>
+                </ul>
+            </div>
+            <div>
                 <button
-                    class="btn btn-primary d-flex flex-row align-items-center p-2 justify-content-center p-0 p-1 rounded-5 shadow-sm">
+                    class="btn btn-primary d-flex flex-row align-items-center h-100 justify-content-center rounded-5">
                     <i class="fa fa-play w-4 h-4"></i>
-                    <p class="m-0 font-bold">Run Model</p>
+                    <p class="font-bold" style="font-size: 12px">Run Model</p>
                 </button>
             </div>
-            <div class="">
+            <div>
                 <button id="hsc_parameters"
-                    class="btn btn-primary d-flex flex-row align-items-center p-2 justify-content-center p-0 p-1 rounded-4 shadow-sm">
-                    <p class="m-0 font-bold">HSC Parameters</p>
+                    class="btn btn-primary d-flex flex-row align-items-center h-100 justify-content-center rounded-4">
+                    <p class="font-bold" style="font-size: 12px;">
+                        HSC Parameters</p>
                 </button>
             </div>
             {{-- Scenario Selector --}}
             <div id="scenarioBar">
                 <div class="scenario-bar d-flex align-items-center gap-1 h-100">
-                    <select id="scenarioSelect" class="form-select scenario-select bg-primary h-100 focus
+                    <select id="scenarioSelect"
+                        class="form-select scenario-select bg-primary h-100 focus
                     text-white fw-bold"
-                        style=" font-size: 14px; pointer-events: auto">
+                        style=" font-size: 12px; pointer-events: auto;">
                     </select>
 
                     <button id="createScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">
-                        <i class="fa fa-plus" aria-hidden="true" style="width: 15px"></i>
+                        <i class="fa fa-plus" aria-hidden="true" style="width: 16px"></i>
                     </button>
                     <button id="editScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">
                         <i class="fa-solid fa-pencil" aria-hidden="true" style="width: 15px"></i>
@@ -81,7 +93,7 @@
                 <x-tables />
             </div>
 
-            <div class="d-flex flex-column gap-3 position-absolute top-0 end-0 mt-14 mr-3">
+            <div class="d-flex flex-column gap-3 position-absolute bottom-0 end-0 mb-3 mr-3">
                 {{-- Node properties container --}}
                 <x-node_properties.main-container :node_types="$node_types" />
                 {{-- Add Point Button --}}

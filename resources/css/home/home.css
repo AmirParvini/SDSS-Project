@@ -5,7 +5,7 @@ p {
     margin-bottom: 0px !important;
 }
 
-button {
+button, a {
     pointer-events: auto;
 }
 
