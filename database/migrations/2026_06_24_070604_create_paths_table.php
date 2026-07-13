@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('paths', function (Blueprint $table) {
             $table->id();
+            $table->integer('scenario_id');
             $table->integer('source_id');
             $table->integer('target_id');
             $table->string('path_type', 10);

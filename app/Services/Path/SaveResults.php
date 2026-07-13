@@ -13,7 +13,7 @@ use App\Models\TemporaryMedicalCenterAllocation;
 class SaveResults
 {
 
-    function store(array $results, string $path_type)
+    function store(int $scenario_id, array $results, string $path_type)
     {
         if (empty($results)) {
             return;
@@ -22,6 +22,7 @@ class SaveResults
         $rows = [];
         foreach ($results as $result) {
             $rows[] = [
+                'scenario_id' => $scenario_id,
                 'source_id'  => $result['source_id'],
                 'target_id'  => $result['target_id'],
                 'path_type'  => $path_type,

@@ -14,7 +14,7 @@ class OptimizationOrchestrator
 
     public function run(int $scenarioId, string $pythonPath, int $timeout): array
     {
-        $data = $this->buildData->build($scenarioId);
+        $data = $this->buildData->buildData($scenarioId);
         $process = $this->createProcess->create($pythonPath, $data, $timeout);
         $results = $this->runProcess->run($process, $scenarioId);
         $this->deleteResults->delete($scenarioId);

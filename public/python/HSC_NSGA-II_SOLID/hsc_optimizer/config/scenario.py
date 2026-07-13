@@ -114,6 +114,7 @@ class StdinConfig:
         self.ec_area = data_dict['shelters_area']
         self.hospital_capacity = data_dict['hospitals_capacity']
         self.tmc_capacity = data_dict['tmcs_capacity']
+        self.paths = data_dict['paths']
 
         # Entity ids
         self.dc_id = self.nodes_id['dc']
@@ -202,6 +203,7 @@ def build_problem_data(config: StdinConfig, distances: Distances) -> ProblemData
         homeless=homeless,
         cost=dict(config.cost),
         distance=distances,
+        path=config.paths,
         capacity=capacities,
         ambulance_speed=config.ambulance_speed,
         helicopter_speed=config.helicopter_speed,

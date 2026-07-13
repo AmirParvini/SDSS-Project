@@ -13,10 +13,10 @@ class GroundPathService
         private SaveResults $save_results,
     ) {}
 
-    function run(string $pythonPath, int $timeout, array $assigns) {
+    function run(int $scenario_id, string $pythonPath, int $timeout, array $assigns) {
         $process = $this->create_proccess->create($pythonPath, $assigns, $timeout);
         $output = $this->path_run_proccess->run($process);
-        $this->save_results->store($output, "ground");
+        $this->save_results->store($scenario_id, $output, "ground");
         return $output;
     }
 }

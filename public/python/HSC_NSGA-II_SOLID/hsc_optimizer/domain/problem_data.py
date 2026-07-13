@@ -33,6 +33,11 @@ class Distances:
     da_to_h_helicopter: Dict[str, float]
     da_to_tmc: Dict[str, float]
     da_to_tmc_helicopter: Dict[str, float]
+@dataclass(frozen=True)
+class Paths:
+    """Pre-computed path dictionaries keyed by ``"source_id,target_id"``."""
+
+    paths: Dict[str, dict]
 
 
 @dataclass(frozen=True)
@@ -65,6 +70,7 @@ class ProblemData:
     # Costs, distances, capacities
     cost: Dict[str, float]
     distance: Distances
+    path: Dict[str, dict]
     capacity: FacilityCapacities
 
     # Vehicle speeds

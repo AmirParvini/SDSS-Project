@@ -66,30 +66,29 @@ class SolutionDecoder:
         demand = allocation.demand
 
         shelter_allocations = self._shelter_allocations(allocation.allocations)
-        package_flows = self._package_flows(chromosome, demand)
+        package_flows, dc_id_list, ec_id_list = self._package_flows(chromosome, demand)
 
         hospital_allocations: List[dict] = []
+        h_id_list: List = []
         shortage_severe: Dict[int, float] = {}
         shortage_moderate: Dict[int, float] = {}
+        tmc_id_list: List = []
         tmc_shortage: Dict[int, float] = {}
 
-        self._severe_to_hospital(
-            chromosome, hospital_cap, hospital_allocations, shortage_severe
+        self._injured_to_hospital(
+            chromosome, hospital_cap, hospital_allocations, shortage_severe, shortage_moderate, h_id_list
         )
-        self._moderate_to_hospital(
-            chromosome,
-            hospital_cap,
-            hospital_allocations,
-            shortage_severe,
-            shortage_moderate,
-        )
-        tmc_allocations, num_tmc = self._moderate_to_tmc(chromosome, tmc_cap, tmc_shortage)
+        tmc_allocations, num_tmc = self._injured_to_tmc(chromosome, tmc_cap, tmc_shortage, tmc_id_list)
         self.tmc_establish_cost = num_tmc * problem.cost['tmc_cost']
         self.total_cost = self.package_flow_cost + self.package_cost + self.ground_vehicle_cost +\
               self.air_vehicle_cost + self.shelter_establish_cost + self.tmc_establish_cost +\
                 self.total_cost
         return {
             "solution_id": solution_id,
+            "dc_id": dc_id_list,
+            "ec_id": ec_id_list,
+            "h_id": h_id_list,
+            "tmc_id": tmc_id_list,
             "F1": pareto_pop.normal_cost[0],
             "F2": pareto_pop.cost[1],
             "F3": pareto_pop.normal_cost[2],
@@ -116,21 +115,29 @@ class SolutionDecoder:
     def _shelter_allocations(
         self, allocations: Dict[int, Dict[int, float]]
     ) -> List[dict]:
+        problem = self._problem
         records = []
         for da_id, shelter_flow in allocations.items():
             for shelter_id, flow in shelter_flow.items():
                 records.append(
-                    {"source_id": da_id, "target_id": shelter_id, "flow": flow}
+                    {"source_id": da_id,
+                    "target_id": shelter_id,
+                    "geometry": problem.path[f"{da_id},{shelter_id}"]["air"],
+                    "flow": flow}
                 )
         return records
 
     def _package_flows(self, chromosome: Chromosome, demand) -> List[dict]:
         problem = self._problem
         records = []
+        dc_id_list = []
+        ec_id_list = []
         for idx, dc in enumerate(chromosome.dc_to_shelter):
             if dc <= 0:
                 continue
+            dc_id_list.append(dc)
             shelter_id = problem.ec_id[idx]
+            ec_id_list.append(shelter_id)
             dist = problem.distance.dc_to_shelter[f"{dc},{shelter_id}"]
             flow = math.ceil(chromosome.shelter_flow_ratio[idx] * demand[shelter_id])
             self.package_cost += flow * problem.cost['reliefpackage_cost']
@@ -140,22 +147,28 @@ class SolutionDecoder:
                 {
                     "source_id": dc,
                     "target_id": shelter_id,
+                    "geometry": problem.path[f"{dc},{shelter_id}"]["ground"],
                     "flow": flow,
                     "flow_cost": flow_cost,                }
             )
-        return records
+        return records, dc_id_list, ec_id_list
 
-    def _severe_to_hospital(
-        self, chromosome, hospital_cap, records, shortage_severe
+    def _injured_to_hospital(
+        self, chromosome: Chromosome, hospital_cap, records, shortage_severe, shortage_moderate, h_id_list: List
     ) -> None:
         problem = self._problem
-        for idx, raw_row in enumerate(chromosome.severe_split):
-            row = np.array(raw_row) / sum(raw_row)
+        for idx, severe_raw_row in enumerate(chromosome.severe_split):
+            moderate_raw_row = chromosome.moderate_split[idx]
+            severe_row = np.array(severe_raw_row) / sum(severe_raw_row)
+            moderate_row = np.array(moderate_raw_row) / sum(moderate_raw_row)
             severe = problem.severe_injured[f'{problem.da_id[idx]}']
-            for h_idx, j in enumerate(row):
-                if j <= 0:
+            moderate = problem.minor_injured[f'{problem.da_id[idx]}']
+            for h_idx, j in enumerate(severe_row):
+                if j <= 0 and moderate_row[idx] <= 0:
                     continue
                 hospital_id = problem.h_id[h_idx]
+                if hospital_id not in h_id_list:
+                    h_id_list.append(hospital_id)
                 self._record_shortage(
                     shortage_severe,
                     hospital_id,
@@ -163,46 +176,30 @@ class SolutionDecoder:
                     hospital_cap,
                     key_table=shortage_severe,
                 )
-                plan = self._transport.plan(
+                self._record_shortage(
+                    shortage_moderate,
+                    hospital_id,
+                    moderate * moderate_row[idx],
+                    hospital_cap,
+                    key_table=shortage_severe,
+                )
+                severe_plan = self._transport.plan(
                     severe * j,
                     chromosome.severe_ground_ratio[idx][h_idx],
                     TransportPlanner.SEVERE,
                 )
-                self.ground_vehicle_cost += plan.ground_cost
-                self.air_vehicle_cost += plan.air_cost
-                records.append(self._severe_record(problem.da_id[idx], hospital_id, plan))
-
-    def _moderate_to_hospital(
-        self, chromosome, hospital_cap, records, shortage_severe, shortage_moderate
-    ) -> None:
-        problem = self._problem
-        n_hosp = problem.n_hospitals
-        for idx, raw_row in enumerate(chromosome.moderate_split):
-            row = np.array(raw_row) / sum(raw_row)
-            minor = problem.minor_injured[f'{problem.da_id[idx]}']
-            for h_idx, j in enumerate(row[:n_hosp]):
-                if j <= 0:
-                    continue
-                hospital_id = problem.h_id[h_idx]
-                # LEGACY: presence is tested against the *severe* shortage dict
-                # (a bug in the original) while writing into the moderate dict.
-                self._record_shortage(
-                    shortage_moderate,
-                    hospital_id,
-                    minor * j,
-                    hospital_cap,
-                    key_table=shortage_severe,
-                )
-                plan = self._transport.plan(
-                    minor * j,
+                self.ground_vehicle_cost += severe_plan.ground_cost
+                self.air_vehicle_cost += severe_plan.air_cost
+                moderate_plan = self._transport.plan(
+                    moderate * moderate_row[idx],
                     chromosome.moderate_ground_ratio[idx][h_idx],
                     TransportPlanner.MODERATE,
                 )
-                self.ground_vehicle_cost += plan.ground_cost
-                self.air_vehicle_cost += plan.air_cost
-                records.append(self._moderate_record(problem.da_id[idx], hospital_id, plan))
+                self.ground_vehicle_cost += moderate_plan.ground_cost
+                self.air_vehicle_cost += moderate_plan.air_cost
+                records.append(self._hospital_record(problem, problem.da_id[idx], hospital_id, severe_plan, moderate_plan))
 
-    def _moderate_to_tmc(self, chromosome, tmc_cap, tmc_shortage) -> List[dict]:
+    def _injured_to_tmc(self, chromosome, tmc_cap, tmc_shortage, tmc_id_list: List) -> List[dict]:
         problem = self._problem
         n_hosp = problem.n_hospitals
         legacy_idx = n_hosp - 1  # LEGACY: leftover ``h_idx`` from the hospital loop
@@ -215,6 +212,8 @@ class SolutionDecoder:
                 if j <= 0:
                     continue
                 tmc_id = problem.tmc_id[tmc_idx]
+                if tmc_id not in tmc_id_list:
+                    tmc_id_list.append(tmc_id)
                 n_tmc.append(tmc_id)
                 if minor * j > tmc_cap[f'{tmc_id}']:
                     self._accumulate(
@@ -234,7 +233,7 @@ class SolutionDecoder:
                 )
                 self.ground_vehicle_cost += plan.ground_cost
                 self.air_vehicle_cost += plan.air_cost
-                records.append(self._moderate_record(problem.da_id[idx], tmc_id, plan))
+                records.append(self._tmc_record(problem, problem.da_id[idx], tmc_id, plan))
         num_tmc = len(set(n_tmc))
         return records, num_tmc
 
@@ -260,23 +259,39 @@ class SolutionDecoder:
         table[key] = table.get(key, 0) + delta if key in table else delta
 
     @staticmethod
-    def _severe_record(source_id: int, target_id: int, plan: TransportPlan) -> dict:
+    def _hospital_record(problem: ProblemData, source_id: int, target_id: int, severe_plan: TransportPlan, moderate_plan: TransportPlan) -> dict:
+        if severe_plan.ground_flow == 0 and moderate_plan.ground_flow == 0:
+            geometry = problem.path[f"{source_id},{target_id}"]["air"]
+        else:
+            geometry = problem.path[f"{source_id},{target_id}"]["ground"]
         return {
             "source_id": source_id,
             "target_id": target_id,
-            "g_flow_severe": plan.ground_flow,
-            "num_gv_severe": plan.ground_vehicles,
-            "g_flow_cost_severe": plan.ground_cost,
-            "a_flow_severe": plan.air_flow,
-            "num_av_severe": plan.air_vehicles,
-            "a_flow_cost_severe": plan.air_cost,
+            "geometry": geometry,
+            "g_flow_severe": severe_plan.ground_flow,
+            "num_gv_severe": severe_plan.ground_vehicles,
+            "g_flow_cost_severe": severe_plan.ground_cost,
+            "a_flow_severe": severe_plan.air_flow,
+            "num_av_severe": severe_plan.air_vehicles,
+            "a_flow_cost_severe": severe_plan.air_cost,
+            "g_flow_moderate": moderate_plan.ground_flow,
+            "num_gv_moderate": moderate_plan.ground_vehicles,
+            "g_flow_cost_moderate": moderate_plan.ground_cost,
+            "a_flow_moderate": moderate_plan.air_flow,
+            "num_av_moderate": moderate_plan.air_vehicles,
+            "a_flow_cost_moderate": moderate_plan.air_cost,
         }
 
     @staticmethod
-    def _moderate_record(source_id: int, target_id: int, plan: TransportPlan) -> dict:
+    def _tmc_record(problem: ProblemData, source_id: int, target_id: int, plan: TransportPlan) -> dict:
+        if plan.ground_flow == 0 and plan.ground_flow == 0:
+            geometry = problem.path[f"{source_id},{target_id}"]["air"]
+        else:
+            geometry = problem.path[f"{source_id},{target_id}"]["ground"]
         return {
             "source_id": source_id,
             "target_id": target_id,
+            "geometry": geometry,
             "g_flow_moderate": plan.ground_flow,
             "num_gv_moderate": plan.ground_vehicles,
             "g_flow_cost_moderate": plan.ground_cost,

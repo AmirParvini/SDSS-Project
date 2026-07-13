@@ -24,8 +24,9 @@ class BuildData
     protected array $hospitals_capacity;
     protected array $tmcs_capacity;
     protected array $distances;
+    protected array $paths_data;
 
-    public function build(int $scenario_id): array
+    protected function _getData(int $scenario_id)
     {
         $this->dc_id = DistributionCenter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('node_id')->toArray();
         $this->ec_id = Shelter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('node_id')->toArray();
@@ -37,12 +38,12 @@ class BuildData
         $this->shelters_area = Shelter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('area', 'node_id')->toArray();
         $this->hospitals_capacity = Hospital::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('capacity', 'node_id')->toArray();
         $this->tmcs_capacity = TemporaryMedicalCenter::query()->whereRelation('node', 'scenario_id', $scenario_id)->pluck('capacity', 'node_id')->toArray();
-        // dd($this->shelters_area);
-        return $this->build_data();
+        $this->paths_data = Path::query()->where("scenario_id", $scenario_id)->get()->toArray();
     }
 
-    protected function build_data(): array
+    public function buildData(int $scenario_id): array
     {
+        $this->_getData($scenario_id);
         $dc_id = $this->dc_id;
         $da_id = $this->da_id;
         $ec_id = $this->ec_id;
@@ -115,6 +116,13 @@ class BuildData
                 'air' => $da_to_tmc_helicopter,
             ]
         ];
+        $paths = [];
+        foreach ($this->paths_data as $path_data) {
+            $source_id = $path_data['source_id'];
+            $target_id = $path_data['target_id'];
+            $path_type = $path_data['path_type'];
+            $paths["$source_id,$target_id"]["$path_type"] = $path_data['geometry'];
+        }
         $data = [
             'nodes_id' => [
                 'dc' => $dc_id,
@@ -129,6 +137,7 @@ class BuildData
             'hospitals_capacity' => $this->hospitals_capacity,
             'tmcs_capacity' => $this->tmcs_capacity,
             'distances' => $distances,
+            'paths' => $paths
         ];
         return $data;
     }

@@ -3,6 +3,7 @@
 namespace App\Services\Path;
 
 use App\Exceptions\PathProcessException;
+use App\Models\Scenario;
 use App\Services\Path\AirPathService;
 use App\Services\Path\GroundPathService;
 use App\Services\Path\InputPreparation;
@@ -26,6 +27,7 @@ class PathOrchestrator {
         // Run ground path service independently
         try {
             $ground_result = $this->ground_path_service->run(
+                scenario_id: $scenarioId,
                 assigns: $assings["ground"],
                 pythonPath: $pythonPath,
                 timeout: $timeout,
@@ -46,6 +48,7 @@ class PathOrchestrator {
         // Run air path service independently
         try {
             $air_result = $this->air_path_service->run(
+                scenario_id: $scenarioId,
                 assigns: $assings["air"]
             );
         } catch (PathProcessException $e) {

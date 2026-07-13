@@ -15,10 +15,10 @@ class AirPathService
         private SaveResults $save_results
     ) {}
 
-    function run(array $assigns)
+    function run(int $scenario_id, array $assigns)
     {
         $output = $this->_calculate($assigns);
-        $this->save_results->store($output, "air");
+        $this->save_results->store($scenario_id, $output, "air");
         return $output;
     }
 
