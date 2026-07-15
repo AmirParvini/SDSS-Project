@@ -7,6 +7,7 @@
 // وابستگی یک‌طرفه بماند (Observer).
 // -----------------------------------------------------------------------------
 import { NODE_ICONS, PULSING_ICON } from "../config/nodeConfig.js";
+import { ALLOCATION_COLORS } from "../config/resultConfig.js";
 import { map } from "./mapInstance.js";
 
 export default class NodeMapView {
@@ -19,6 +20,8 @@ export default class NodeMapView {
         // چون با تعویض سناریو، renderNodes چندین‌بار اجرا می‌شود، رویدادهای کلیک
         // را فقط «یک‌بار» می‌بندیم تا handlerها تکراری (و چندبار صدا زده) نشوند.
         this._clicksBound = false;
+        // Overlay group that holds the allocation geometries drawn in report mode.
+        this._resultOverlay = new L.FeatureGroup();
     }
 
     // برای هر نوع نقطه یک FeatureGroup جدا می‌سازد.
@@ -209,5 +212,90 @@ export default class NodeMapView {
             }
         });
         this.removePulse();
+    }
+
+    // =========================================================================
+    // Results / report mode helpers
+    // -------------------------------------------------------------------------
+    // Everything below is only used while the app is in "report" mode. It keeps
+    // all map manipulation inside the map view (SRP): filtering which markers
+    // are visible, drawing allocation geometries and opening report popups.
+    // =========================================================================
+
+    _propsOf(layer) {
+        return layer.feature
+            ? layer.feature.properties
+            : layer.options.properties || {};
+    }
+
+    _findLayer(type, id) {
+        return this.getLayers(type).find((l) => this._propsOf(l).id == id);
+    }
+
+    // Latitude/longitude of a marker identified by type + id (or null).
+    getLatLngById(type, id) {
+        const layer = this._findLayer(type, id);
+        return layer ? layer.getLatLng() : null;
+    }
+
+    // Show only the markers that belong to a solution and hide the others.
+    // idsByType = { dc:Set, ec:Set, h:Set, tmc:Set, da:Set }
+    filterToSolution(idsByType) {
+        Object.keys(this.featureGroups).forEach((type) => {
+            const allowed = idsByType[type];
+            this.getLayers(type).forEach((layer) => {
+                const keep = allowed && allowed.has(this._propsOf(layer).id);
+                if (keep && !this.map.hasLayer(layer)) {
+                    layer.addTo(this.map);
+                } else if (!keep && this.map.hasLayer(layer)) {
+                    this.map.removeLayer(layer);
+                }
+            });
+        });
+    }
+
+    // Bring every marker back onto the map (leaving report mode).
+    showAllNodes() {
+        Object.keys(this.featureGroups).forEach((type) => {
+            this.getLayers(type).forEach((layer) => {
+                if (!this.map.hasLayer(layer)) layer.addTo(this.map);
+            });
+        });
+    }
+
+    // Draw the given allocation geometries, colored by their allocation kind.
+    // items = [{ type, geometry (parsed GeoJSON) }]
+    drawGeometries(items) {
+        this.clearGeometries();
+        if (!this.map.hasLayer(this._resultOverlay)) {
+            this._resultOverlay.addTo(this.map);
+        }
+        items.forEach(({ type, geometry }) => {
+            if (!geometry) return;
+            L.geoJSON(geometry, {
+                style: {
+                    color: ALLOCATION_COLORS[type] || "#334155",
+                    weight: 4,
+                    opacity: 0.85,
+                },
+            }).addTo(this._resultOverlay);
+        });
+    }
+
+    clearGeometries() {
+        this._resultOverlay.clearLayers();
+    }
+
+    // Bind + open a report popup on the marker (an explicit layer may be passed
+    // when the click already produced one).
+    openReportPopup(type, id, html, layer = null) {
+        const target = layer || this._findLayer(type, id);
+        if (!target) return;
+        target
+            .bindPopup(html, {
+                maxWidth: 340,
+                className: "result-popup-wrapper",
+            })
+            .openPopup();
     }
 }

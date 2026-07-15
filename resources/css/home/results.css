@@ -1,0 +1,385 @@
+/* resources/css/home/results.css
+ * -----------------------------------------------------------------------------
+ * Styling for the report-mode UI: the Pareto panel (right), the costs panel
+ * (left), the full-width allocations panel (bottom) and the marker popups.
+ * Kept in one file so the report look-and-feel lives in a single place.
+ * --------------------------------------------------------------------------- */
+
+:root {
+    --results-surface: #ffffff;
+    --results-border: #e5e7eb;
+    --results-muted: #6b7280;
+    --results-text: #111827;
+    --results-head: #f8fafc;
+    --results-accent: #2563eb;
+    --results-hover: #f1f5f9;
+    --results-active: #dbeafe;
+    --results-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+/* ------------------------------- Panels ---------------------------------- */
+.results-panel {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    background: var(--results-surface);
+    border: 1px solid var(--results-border);
+    border-radius: 16px;
+    box-shadow: var(--results-shadow);
+    overflow: hidden;
+    pointer-events: auto;
+    font-size: 12px;
+    color: var(--results-text);
+}
+
+.results-panel--left {
+    top: 76px;
+    left: 12px;
+    width: 320px;
+    bottom: 300px;
+}
+
+.results-panel--right {
+    top: 76px;
+    right: 12px;
+    width: 360px;
+    bottom: 300px;
+}
+
+.results-panel--bottom {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: 276px;
+}
+
+.results-panel__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--results-border);
+    background: var(--results-head);
+}
+
+.results-panel__title {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.results-panel__hint {
+    font-size: 10px;
+    color: var(--results-muted);
+}
+
+.results-panel__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* ------------------------------ Toolbar ---------------------------------- */
+.results-panel__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--results-border);
+    background: var(--results-head);
+    flex-wrap: wrap;
+}
+
+.results-panel__toolbar .results-panel__title {
+    margin-right: auto;
+}
+
+.results-select,
+.results-search {
+    height: 32px;
+    border: 1px solid var(--results-border);
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 12px;
+    background: #fff;
+    color: var(--results-text);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.results-select:focus,
+.results-search:focus {
+    border-color: var(--results-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.results-search {
+    min-width: 220px;
+    flex: 1;
+    max-width: 340px;
+}
+
+/* ------------------------------- Tables ---------------------------------- */
+.table-wrapper {
+    overflow: auto;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+}
+
+.results-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--results-head);
+    text-align: left;
+    font-weight: 700;
+    color: #374151;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--results-border);
+    white-space: nowrap;
+}
+
+.results-table th.is-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.results-table th.is-sortable:hover {
+    color: var(--results-accent);
+}
+
+.results-table tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+}
+
+.results-table tbody tr.results-row {
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+
+.results-table tbody tr.results-row:hover {
+    background: var(--results-hover);
+}
+
+.results-table tbody tr.results-row.is-active {
+    background: var(--results-active);
+    box-shadow: inset 3px 0 0 var(--results-accent);
+}
+
+.results-table__empty {
+    text-align: center;
+    color: var(--results-muted);
+    padding: 24px 12px;
+}
+
+/* ------------------------------- Costs ----------------------------------- */
+.costs-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.costs-chart {
+    display: flex;
+    justify-content: center;
+}
+
+.costs-pie {
+    width: 180px;
+    height: 180px;
+}
+
+.costs-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.costs-legend__row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed #eef2f7;
+}
+
+.costs-legend__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.costs-legend__label {
+    color: #374151;
+}
+
+.costs-legend__pct {
+    color: var(--results-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.costs-legend__value {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.costs-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #fff;
+}
+
+.costs-total b {
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------- Run button spinner -------------------------- */
+#runModelBtn.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+#runModelBtn.is-loading .fa-play::before {
+    content: "\f110"; /* fa-spinner */
+    animation: results-spin 0.8s linear infinite;
+}
+
+@keyframes results-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ------------------------------- Popups ---------------------------------- */
+.result-popup-wrapper .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: var(--results-shadow);
+}
+
+.result-popup-wrapper .leaflet-popup-content {
+    margin: 12px 14px;
+    font-size: 12px;
+    color: var(--results-text);
+}
+
+.result-popup__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.result-popup__id {
+    font-weight: 700;
+}
+
+.result-popup__name {
+    flex-basis: 100%;
+    color: var(--results-muted);
+    direction: rtl;
+}
+
+.result-popup__badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    background: #64748b;
+}
+
+.result-popup__badge--dc { background: #2563eb; }
+.result-popup__badge--ec { background: #16a34a; }
+.result-popup__badge--da { background: #b45309; }
+.result-popup__badge--h  { background: #dc2626; }
+.result-popup__badge--tmc { background: #db2777; }
+
+.result-popup__section {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--results-border);
+}
+
+.result-popup__section--warn {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.result-popup__title {
+    font-weight: 700;
+    font-size: 11px;
+    margin-bottom: 6px;
+    color: #374151;
+}
+
+.result-popup__shortage {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.result-popup__shortage li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.result-popup__conns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow: auto;
+}
+
+.result-popup__conn {
+    border: 1px solid var(--results-border);
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+.result-popup__conn-head {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.result-popup__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+}
+
+.result-popup__metric {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.result-popup__metric span {
+    color: var(--results-muted);
+}
+
+.result-popup__muted,
+.result-popup__empty {
+    color: var(--results-muted);
+}

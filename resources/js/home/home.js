@@ -21,6 +21,13 @@ import NodeTableView from "./ui/NodeTableView.js";
 import ScenarioSelector from "./ui/ScenarioSelector.js";
 import ScenarioModal from "./ui/ScenarioModal.js";
 import HscParameterModal from "./ui/HscParameterModal.js";
+import ResultService from "./services/ResultService.js";
+import ResultSet from "./results/ResultSet.js";
+import ResultPopupBuilder from "./results/ResultPopupBuilder.js";
+import ParetoTableView from "./ui/ParetoTableView.js";
+import AllocationTableView from "./ui/AllocationTableView.js";
+import CostsReportView from "./ui/CostsReportView.js";
+import ReportLayout from "./ui/ReportLayout.js";
 import { HSC_PARAMETER_DEFAULTS } from "./config/hscParametersConfig.js";
 
 class HomeController {
@@ -28,6 +35,7 @@ class HomeController {
         api,
         scenarioApi,
         hscApi,
+        resultApi,
         mapView,
         tableView,
         panel,
@@ -35,10 +43,16 @@ class HomeController {
         scenarioSelector,
         scenarioModal,
         hscModal,
+        paretoView,
+        allocationView,
+        costsView,
+        reportLayout,
+        popupBuilder,
     }) {
         this.api = api;
         this.scenarioApi = scenarioApi;
         this.hscApi = hscApi;
+        this.resultApi = resultApi;
         this.mapView = mapView;
         this.tableView = tableView;
         this.panel = panel;
@@ -47,11 +61,22 @@ class HomeController {
         this.scenarioModal = scenarioModal;
         this.hscModal = hscModal;
         this.hscParameters = null;
+
+        // --- report / results collaborators ---
+        this.paretoView = paretoView;
+        this.allocationView = allocationView;
+        this.costsView = costsView;
+        this.reportLayout = reportLayout;
+        this.popupBuilder = popupBuilder;
+        this.resultSet = null; // ResultSet after the model runs
+        this.currentSolution = null; // SolutionModel of the selected row
+        this.reportMode = false;
     }
 
     init() {
         this._wireEvents();
         this._wireScenarioEvents();
+        this._wireResultEvents();
 
         // سناریوها را بارگذاری می‌کند (dropdown با پیش‌فرضِ سناریوی فعال) و
         // داده‌ی سناریوی فعال را روی نقشه می‌آورد. این دو مستقل‌اند.
@@ -76,7 +101,13 @@ class HomeController {
         });
 
         // نقشه: کلیک روی نود → فعال‌سازی پنل و نمایش پراپرتی‌ها.
-        this.mapView.onNodeClick(({ type, latlng, props }) => {
+        // در حالت گزارش، کلیک روی نود رفتار متفاوتی دارد (پاپ‌آپ + مسیرها).
+        this.mapView.onNodeClick((payload) => {
+            if (this.reportMode) {
+                this._onReportNodeClick(payload);
+                return;
+            }
+            const { type, latlng, props } = payload;
             this.panel.activateActions();
             this.mapView.showPulse(latlng);
             this.panel.setLatLng(latlng);
@@ -129,6 +160,133 @@ class HomeController {
                 this._createScenario(data);
             }
         };
+    }
+
+    // =========================================================================
+    // Report / results use-cases
+    // =========================================================================
+
+    // اتصال رویدادهای اجرای مدل، تب‌های داشبورد/گزارش و جدول‌های نتایج.
+    _wireResultEvents() {
+        $("#runModelBtn").on("click", () => this._runModel());
+        $("#reportsTab").on("click", (e) => {
+            e.preventDefault();
+            this._enterReportMode();
+        });
+        $("#dashboardTab").on("click", (e) => {
+            e.preventDefault();
+            this._exitReportMode();
+        });
+
+        // انتخاب یک جواب از جدول پرتو → فیلتر نقشه + جدول تخصیص + کانتینر هزینه.
+        this.paretoView.onRowSelect = (id) => this._selectSolution(id);
+
+        // کلیک روی سطر جدول تخصیص → تمرکز روی مبدأ و نمایش مسیرهای آن.
+        this.allocationView.onRowSelect = ({ sourceType, sourceId }) =>
+            this._focusNode(sourceType, sourceId);
+    }
+
+    // ---- use-case: اجرای مدل سمت سرور --------------------------------------
+    // هیچ داده‌ای ارسال نمی‌شود؛ فقط یک درخواست به کنترلر solving زده می‌شود و
+    // خروجی (لیست جواب‌ها) نگه‌داری می‌شود تا در حالت گزارش نمایش داده شود.
+    _runModel() {
+        const $btn = $("#runModelBtn");
+        $btn.prop("disabled", true).addClass("is-loading");
+        this.resultApi
+            .runModel()
+            .then((payload) => {
+                this.resultSet = new ResultSet(
+                    payload,
+                    this.scenarioSelector.getSelectedId(),
+                );
+                if (this.resultSet.isEmpty()) {
+                    alert("The model returned no solutions.");
+                    return;
+                }
+                alert("Model finished successfully. Open Reports to view the results.");
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while running the model.");
+            })
+            .finally(() => {
+                $btn.prop("disabled", false).removeClass("is-loading");
+            });
+    }
+
+    // ---- use-case: ورود به حالت گزارش --------------------------------------
+    _enterReportMode() {
+        if (!this.resultSet || this.resultSet.isEmpty()) {
+            alert("Please run the model first.");
+            return;
+        }
+        this.reportMode = true;
+        this.reportLayout.enterReport();
+        this.panel.reset();
+        this.mapView.removePulse();
+
+        this.paretoView.render(this.resultSet.toParetoRows());
+        this.paretoView.show();
+
+        // اولین جواب به‌صورت پیش‌فرض انتخاب می‌شود تا صفحه خالی نماند.
+        const first = this.resultSet.list()[0];
+        if (first) {
+            this.paretoView.setActive(first.id);
+            this._selectSolution(first.id);
+        }
+    }
+
+    // ---- use-case: خروج از حالت گزارش (دکمه Dashboard) ----------------------
+    _exitReportMode() {
+        this.reportMode = false;
+        this.reportLayout.enterDashboard();
+        this.paretoView.hide();
+        this.allocationView.hide();
+        this.allocationView.clear();
+        this.costsView.hide();
+        this.mapView.clearGeometries();
+        this.mapView.showAllNodes();
+        this.currentSolution = null;
+    }
+
+    // ---- use-case: انتخاب یک جواب از جدول پرتو ------------------------------
+    // فقط مارکرهای همان جواب روی نقشه می‌مانند، جدول تخصیص و کانتینر هزینه پر می‌شوند.
+    _selectSolution(id) {
+        const solution = this.resultSet.getSolution(id);
+        if (!solution) return;
+        this.currentSolution = solution;
+
+        this.mapView.clearGeometries();
+        this.mapView.filterToSolution(solution.getNodeIdsByType());
+
+        this.allocationView.setSolution(solution);
+        this.allocationView.show();
+
+        this.costsView.render(solution.costs, solution.id);
+        this.costsView.show();
+    }
+
+    // ---- تمرکز روی یک نود در حالت گزارش -------------------------------------
+    // نقشه روی مارکر می‌رود، مسیرهای تخصیصِ آن نود رسم می‌شوند و پاپ‌آپ باز می‌شود.
+    // این متد هم برای کلیک سطر جدول تخصیص و هم برای کلیک روی خود مارکر استفاده می‌شود.
+    _focusNode(type, id, layer = null, props = {}) {
+        if (!this.currentSolution) return;
+        const solution = this.currentSolution;
+
+        const latlng = this.mapView.getLatLngById(type, id);
+        if (latlng) this.mapView.focus(latlng);
+
+        this.mapView.drawGeometries(solution.getNodeGeometries(type, id));
+
+        const html = this.popupBuilder.build(solution, type, id, props);
+        this.mapView.openReportPopup(type, id, html, layer);
+    }
+
+    // کلیک روی مارکر در حالت گزارش.
+    _onReportNodeClick({ type, layer, props }) {
+        const id = props ? props.id : null;
+        if (id === null || id === undefined) return;
+        this._focusNode(type, id, layer, props);
     }
 
     // ---- use-case: بارگذاری لیست سناریوها ----------------------------------
@@ -359,10 +517,14 @@ $(function () {
     const hscModal = new HscParameterModal();
     hscModal.init();
 
+    // آدرس اجرای مدل از data-attribute دکمه‌ی Run Model خوانده می‌شود تا
+    // مسیرِ دقیقِ لاراول استفاده شود (نه یک آدرس حدسی).
+
     const controller = new HomeController({
         api: new NodeApiService(),
         scenarioApi: new ScenarioService(),
         hscApi: new HscParameterService(),
+        resultApi: new ResultService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),
         panel: new NodePropertyPanel(),
@@ -370,6 +532,11 @@ $(function () {
         scenarioSelector: scenarioSelector,
         scenarioModal: scenarioModal,
         hscModal: hscModal,
+        paretoView: new ParetoTableView(),
+        allocationView: new AllocationTableView(),
+        costsView: new CostsReportView(),
+        reportLayout: new ReportLayout(),
+        popupBuilder: new ResultPopupBuilder(),
     });
     controller.init();
 });

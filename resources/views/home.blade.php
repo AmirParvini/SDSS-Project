@@ -3,6 +3,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     @vite('resources/css/home/home.css')
+    @vite('resources/css/home/results.css')
 @endpush
 
 @php
@@ -40,18 +41,18 @@
         {{-- Header --}}
         <div class="d-flex flex-row justify-content-start gap-3 px-3 py-2 w-100 rounded-bottom-4 pl-5 bg-white shadow"
             style="z-index: 2; pointer-events: none">
-            <div>
+            <div style="pointer-events: auto">
                 <ul class="nav nav-underline">
                     <li class="nav-item pr-4">
-                        <a class="nav-link active" aria-current="page" href="#">Dashboar</a>
+                        <a id="dashboardTab" class="nav-link active" aria-current="page" href="#">Dashboard</a>
                     </li>
                     <li class="nav-item pr-4">
-                        <a class="nav-link" href="#">Reports</a>
+                        <a id="reportsTab" class="nav-link" href="#">Reports</a>
                     </li>
                 </ul>
             </div>
-            <div>
-                <button
+            <div style="pointer-events: auto">
+                <button id="runModelBtn"
                     class="btn btn-primary d-flex flex-row align-items-center h-100 justify-content-center rounded-5">
                     <i class="fa fa-play w-4 h-4"></i>
                     <p class="font-bold" style="font-size: 12px">Run Model</p>
@@ -88,12 +89,14 @@
             <div class="container-fluid h-100" id="map" style="z-index: 1"></div>
 
             {{-- Items & Tables --}}
-            <div class="position-absolute bottom-0 start-0 d-flex flex-row align-items-end w-auto mb-3" style="z-index: 2">
+            <div id="dashboardLeftDock"
+                class="position-absolute bottom-0 start-0 d-flex flex-row align-items-end w-auto mb-3"
+                style="z-index: 2">
                 <x-items :node_types="$node_types" />
                 <x-tables />
             </div>
 
-            <div class="d-flex flex-column gap-3 position-absolute bottom-0 end-0 mb-3 mr-3">
+            <div id="dashboardRightDock" class="d-flex flex-column gap-3 position-absolute bottom-0 end-0 mb-3 mr-3">
                 {{-- Node properties container --}}
                 <x-node_properties.main-container :node_types="$node_types" />
                 {{-- Add Point Button --}}
@@ -107,9 +110,14 @@
                     </button>
                 </div>
             </div>
+
+            {{-- Result panels (visible only in report mode) --}}
+            <x-results.costs-report />
+            <x-results.pareto-table />
+            <x-results.allocations-table />
         </div>
         <x-modals.add-point-modal style="z-index: 3;" :node_types="$node_types" />
-        <x-modals.hsc-parameters-modal id="hscParamsModal" style="z-index: 3;"/>
+        <x-modals.hsc-parameters-modal id="hscParamsModal" style="z-index: 3;" />
     </div>
 @endsection
 
