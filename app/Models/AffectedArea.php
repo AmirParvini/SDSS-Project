@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AffectedArea extends Model
 {
-    protected $fillable = ['population'];
+    protected $fillable = ['affected_pop'];
     
     public function node()
     {

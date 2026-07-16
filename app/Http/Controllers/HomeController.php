@@ -19,15 +19,23 @@ class HomeController extends Controller
     {
         $scenarioId = $this->scenarioService->getActiveScenarioId();
 
-        $nodesByType = $this->nodeDataService->getNodesForScenario($scenarioId);
+        if ($scenarioId){
 
-        $hscParameters = HscParameter::where('scenario_id', $scenarioId)->get();
-
-        $geojsonNodes = $this->geoJsonConverter->convert($nodesByType);
+            $nodesByType = $this->nodeDataService->getNodesForScenario($scenarioId);
+    
+            $hscParameters = HscParameter::where('scenario_id', $scenarioId)->get();
+    
+            $geojsonNodes = $this->geoJsonConverter->convert($nodesByType);
+    
+            return response()->json([
+                'hsc_parameters' => $hscParameters,
+                'geojson_nodes' => $geojsonNodes,
+            ]);
+        }
 
         return response()->json([
-            'hsc_parameters' => $hscParameters,
-            'geojson_nodes' => $geojsonNodes,
-        ]);
+                'hsc_parameters' => [],
+                'geojson_nodes' => [],
+            ]);
     }
 }

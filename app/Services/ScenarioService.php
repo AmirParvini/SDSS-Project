@@ -16,8 +16,8 @@ class ScenarioService
 
     }
 
-    public function getActiveScenarioId(): int
+    public function getActiveScenarioId()
     {
-        return Scenario::where('active', 1)->value('id');
+        return Scenario::where('active', 1)->value('id') ?? null;
     }
 }

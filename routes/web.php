@@ -14,12 +14,14 @@ use App\Http\Controllers\SolvingController;
 use App\Http\Controllers\TMCController;
 use App\Http\Controllers\NodeCrudController;
 use App\Http\Controllers\PathController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home');
 Route::get("/load_data", [HomeController::class, 'index'])->name('load_data');
 Route::post("/optima", [OptimizationController::class, 'optimize'])->name('optima');
 Route::post("/path", [PathController::class, 'pathCalculator'])->name('path');
+Route::get('/scenario-report/{scenario_id?}', [ReportController::class, 'getReport'])->name('scenario.report');
 // Route::post('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::get('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::post('/api/config/getdata',[ConfigurationController::class, 'getdata'])->name('configuration.getdata');
