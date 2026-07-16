@@ -38,11 +38,13 @@ class PathOrchestrator {
                 'message' => $e->getMessage(),
                 'errorOutput' => $e->getErrorOutput()
             ];
+            throw $e;
         } catch (Throwable $e) {
             report($e);
             $errors['ground'] = [
                 'message' => $e->getMessage()
             ];
+            throw $e;
         }
 
         // Run air path service independently
@@ -57,11 +59,13 @@ class PathOrchestrator {
                 'message' => $e->getMessage(),
                 'errorOutput' => $e->getErrorOutput()
             ];
+            throw $e;
         } catch (Throwable $e) {
             report($e);
             $errors['air'] = [
                 'message' => $e->getMessage()
             ];
+            throw $e;
         }
 
         if (!empty($errors)) {
