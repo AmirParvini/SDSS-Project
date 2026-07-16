@@ -69,9 +69,10 @@
             <div id="scenarioBar">
                 <div class="scenario-bar d-flex align-items-center gap-1 h-100">
                     <select id="scenarioSelect"
-                        class="form-select scenario-select bg-primary h-100 focus
+                    class="form-select scenario-select bg-primary h-100 focus
                     text-white fw-bold"
-                        style=" font-size: 12px; pointer-events: auto;">
+                    style=" font-size: 12px; pointer-events: auto;">
+                    <option value="" disabled selected>Scenario Selection</option>
                     </select>
 
                     <button id="createScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">

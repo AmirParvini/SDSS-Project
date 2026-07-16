@@ -107,6 +107,15 @@ export default class SolutionModel {
             .map((geometry) => ({ type: allocationType, geometry }));
     }
 
+    // جئومتریِ تخصیص‌هایی که به یک target مشخص می‌رسند (برای تمرکز روی مقصد).
+    getTargetGeometries(allocationType, targetId) {
+        return this.getAllocations(allocationType)
+            .filter((row) => row.target_id == targetId && row.geometry)
+            .map((row) => this._parse(row.geometry))
+            .filter(Boolean)
+            .map((geometry) => ({ type: allocationType, geometry }));
+    }
+
     // Capacity shortage(s) for a node, if its type owns any. Returns
     // [{ label, value }] so ec/h/tmc can all be handled uniformly.
     getShortages(nodeType, nodeId) {

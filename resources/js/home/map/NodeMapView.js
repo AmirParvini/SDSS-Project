@@ -193,9 +193,9 @@ export default class NodeMapView {
             icon: NODE_ICONS[data.type],
             properties: {
                 ...data,
-                id: node_id
-            }
-        })
+                id: node_id,
+            },
+        });
         marker.addTo(this.featureGroups[data.type]).addTo(map);
         return marker;
     }
@@ -236,6 +236,11 @@ export default class NodeMapView {
     getLatLngById(type, id) {
         const layer = this._findLayer(type, id);
         return layer ? layer.getLatLng() : null;
+    }
+
+    getNameById(type, id) {
+        const layer = this._findLayer(type, id);
+        return layer ? this._propsOf(layer).name : null;
     }
 
     // Show only the markers that belong to a solution and hide the others.
@@ -297,5 +302,21 @@ export default class NodeMapView {
                 className: "result-popup-wrapper",
             })
             .openPopup();
+    }
+
+    closePopups() {
+        // Object.values(this.featureGroups).forEach((group) => {
+        //     group.eachLayer((layer) => {
+        //         if (layer.closePopup) {
+        //             layer.closePopup();
+        //         }
+        //     });
+        // });
+        this.map.eachLayer(function (layer) {
+            if (layer.getPopup && layer.getPopup()) {
+                layer.closePopup();
+                layer.unbindPopup();
+            }
+        });
     }
 }

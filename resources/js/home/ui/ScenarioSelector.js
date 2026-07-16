@@ -59,7 +59,9 @@ export default class ScenarioSelector {
     // scenarios: [{ id, name, description }], activeId: شناسه‌ی فعال در دیتابیس.
     render(scenarios, activeId) {
         this._scenarios = scenarios || [];
-        this._select.empty();
+        if (!this._scenarios == []){
+            this._select.empty();
+        }
         this._scenarios.forEach((s) => {
             const option = $("<option></option>").val(String(s.id)).text(s.name);
             this._select.append(option);

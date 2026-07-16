@@ -132,8 +132,14 @@ class HomeController {
         this.addPointModal.onCreate = (data) => this._createNode(data);
 
         // دکمه‌ی پارامترهای HSC: باز کردن مودال با مقادیرِ سناریوی فعال (فقط‌خواندنی).
-        $("#hsc_parameters").on("click", () => this._openHscParameters(this.scenarioSelector.getSelectedId()));
-        this.hscModal.onSave = (data) => this._updateHscParameters(data, this.scenarioSelector.getSelectedId());
+        $("#hsc_parameters").on("click", () =>
+            this._openHscParameters(this.scenarioSelector.getSelectedId()),
+        );
+        this.hscModal.onSave = (data) =>
+            this._updateHscParameters(
+                data,
+                this.scenarioSelector.getSelectedId(),
+            );
     }
 
     // اتصال رویدادهای مربوط به سناریو (انتخاب، ایجاد، ویرایش).
@@ -182,8 +188,11 @@ class HomeController {
         this.paretoView.onRowSelect = (id) => this._selectSolution(id);
 
         // کلیک روی سطر جدول تخصیص → تمرکز روی مبدأ و نمایش مسیرهای آن.
-        this.allocationView.onRowSelect = ({ sourceType, sourceId }) =>
-            this._focusNode(sourceType, sourceId);
+        this.allocationView.onRowSelect = (payload) =>
+            this._focusAllocationRow(payload);
+
+        this.allocationView.nameResolver = (type, id) =>
+            this.mapView.getNameById(type, id);
     }
 
     // ---- use-case: اجرای مدل سمت سرور --------------------------------------
@@ -203,7 +212,9 @@ class HomeController {
                     alert("The model returned no solutions.");
                     return;
                 }
-                alert("Model finished successfully. Open Reports to view the results.");
+                alert(
+                    "Model finished successfully. Open Reports to view the results.",
+                );
             })
             .catch((error) => {
                 console.error(error);
@@ -239,6 +250,7 @@ class HomeController {
     // ---- use-case: خروج از حالت گزارش (دکمه Dashboard) ----------------------
     _exitReportMode() {
         this.reportMode = false;
+        this.mapView.closePopups();
         this.reportLayout.enterDashboard();
         this.paretoView.hide();
         this.allocationView.hide();
@@ -282,6 +294,28 @@ class HomeController {
         this.mapView.openReportPopup(type, id, html, layer);
     }
 
+        // کلیک روی سطر جدول تخصیص: package_flows روی مبدأ (DC) تمرکز می‌کند؛
+    // سه تخصیص دیگر روی target کلیک‌شده و فقط جئومتری‌های همان target.
+    _focusAllocationRow({ allocationType, sourceType, sourceId, targetType, targetId }) {
+        if (!this.currentSolution) return;
+        const solution = this.currentSolution;
+
+        const focusOnSource = allocationType === "package_flows";
+        const type = focusOnSource ? sourceType : targetType;
+        const id = focusOnSource ? sourceId : targetId;
+        const geometries = focusOnSource
+            ? solution.getSourceGeometries(allocationType, id)
+            : solution.getTargetGeometries(allocationType, id);
+
+        const latlng = this.mapView.getLatLngById(type, id);
+        if (latlng) this.mapView.focus(latlng);
+
+        this.mapView.drawGeometries(geometries);
+
+        const html = this.popupBuilder.build(solution, type, id, {});
+        this.mapView.openReportPopup(type, id, html);
+    }
+
     // کلیک روی مارکر در حالت گزارش.
     _onReportNodeClick({ type, layer, props }) {
         const id = props ? props.id : null;
@@ -316,6 +350,9 @@ class HomeController {
                 }
                 this._resetFrontend();
                 this._loadData();
+            })
+            .then(() => {
+                this._loadResults();
             })
             .catch((error) => {
                 console.error(error);
@@ -426,10 +463,20 @@ class HomeController {
                 this.hscParameters = hscParameters;
                 this.mapView.renderNodes(geojsonNodes);
             })
+            .then(() => {
+                this._loadResults();
+            })
             .catch((error) => {
                 console.error(error);
                 alert("An error occurred while loading data.");
             });
+    }
+
+    _loadResults() {
+        let scenario_id = this.scenarioSelector.getSelectedId();
+        this.resultApi.fetchReports(scenario_id).then((payload) => {
+            this.resultSet = new ResultSet(payload, scenario_id);
+        });
     }
 
     // ---- use-case: ذخیره (ایجاد/ویرایش) -----------------------------------

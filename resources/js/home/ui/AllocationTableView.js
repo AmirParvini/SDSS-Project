@@ -28,6 +28,7 @@ export default class AllocationTableView {
         this._solution = null;
         this._currentType = ALLOCATION_TYPES[0];
         this.onRowSelect = null; // ({ allocationType, sourceType, sourceId, row }) => void
+        this.nameResolver = null; // (type, id) => name
 
         this._buildSelect();
         this._wireEvents();
@@ -97,10 +98,13 @@ export default class AllocationTableView {
         const cols = this._columns();
         const term = (this._search.val() || "").trim().toLowerCase();
 
+        const ep = ALLOCATION_ENDPOINTS[this._currentType];
         const matches = this._rows().filter((row) => {
             if (!term) return true;
             return cols.some((c) =>
-                String(row[c] ?? "").toLowerCase().includes(term),
+                String(this._display(c, row, ep) ?? "")
+                    .toLowerCase()
+                    .includes(term),
             );
         });
 
@@ -114,23 +118,40 @@ export default class AllocationTableView {
         const html = matches
             .map((row) => {
                 const cells = cols
-                    .map((c) => `<td>${this._fmt(row[c])}</td>`)
+                    .map((c) => `<td>${this._display(c, row, ep)}</td>`)
                     .join("");
-                return `<tr class="results-row" data-source="${row.source_id}">${cells}</tr>`;
+                return `<tr class="results-row" data-source="${row.source_id}" data-target="${row.target_id}">${cells}</tr>`;
             })
             .join("");
         this._tbody.html(html);
 
         this._tbody.find(".results-row").on("click", (e) => {
             if (!this.onRowSelect) return;
-            const sourceId = $(e.currentTarget).data("source");
+            const $row = $(e.currentTarget);
             const endpoints = ALLOCATION_ENDPOINTS[this._currentType];
             this.onRowSelect({
                 allocationType: this._currentType,
                 sourceType: endpoints.source,
-                sourceId,
+                sourceId: $row.data("source"),
+                targetType: endpoints.target,
+                targetId: $row.data("target"),
             });
         });
+    }
+
+    // ستون‌های source_id / target_id را به نام مارکرِ متناظر تبدیل می‌کند.
+    _display(col, row, ep) {
+        if (this.nameResolver && col === "source_id") {
+            return (
+                this.nameResolver(ep.source, row[col]) ?? this._fmt(row[col])
+            );
+        }
+        if (this.nameResolver && col === "target_id") {
+            return (
+                this.nameResolver(ep.target, row[col]) ?? this._fmt(row[col])
+            );
+        }
+        return this._fmt(row[col]);
     }
 
     _fmt(value) {

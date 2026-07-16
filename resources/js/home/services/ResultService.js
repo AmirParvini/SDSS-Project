@@ -24,4 +24,8 @@ export default class ResultService {
     runModel() {
         return this.http.post(`${API_BASE_URL}/path`).then((res) => res.data);
     }
+
+    fetchReports(scenario_id) {
+        return this.http.get(`${API_BASE_URL}/scenario-report/${Number(scenario_id)}`).then((res) => res.data);
+    }
 }
