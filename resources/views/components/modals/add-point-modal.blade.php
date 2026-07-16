@@ -1,5 +1,5 @@
 @props(['node_types'])
-<div {{$attributes}}>
+<div {{ $attributes }}>
     <div id="addPointModal" class="modal fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
         style="z-index: 3;">
         <div class="bg-white rounded-5 shadow-lg w-96 p-4">
@@ -37,14 +37,14 @@
                     <button type="button" id="saveAddBtn"
                         class="btn d-flex flex-row
                     align-items-center btn-success rounded-3">
-                        <p class="m-0 font-bold">Save</p>
                         <i class="fa-solid fa-floppy-disk" style="width: 11px"></i>
+                        <p class="m-0 font-bold">Save</p>
                     </button>
                     <button type="button" id="cancelAddBtn"
                         class="btn d-flex flex-row 
                     align-items-center btn-danger rounded-3">
+                        <i class="fa-solid fa-times" style="width: 11px"></i>
                         <p class="m-0 font-bold">Cancel</p>
-                        <i class="fa-solid fa-ban" style="width: 12px"></i>
                     </button>
                 </div>
             </form>

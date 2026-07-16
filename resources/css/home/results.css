@@ -254,9 +254,46 @@
     pointer-events: none;
 }
 
-#runModelBtn.is-loading .fa-play::before {
-    content: "\f110"; /* fa-spinner */
-    animation: results-spin 0.8s linear infinite;
+/* حالت idle/busy دکمه‌ی Run Model */
+.run-model__busy {
+    display: none !important;
+}
+
+#runModelBtn.is-loading .run-model__idle {
+    display: none !important;
+}
+
+#runModelBtn.is-loading .run-model__busy {
+    display: flex !important;
+}/* حالت idle/busy دکمه‌ی Run Model */
+#runModelBtn .run-model__idle,
+#runModelBtn .run-model__busy {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+}
+
+#runModelBtn .run-model__busy {
+    display: none;
+}
+
+#runModelBtn.is-loading .run-model__idle {
+    display: none;
+}
+
+#runModelBtn.is-loading .run-model__busy {
+    display: flex;
+}
+
+.run-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: results-spin 0.7s linear infinite;
 }
 
 @keyframes results-spin {
@@ -382,4 +419,60 @@
 .result-popup__muted,
 .result-popup__empty {
     color: var(--results-muted);
+}
+
+/* ------------------------ Bottom panel collapse -------------------------- */
+.results-panel__handle {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0;
+    flex: 0 0 auto;
+}
+
+.results-panel__toggle {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    width: 52px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.results-panel__toggle:hover {
+    background: var(--results-hover);
+    color: var(--results-accent);
+}
+
+.results-panel__toggle i {
+    transition: transform 0.2s ease;
+}
+
+/* حالت جمع‌شده: بدنه و نوار ابزار مخفی می‌شوند و فقط هندل می‌ماند */
+.results-panel--bottom.is-collapsed {
+    height: auto;
+}
+
+.results-panel--bottom.is-collapsed .results-panel__toolbar,
+.results-panel--bottom.is-collapsed .results-panel__body {
+    display: none;
+}
+
+.results-panel--bottom.is-collapsed .results-panel__toggle i {
+    transform: rotate(180deg);
+}
+
+/* وقتی پنل تخصیص جمع می‌شود، پنل‌های چپ/راست تا پایین کشیده می‌شوند */
+.results-panel--left,
+.results-panel--right {
+    transition: bottom 0.25s ease;
+}
+
+body.allocation-collapsed .results-panel--left,
+body.allocation-collapsed .results-panel--right {
+    bottom: 48px;
 }

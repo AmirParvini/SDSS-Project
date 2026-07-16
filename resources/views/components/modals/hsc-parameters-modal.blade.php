@@ -248,20 +248,20 @@
             <button type="button" id="hscEditBtn"
                 class="btn btn-primary d-flex flex-row
                     align-items-center rounded-3">
-                <p class="m-0 font-bold">Edit</p>
                 <i class="fa-solid fa-pencil" style="width: 11px"></i>
+                <p class="m-0 font-bold">Edit</p>
             </button>
             <button type="button" id="hscSaveBtn"
                 class="btn d-flex flex-row
                     align-items-center btn-success rounded-3">
-                <p class="m-0 font-bold">Save</p>
                 <i class="fa-solid fa-floppy-disk" style="width: 11px"></i>
+                <p class="m-0 font-bold">Save</p>
             </button>
             <button type="button" id="hscCancelBtn"
                 class="btn d-flex flex-row 
                     align-items-center btn-danger rounded-3">
+                <i class="fa-solid fa-times" style="width: 11px"></i>
                 <p class="m-0 font-bold">Cancel</p>
-                <i class="fa-solid fa-ban" style="width: 12px"></i>
             </button>
         </div>
     </div>

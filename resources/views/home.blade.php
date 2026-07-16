@@ -40,7 +40,7 @@
     <div class="container-fluid p-0 m-0 vh-100 d-flex flex-column overflow-hidden">
         {{-- Header --}}
         <div class="d-flex flex-row justify-content-start gap-3 px-3 py-2 w-100 rounded-bottom-4 pl-5 bg-white shadow"
-            style="z-index: 2; pointer-events: none">
+            style="z-index: 2; pointer-events: auto">
             <div style="pointer-events: auto">
                 <ul class="nav nav-underline">
                     <li class="nav-item pr-4">
@@ -54,8 +54,22 @@
             <div style="pointer-events: auto">
                 <button id="runModelBtn"
                     class="btn btn-primary d-flex flex-row align-items-center h-100 justify-content-center rounded-5">
-                    <i class="fa fa-play w-4 h-4"></i>
-                    <p class="font-bold" style="font-size: 12px">Run Model</p>
+                    <span class="run-model__idle">
+                        <i class="fa fa-play w-4 h-4"></i>
+                        <p class="m-0 font-bold" style="font-size: 12px">Run Model</p>
+                    </span>
+                    <span class="run-model__busy">
+                        <span class="run-spinner"></span>
+                        <p class="m-0 font-bold" style="font-size: 12px">Running...</p>
+                    </span>
+                </button>
+            </div>
+            <div style="pointer-events: auto" class="d-none">
+                <button id="cancelRunningBtn" class="btn btn-danger h-100 rounded-5">
+                    <span class="d-flex flex-row align-items-center">
+                        <i class="fa fa-times"></i>
+                        <p class="m-0 font-bold" style="font-size: 12px">Cancel</p>
+                    </span>
                 </button>
             </div>
             <div>
@@ -69,10 +83,10 @@
             <div id="scenarioBar">
                 <div class="scenario-bar d-flex align-items-center gap-1 h-100">
                     <select id="scenarioSelect"
-                    class="form-select scenario-select bg-primary h-100 focus
+                        class="form-select scenario-select bg-primary h-100 focus
                     text-white fw-bold"
-                    style=" font-size: 12px; pointer-events: auto;">
-                    <option value="" disabled selected>Scenario Selection</option>
+                        style=" font-size: 12px; pointer-events: auto;">
+                        <option value="" disabled selected>Scenario Selection</option>
                     </select>
 
                     <button id="createScenarioBtn" type="button" class="btn btn-primary p-0 px-1 rounded-5">
@@ -91,8 +105,7 @@
 
             {{-- Items & Tables --}}
             <div id="dashboardLeftDock"
-                class="position-absolute bottom-0 start-0 d-flex flex-row align-items-end w-auto mb-3"
-                style="z-index: 2">
+                class="position-absolute bottom-0 start-0 d-flex flex-row align-items-end w-auto mb-3" style="z-index: 2">
                 <x-items :node_types="$node_types" />
                 <x-tables />
             </div>

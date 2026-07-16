@@ -26,6 +26,8 @@ export default class ResultService {
     }
 
     fetchReports(scenario_id) {
-        return this.http.get(`${API_BASE_URL}/scenario-report/${Number(scenario_id)}`).then((res) => res.data);
+        return this.http
+            .get(`${API_BASE_URL}/scenario-report/${Number(scenario_id)}`)
+            .then((res) => res.data);
     }
 }

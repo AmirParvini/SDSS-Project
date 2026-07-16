@@ -11,24 +11,24 @@
 //  - DIP: Controller به وابستگی‌ها از طریق constructor injection وصل است،
 //         نه به پیاده‌سازی‌های مشخص (axios/DOM/Leaflet مستقیم).
 // -----------------------------------------------------------------------------
+import { HSC_PARAMETER_DEFAULTS } from "./config/hscParametersConfig.js";
 import NodeMapView from "./map/NodeMapView.js";
-import NodeApiService from "./services/NodeApiService.js";
-import ScenarioService from "./services/ScenarioService.js";
-import HscParameterService from "./services/HscParameterService.js";
-import AddPointModal from "./ui/AddPointModal.js";
-import NodePropertyPanel from "./ui/NodePropertyPanel.js";
-import NodeTableView from "./ui/NodeTableView.js";
-import ScenarioSelector from "./ui/ScenarioSelector.js";
-import ScenarioModal from "./ui/ScenarioModal.js";
-import HscParameterModal from "./ui/HscParameterModal.js";
-import ResultService from "./services/ResultService.js";
-import ResultSet from "./results/ResultSet.js";
 import ResultPopupBuilder from "./results/ResultPopupBuilder.js";
-import ParetoTableView from "./ui/ParetoTableView.js";
+import ResultSet from "./results/ResultSet.js";
+import HscParameterService from "./services/HscParameterService.js";
+import NodeApiService from "./services/NodeApiService.js";
+import ResultService from "./services/ResultService.js";
+import ScenarioService from "./services/ScenarioService.js";
+import AddPointModal from "./ui/AddPointModal.js";
 import AllocationTableView from "./ui/AllocationTableView.js";
 import CostsReportView from "./ui/CostsReportView.js";
+import HscParameterModal from "./ui/HscParameterModal.js";
+import NodePropertyPanel from "./ui/NodePropertyPanel.js";
+import NodeTableView from "./ui/NodeTableView.js";
+import ParetoTableView from "./ui/ParetoTableView.js";
 import ReportLayout from "./ui/ReportLayout.js";
-import { HSC_PARAMETER_DEFAULTS } from "./config/hscParametersConfig.js";
+import ScenarioModal from "./ui/ScenarioModal.js";
+import ScenarioSelector from "./ui/ScenarioSelector.js";
 
 class HomeController {
     constructor({
@@ -201,6 +201,12 @@ class HomeController {
     _runModel() {
         const $btn = $("#runModelBtn");
         $btn.prop("disabled", true).addClass("is-loading");
+        $("#reportsTab").addClass("disabled");
+        $("#hsc_parameters").parent().addClass("d-none");
+        $("#scenarioBar").addClass("d-none");
+        $("#createScenarioBtn").addClass("d-none");
+        $("#editScenarioBtn").addClass("d-none");
+        $("#cancelRunningBtn").parent().removeClass("d-none");
         this.resultApi
             .runModel()
             .then((payload) => {
@@ -222,6 +228,12 @@ class HomeController {
             })
             .finally(() => {
                 $btn.prop("disabled", false).removeClass("is-loading");
+                $("#reportsTab").removeClass("disabled");
+                $("#hsc_parameters").parent().removeClass("d-none");
+                $("#scenarioBar").removeClass("d-none");
+                $("#createScenarioBtn").removeClass("d-none");
+                $("#editScenarioBtn").removeClass("d-none");
+                $("#cancelRunningBtn").parent().addClass("d-none");
             });
     }
 
@@ -231,6 +243,9 @@ class HomeController {
             alert("Please run the model first.");
             return;
         }
+        $("#runModelBtn").parent().addClass("d-none");
+        $("#hsc_parameters").parent().addClass("d-none");
+        $("#createScenarioBtn").addClass("d-none");
         this.reportMode = true;
         this.reportLayout.enterReport();
         this.panel.reset();
@@ -249,6 +264,9 @@ class HomeController {
 
     // ---- use-case: خروج از حالت گزارش (دکمه Dashboard) ----------------------
     _exitReportMode() {
+        $("#runModelBtn").parent().removeClass("d-none");
+        $("#hsc_parameters").parent().removeClass("d-none");
+        $("#createScenarioBtn").removeClass("d-none");
         this.reportMode = false;
         this.mapView.closePopups();
         this.reportLayout.enterDashboard();
@@ -294,9 +312,15 @@ class HomeController {
         this.mapView.openReportPopup(type, id, html, layer);
     }
 
-        // کلیک روی سطر جدول تخصیص: package_flows روی مبدأ (DC) تمرکز می‌کند؛
+    // کلیک روی سطر جدول تخصیص: package_flows روی مبدأ (DC) تمرکز می‌کند؛
     // سه تخصیص دیگر روی target کلیک‌شده و فقط جئومتری‌های همان target.
-    _focusAllocationRow({ allocationType, sourceType, sourceId, targetType, targetId }) {
+    _focusAllocationRow({
+        allocationType,
+        sourceType,
+        sourceId,
+        targetType,
+        targetId,
+    }) {
         if (!this.currentSolution) return;
         const solution = this.currentSolution;
 
@@ -571,6 +595,7 @@ $(function () {
         api: new NodeApiService(),
         scenarioApi: new ScenarioService(),
         hscApi: new HscParameterService(),
+        resultApi: new ResultService(),
         resultApi: new ResultService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),

@@ -72,6 +72,16 @@ export default class AllocationTableView {
             this._render();
         });
         this._search.on("input", () => this._renderBody());
+        this._panel.find("#allocationToggle").on("click", (e) => {
+            const collapsed = this._panel
+                .toggleClass("is-collapsed")
+                .hasClass("is-collapsed");
+            $("body").toggleClass("allocation-collapsed", collapsed);
+
+            $(e.currentTarget)
+                .find(".fa-chevron-down, .fa-chevron-up")
+                .toggleClass("d-none");
+        });
     }
 
     _rows() {
@@ -89,7 +99,7 @@ export default class AllocationTableView {
     _render() {
         const cols = this._columns();
         this._thead.html(
-            `<tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr>`,
+            `<tr>${cols.map((c) => `<th>${this._headerLabel(c)}</th>`).join("")}</tr>`,
         );
         this._renderBody();
     }
@@ -152,6 +162,13 @@ export default class AllocationTableView {
             );
         }
         return this._fmt(row[col]);
+    }
+
+    // در هدر، به‌جای id ستون‌های مبدأ/مقصد، عنوان name نمایش داده می‌شود.
+    _headerLabel(col) {
+        if (col === "source_id") return "source_name";
+        if (col === "target_id") return "target_name";
+        return col;
     }
 
     _fmt(value) {

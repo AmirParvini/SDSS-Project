@@ -25,14 +25,14 @@
                 <button id="edit-btn"
                     class="btn btn-primary col-4 h-25 d-flex flex-row align-items-center
                             w-auto p-1 rounded-3 disabled">
-                    <p class="m-0 font-bold" style="font-size: 11px">Edit</p>
                     <i class="fa-solid fa-pen-to-square w-3"></i>
+                    <p class="m-0 font-bold" style="font-size: 11px">Edit</p>
                 </button>
                 <button id="delete-btn"
                     class="btn btn-danger col-5 h-25 d-flex flex-row align-items-center
                             w-auto p-1 rounded-3 disabled">
-                    <p class="m-0 font-bold" style="font-size: 11px">Delete</p>
                     <i class="fa-solid fa-trash" style="width: 10px"></i>
+                    <p class="m-0 font-bold" style="font-size: 11px">Delete</p>
                 </button>
             </div>
             <div id="save-actions" class="card-actions mt-2 row d-flex justify-center gap-1
@@ -40,14 +40,14 @@
                 <button id="save-btn"
                     class="btn btn-success col-4 h-25 d-flex flex-row
                         align-items-center w-auto p-1 rounded-3">
-                    <p class="m-0 font-bold" style="font-size: 11px">Save</p>
                     <i class="fa-solid fa-floppy-disk" style="width: 11px"></i>
+                    <p class="m-0 font-bold" style="font-size: 11px">Save</p>
                 </button>
                 <button id="cancel-btn"
                     class="btn btn-danger col-5 h-25 d-flex flex-row
                         align-items-center w-auto p-1 rounded-3">
+                    <i class="fa-solid fa-times" style="width: 11px"></i>
                     <p class="m-0 font-bold" style="font-size: 11px">Cancel</p>
-                    <i class="fa-solid fa-ban" style="width: 13px"></i>
                 </button>
             </div>
         </div>
