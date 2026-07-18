@@ -4,10 +4,13 @@ namespace App\Services\Optimization;
 
 use App\Models\Cost;
 use App\Models\HospitalAllocation;
+use App\Models\HospitalShortage;
 use App\Models\PackageFlow;
 use App\Models\ParetoSolution;
 use App\Models\ShelterAllocation;
+use App\Models\ShelterShortage;
 use App\Models\TemporaryMedicalCenterAllocation;
+use App\Models\TmcShortage;
 
 class DeleteResults
 {
@@ -19,5 +22,8 @@ class DeleteResults
         HospitalAllocation::query()->where('scenario_id', $scenarioId)->delete();
         ShelterAllocation::query()->where('scenario_id', $scenarioId)->delete();
         Cost::query()->where('scenario_id', $scenarioId)->delete();
+        ShelterShortage::query()->where('scenario_id', $scenarioId)->delete();
+        HospitalShortage::query()->where('scenario_id', $scenarioId)->delete();
+        TmcShortage::query()->where('scenario_id', $scenarioId)->delete();
     }
 }

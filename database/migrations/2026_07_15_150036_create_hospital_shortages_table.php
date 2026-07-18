@@ -18,7 +18,6 @@ return new class extends Migration
             $table->foreignId("node_id")->constrained();
             $table->integer("severe_shortage");
             $table->integer("moderate_shortage");
-            $table->timestamps();
         });
     }
 
