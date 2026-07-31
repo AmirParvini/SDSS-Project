@@ -104,14 +104,10 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
             violations.append(self._constraint_violation(metrics))
 
         objectives = [list(t) for t in zip(f1, f2, f3)]
-        normalized = [
-            list(t)
-            for t in zip(self._min_max(f1), self._min_max(f2), self._min_max(f3))
-        ]
         return EvaluationResult(
             objectives=objectives,
             constraint_violations=violations,
-            normalized_objectives=normalized,
+            normalized_objectives=objectives,
         )
 
     # -- per-chromosome evaluation -----------------------------------------
@@ -148,9 +144,9 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
             flow = math.ceil(chromosome.shelter_flow_ratio[idx] * demand[shelter_id])
             # LEGACY: only the *last* active shelter's package cost feeds the
             # budget constraint (the original kept a non-accumulated variable).
-            metrics.last_relief_package_cost = (
-                dist * problem.cost["reliefpackage_transportation_cost"] * flow
-            )
+            metrics.last_relief_package_cost += (
+                dist * problem.cost["reliefpackage_transportation_cost"] * flow) +\
+            (problem.cost["reliefpackage_cost"] * round( demand[shelter_id] * (1 - chromosome.shelter_flow_ratio[idx])))
             metrics.unmet_demand[shelter_id] = round(
                 demand[shelter_id] * (1 - chromosome.shelter_flow_ratio[idx])
             )
@@ -300,23 +296,64 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
     # -- objective / constraint aggregation --------------------------------
     def _total_expected_deaths(self, metrics: _SolutionMetrics) -> float:
         problem = self._problem
-        return (
-            metrics.death_prob
-            + self._queue_deaths(
-                metrics.hospital_shortage_severe, problem.severe_death_model
-            )
-            + self._queue_deaths(
-                metrics.hospital_shortage_minor, problem.moderate_death_model
-            )
-            + self._queue_deaths(metrics.tmc_shortage, problem.moderate_death_model)
+        
+        # ۱. محاسبه صف یکپارچه و مشترک برای بیمارستان‌ها (با اولویت مجروحین شدید)
+        hospital_queue_deaths = self._combined_hospital_queue_deaths(
+            metrics.hospital_shortage_severe,
+            metrics.hospital_shortage_minor,
+            problem.severe_death_model,
+            problem.moderate_death_model
         )
+        
+        # ۲. محاسبه صف مستقل برای TMCها (TMC فقط مجروحین متوسط دارد و صف آن جداست)
+        tmc_queue_deaths = self._queue_deaths(
+            metrics.tmc_shortage, 
+            problem.moderate_death_model
+        )
+        
+        return metrics.death_prob + hospital_queue_deaths + tmc_queue_deaths
+
+    def _combined_hospital_queue_deaths(
+        self, severe_shortage, minor_shortage, severe_model: DeathModelParameters, minor_model: DeathModelParameters
+    ) -> float:
+        """
+        محاسبه احتمال مرگ در صف بیمارستان با رعایت اولویت.
+        ابتدا مجروحین شدید وارد دسته‌های درمان می‌شوند. مجروحین متوسط
+        از ظرفیت باقی‌مانده دسته‌ها استفاده می‌کنند و زمان انتظارشان به درستی محاسبه می‌شود.
+        """
+        problem = self._problem
+        total = 0.0
+        
+        # مقداردهی اولیه با صفر انجام می‌شود تا در دسته اول (i=0) زمان انتظار دقیقاً برابر با یک waiting_time شود.
+        t = 0.0 
+        
+        total_shortage = int(severe_shortage) + int(minor_shortage)
+        severe_count = int(severe_shortage)
+        
+        for i in range(total_shortage):
+            # هر گاه دسته جدیدی شروع شود (مثلاً هر 50 نفر)، زمان انتظار یک پله بالا می‌رود
+            if i % problem.injured_treated_same_time == 0:
+                t += problem.waiting_time
+            
+            # اگر در بازه مجروحین شدید هستیم (اولویت بالا)
+            if i < severe_count:
+                total += self._death.probability(severe_model, t)
+            # اگر ظرفیت مجروحین شدید تمام شد، ادامه ظرفیت دسته به مجروحین متوسط می‌رسد
+            else:
+                total += self._death.probability(minor_model, t)
+                
+        return total
 
     def _queue_deaths(self, shortage, model: DeathModelParameters) -> float:
+        """محاسبه صف برای مراکزی که فقط یک نوع مجروح دارند (مثل TMC)"""
         if shortage <= 0:
             return 0.0
         problem = self._problem
         total = 0.0
-        t = problem.waiting_time
+        
+        # اصلاح باگ قبلی: مقدار دهی با 0
+        t = 0.0 
+        
         for i in range(int(shortage)):
             if i % problem.injured_treated_same_time == 0:
                 t += problem.waiting_time
@@ -332,8 +369,3 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         )
         budget = self._problem.budget
         return (sum_costs - budget) / budget if sum_costs > budget else 0
-
-    @staticmethod
-    def _min_max(values: List[float]) -> List[float]:
-        lo, hi = min(values), max(values)
-        return [(v - lo) / (hi - lo) for v in values]

@@ -28,7 +28,7 @@ class DominanceComparator:
             return False
         if pc == 0 and qc > 0:
             return True
-        return bool(np.all(p.cost <= q.cost) and np.any(p.cost < q.cost))
+        return bool(np.all(p.normal_cost <= q.normal_cost) and np.any(p.normal_cost < q.normal_cost))
 
 
 class Ranking:
@@ -71,7 +71,7 @@ class Ranking:
         return pop, fronts
 
     def assign_crowding_distance(self, pop: List[Individual], fronts: Fronts) -> List[Individual]:
-        n_obj = len(pop[0].cost)
+        n_obj = len(pop[0].normal_cost)
         for front in fronts:
             costs = np.array([pop[i].normal_cost for i in front])
             n = len(front)

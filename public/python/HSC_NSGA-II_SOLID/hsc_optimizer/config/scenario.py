@@ -31,7 +31,7 @@ class ScenarioConfig:
     """
 
     # Entity ids
-    idc_id: List[int] = field(default_factory=lambda: [1, 2, 3])
+    dc_id: List[int] = field(default_factory=lambda: [1, 2, 3])
     ec_id: List[int] = field(
         default_factory=lambda: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
     da_id: List[int] = field(default_factory=lambda: [3, 4, 5, 6, 7])
@@ -64,12 +64,12 @@ class ScenarioConfig:
 
     # Affected population per damage area
     affected_pop: Dict[int, float] = field(
-        default_factory=lambda: {5: 30000, 6: 52500, 4: 4500, 7: 18000, 3: 4854})
+        default_factory=lambda: {'5': 30000, '6': 52500, '4': 4500, '7': 18000, '3': 4854})
 
     # Shelter areas (m^2) used to derive shelter capacity
     ec_area: Dict[int, float] = field(default_factory=lambda: {
-        8: 283762, 9: 133407, 10: 120000, 11: 18700, 12: 14000,
-        13: 24000, 14: 20170, 15: 17400, 16: 25380, 17: 25374, 18: 58055,
+        '8': 283762, '9': 133407, '10': 120000, '11': 18700, '12': 14000,
+        '13': 24000, '14': 20170, '15': 17400, '16': 25380, '17': 25374, '18': 58055,
     })
 
     relief_package_volume: float = 0.6273  # m^3
@@ -88,11 +88,13 @@ class ScenarioConfig:
     helicopter_capacity: Dict[str, int] = field(
         default_factory=lambda: {'injured_type1': 4, 'injured_type2': 12})
     hospital_capacity: Dict[int, float] = field(
-        default_factory=lambda: {1: 800, 2: 600, 3: 600, 4: 600})
+        default_factory=lambda: {'1': 1800, '2': 1600, '3': 1600, '4': 1600})
     tmc_capacity: Dict[int, float] = field(default_factory=lambda: {
-        1: 300, 2: 300, 3: 300, 4: 300, 5: 300,
-        6: 300, 7: 300, 8: 300, 9: 300, 10: 300,
+        '1': 600, '2': 600, '3': 600, '4': 600, '5': 600,
+        '6': 600, '7': 600, '8': 600, '9': 600, '10': 600,
     })
+
+    paths = {}
 
 class StdinData:
     def __init__(self):

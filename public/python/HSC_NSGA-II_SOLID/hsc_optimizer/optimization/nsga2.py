@@ -71,13 +71,14 @@ class NSGA2:
         pareto_pop: List[Individual] = []
         for iteration in range(start_it, self._config.max_iter):
             offspring = self._reproduce(pop)
-            pop = pop + offspring
-            self._evaluate_pending(pop)
+            merged = pop + offspring                    # ← ادغام اول
+            self._evaluate_pending(merged)              # ← ارزیابی خام
+            self._normalize_globally(merged)            # ← نرمال‌سازی روی کل
 
-            pop, fronts = self._ranking.non_dominated_sort(pop)
-            pop = self._ranking.assign_crowding_distance(pop, fronts)
-            pop, fronts = self._ranking.sort(pop)
-            pop, fronts = self._ranking.truncate(pop, fronts, self._config.pop_size)
+            merged, fronts = self._ranking.non_dominated_sort(merged)
+            merged = self._ranking.assign_crowding_distance(merged, fronts)
+            merged, fronts = self._ranking.sort(merged)
+            pop, fronts = self._ranking.truncate(merged, fronts, self._config.pop_size)
 
             pareto_pop = self._extract_pareto(pop, fronts)
             pareto_history.append(deepcopy(pareto_pop))
@@ -86,6 +87,16 @@ class NSGA2:
             self._save_checkpoint(iteration, pop, fronts, pareto_history)
 
         return [ind.chromosome for ind in pareto_pop], pareto_pop
+
+    def _normalize_globally(self, pop: List[Individual]) -> None:
+        """نرمال‌سازی روی کل جمعیت ادغام‌شده."""
+        n_obj = len(pop[0].cost)
+        for obj_idx in range(n_obj):
+            values = [ind.normal_cost[obj_idx] for ind in pop]
+            lo, hi = min(values), max(values)
+            span = hi - lo if hi != lo else 1.0
+            for ind in pop:
+                ind.normal_cost[obj_idx] = (ind.cost[obj_idx] - lo) / span
 
     # -- initialisation / resume -------------------------------------------
     def _initialise_state(self):
@@ -146,11 +157,11 @@ class NSGA2:
         if not pending:
             return
         result = self._evaluator.evaluate([ind.chromosome for ind in pending])
-        for ind, objective, violation, normalized in zip(
-            pending, result.objectives, result.constraint_violations, result.normalized_objectives
+        for ind, objective, violation in zip(
+            pending, result.objectives, result.constraint_violations
         ):
             ind.cost = np.array(objective)
-            ind.normal_cost = np.array(normalized)
+            ind.normal_cost = np.array(objective, dtype=float)
             ind.constraint_violation = violation
 
     # -- helpers -----------------------------------------------------------

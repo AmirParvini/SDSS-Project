@@ -60,7 +60,7 @@ class ChromosomeFactory:
         for i in range(n_damage):
             for j in range(n_hosp):
                 if severe_split[i][j] > 0:
-                    severe_ground_ratio[i][j] = np.random.random()
+                    severe_ground_ratio[i][j] = random.randint(0, 100) / 100
 
         # Part 6: moderate split across hospitals + TMCs.
         moderate_split = np.zeros((n_damage, n_hosp + n_tmc))
@@ -73,7 +73,7 @@ class ChromosomeFactory:
         for i in range(n_damage):
             for j in range(n_hosp + n_tmc):
                 if moderate_split[i][j] > 0:
-                    moderate_ground_ratio[i][j] = np.random.random()
+                    moderate_ground_ratio[i][j] = random.randint(0, 100) / 100
 
         return Chromosome(
             dc_to_shelter=dc_to_shelter,

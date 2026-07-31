@@ -28,6 +28,7 @@ class DamageShelterAssigner:
         selected_shelters = [
             ec_id[idx] for idx, x in enumerate(chromosome.dc_to_shelter) if x != 0
         ]
+        n_shelters = len(selected_shelters)
         damaged_areas = [x for x in chromosome.damage_to_shelter if x != 0]
 
         # هم‌طول کردن دو لیست با متد قبلی شما
@@ -48,4 +49,4 @@ class DamageShelterAssigner:
             if shelter not in da_ec_alloc[area]:
                 da_ec_alloc[area].append(shelter)
                 
-        return da_ec_alloc, len(selected_shelters)
+        return da_ec_alloc, n_shelters

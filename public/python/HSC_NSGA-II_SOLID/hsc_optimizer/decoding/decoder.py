@@ -55,7 +55,6 @@ class SolutionDecoder:
     # -- per-solution -------------------------------------------------------
     def _decode_one(self, solution_id: int, chromosome: Chromosome, pareto_pop: Individual) -> dict:
         from copy import deepcopy
-
         problem = self._problem
         hospital_cap = deepcopy(problem.capacity.hospital)
         tmc_cap = deepcopy(problem.capacity.tmc)
@@ -75,8 +74,13 @@ class SolutionDecoder:
         tmc_id_list: List = []
         tmc_shortage: Dict[int, float] = {}
 
+        # ابتدا تخصیص بیماران بدحال (Severe) به بیمارستان‌ها انجام می‌شود تا ظرفیت‌ها کسر شود.
         self._injured_to_hospital(
-            chromosome, hospital_cap, hospital_allocations, shortage_severe, shortage_moderate, h_id_list
+            chromosome, hospital_cap, hospital_allocations, shortage_severe, h_id_list
+        )
+        # سپس محاسبه‌ی کمبود ظرفیت بیماران سرپایی (Moderate) با ظرفیت باقی‌مانده بیمارستان‌ها انجام می‌گیرد.
+        self._process_moderate_hospital_shortage(
+            chromosome, hospital_cap, shortage_moderate, shortage_severe
         )
         tmc_allocations, num_tmc = self._injured_to_tmc(chromosome, tmc_cap, tmc_shortage, tmc_id_list)
         self.tmc_establish_cost = num_tmc * problem.cost['tmc_cost']
@@ -89,9 +93,9 @@ class SolutionDecoder:
             "ec_id": ec_id_list,
             "h_id": h_id_list,
             "tmc_id": tmc_id_list,
-            "F1": pareto_pop.normal_cost[0],
+            "F1": pareto_pop.cost[0],
             "F2": pareto_pop.cost[1],
-            "F3": pareto_pop.normal_cost[2],
+            "F3": pareto_pop.cost[2],
             "package_flows": package_flows,
             "shelter_allocations": shelter_allocations,
             "hospital_allocations": hospital_allocations,
@@ -122,7 +126,7 @@ class SolutionDecoder:
                 records.append(
                     {"source_id": da_id,
                     "target_id": shelter_id,
-                    "geometry": problem.path[f"{da_id},{shelter_id}"]["air"],
+                    "geometry": problem.path.get(f"{da_id},{shelter_id}", {}).get("air", None),
                     "flow": flow}
                 )
         return records
@@ -147,14 +151,14 @@ class SolutionDecoder:
                 {
                     "source_id": dc,
                     "target_id": shelter_id,
-                    "geometry": problem.path[f"{dc},{shelter_id}"]["ground"],
+                    "geometry": problem.path.get(f"{dc},{shelter_id}", {}).get("ground", None),
                     "flow": flow,
                     "flow_cost": flow_cost,                }
             )
         return records, dc_id_list, ec_id_list
 
     def _injured_to_hospital(
-        self, chromosome: Chromosome, hospital_cap, records, shortage_severe, shortage_moderate, h_id_list: List
+        self, chromosome: Chromosome, hospital_cap, records, shortage_severe, h_id_list: List
     ) -> None:
         problem = self._problem
         for idx, severe_raw_row in enumerate(chromosome.severe_split):
@@ -164,11 +168,13 @@ class SolutionDecoder:
             severe = problem.severe_injured[f'{problem.da_id[idx]}']
             moderate = problem.minor_injured[f'{problem.da_id[idx]}']
             for h_idx, j in enumerate(severe_row):
-                if j <= 0 and moderate_row[idx] <= 0:
+                if j <= 0 and moderate_row[h_idx] <= 0:
                     continue
                 hospital_id = problem.h_id[h_idx]
                 if hospital_id not in h_id_list:
                     h_id_list.append(hospital_id)
+                
+                # ثبت کمبود ظرفیت فقط برای مجروحین severe
                 self._record_shortage(
                     shortage_severe,
                     hospital_id,
@@ -176,13 +182,7 @@ class SolutionDecoder:
                     hospital_cap,
                     key_table=shortage_severe,
                 )
-                self._record_shortage(
-                    shortage_moderate,
-                    hospital_id,
-                    moderate * moderate_row[idx],
-                    hospital_cap,
-                    key_table=shortage_severe,
-                )
+                
                 severe_plan = self._transport.plan(
                     severe * j,
                     chromosome.severe_ground_ratio[idx][h_idx],
@@ -191,13 +191,35 @@ class SolutionDecoder:
                 self.ground_vehicle_cost += severe_plan.ground_cost
                 self.air_vehicle_cost += severe_plan.air_cost
                 moderate_plan = self._transport.plan(
-                    moderate * moderate_row[idx],
+                    moderate * moderate_row[h_idx],
                     chromosome.moderate_ground_ratio[idx][h_idx],
                     TransportPlanner.MODERATE,
                 )
                 self.ground_vehicle_cost += moderate_plan.ground_cost
                 self.air_vehicle_cost += moderate_plan.air_cost
                 records.append(self._hospital_record(problem, problem.da_id[idx], hospital_id, severe_plan, moderate_plan))
+
+    def _process_moderate_hospital_shortage(
+        self, chromosome: Chromosome, hospital_cap, shortage_moderate, shortage_severe
+    ) -> None:
+        """محاسبه کمبود ظرفیت بیمارستان‌ها برای مجروحین moderate پس از تخصیص کامل ظرفیت به severe."""
+        problem = self._problem
+        for idx, moderate_raw_row in enumerate(chromosome.moderate_split):
+            moderate_row = np.array(moderate_raw_row) / sum(moderate_raw_row)
+            moderate = problem.minor_injured[f'{problem.da_id[idx]}']
+            for h_idx, j in enumerate(moderate_row[:problem.n_hospitals]): # فقط ظرفیت‌های مربوط به بیمارستان‌ها بررسی شود
+                if j <= 0:
+                    continue
+                hospital_id = problem.h_id[h_idx]
+                
+                # محاسبه کمبود ظرفیت برای بیماران moderate با ظرفیت باقی‌مانده (پس از کسر severe)
+                self._record_shortage(
+                    shortage_moderate,
+                    hospital_id,
+                    moderate * j,
+                    hospital_cap,
+                    key_table=shortage_severe,
+                )
 
     def _injured_to_tmc(self, chromosome, tmc_cap, tmc_shortage, tmc_id_list: List) -> List[dict]:
         problem = self._problem
@@ -242,7 +264,7 @@ class SolutionDecoder:
         self, target, facility_id, injured, cap_table, key_table
     ) -> None:
         """Replicate the original capacity-consumption + shortage bookkeeping."""
-        if injured > cap_table[f'{facility_id}']:
+        if round(injured) > cap_table[f'{facility_id}']:
             delta = round(injured) - cap_table[f'{facility_id}']
             # LEGACY: the "already seen?" test uses ``key_table`` which, for the
             # moderate hospital pass, is the *severe* shortage dict.
@@ -261,9 +283,9 @@ class SolutionDecoder:
     @staticmethod
     def _hospital_record(problem: ProblemData, source_id: int, target_id: int, severe_plan: TransportPlan, moderate_plan: TransportPlan) -> dict:
         if severe_plan.ground_flow == 0 and moderate_plan.ground_flow == 0:
-            geometry = problem.path[f"{source_id},{target_id}"]["air"]
+            geometry = problem.path.get(f"{source_id},{target_id}", {}).get("air", None)
         else:
-            geometry = problem.path[f"{source_id},{target_id}"]["ground"]
+            geometry = problem.path.get(f"{source_id},{target_id}", {}).get("ground", None)
         return {
             "source_id": source_id,
             "target_id": target_id,
@@ -285,9 +307,9 @@ class SolutionDecoder:
     @staticmethod
     def _tmc_record(problem: ProblemData, source_id: int, target_id: int, plan: TransportPlan) -> dict:
         if plan.ground_flow == 0 and plan.ground_flow == 0:
-            geometry = problem.path[f"{source_id},{target_id}"]["air"]
+            geometry = problem.path.get(f"{source_id},{target_id}", {}).get("air", None)
         else:
-            geometry = problem.path[f"{source_id},{target_id}"]["ground"]
+            geometry = problem.path.get(f"{source_id},{target_id}", {}).get("ground", None)
         return {
             "source_id": source_id,
             "target_id": target_id,

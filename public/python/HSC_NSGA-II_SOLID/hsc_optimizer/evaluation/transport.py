@@ -32,8 +32,8 @@ class TransportPlanner:
         cost = self._problem.cost
         capacity = self._problem.capacity
 
-        ground_flow = math.ceil(injured * ground_ratio)
-        air_flow = math.ceil(injured * (1 - ground_ratio))
+        ground_flow = round(injured * ground_ratio)
+        air_flow = round(injured * (1 - ground_ratio))
 
         ground_vehicles = math.ceil(ground_flow / capacity.ambulance[injured_type])
         air_vehicles = math.ceil(air_flow / capacity.helicopter[injured_type])
