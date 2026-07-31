@@ -22,7 +22,7 @@ export default class ResultService {
     // Runs the model server-side. No body is sent – the controller already has
     // everything it needs. Resolves with the results payload ({ status, data }).
     runModel() {
-        return this.http.post(`${API_BASE_URL}/path`).then((res) => res.data);
+        return this.http.post(`${API_BASE_URL}/optima`).then((res) => res.data);
     }
 
     fetchReports(scenario_id) {

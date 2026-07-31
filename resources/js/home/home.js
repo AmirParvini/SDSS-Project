@@ -352,8 +352,12 @@ class HomeController {
         this.scenarioApi
             .listScenarios()
             .then(({ scenarios, activeId }) => {
-                // dropdown به‌صورت پیش‌فرض روی سناریوی فعالِ دیتابیس تنظیم می‌شود.
-                this.scenarioSelector.render(scenarios, activeId);
+                if (!scenarios.length == 0){
+                    $("#addPointBtn").removeClass("disabled");
+
+                    // dropdown به‌صورت پیش‌فرض روی سناریوی فعالِ دیتابیس تنظیم می‌شود.
+                    this.scenarioSelector.render(scenarios, activeId);
+                }
             })
             .catch((error) => {
                 console.error(error);
@@ -396,6 +400,7 @@ class HomeController {
                     alert("Error: " + res.message);
                     return Promise.reject("handled");
                 }
+                $("#addPointBtn").removeClass("disabled");
                 this.scenarioModal.close();
                 // ذخیره‌ی مقادیر پیش‌فرضِ HSC برای سناریوی تازه‌فعال‌شده.
                 return this.hscApi.saveParameters(HSC_PARAMETER_DEFAULTS);
@@ -535,6 +540,7 @@ class HomeController {
                 alert("Saved successfully!");
                 let marker = this.mapView.createNode(res["node_id"], data);
                 this.mapView.showPulse(marker.getLatLng());
+                this.panel.showType(data.type);
                 this.panel.displayProps(data.type, marker.options.properties);
                 this.tableView.populate(data.type);
                 this.panel.activateActions();

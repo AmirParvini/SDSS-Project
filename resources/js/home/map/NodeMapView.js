@@ -305,13 +305,6 @@ export default class NodeMapView {
     }
 
     closePopups() {
-        // Object.values(this.featureGroups).forEach((group) => {
-        //     group.eachLayer((layer) => {
-        //         if (layer.closePopup) {
-        //             layer.closePopup();
-        //         }
-        //     });
-        // });
         this.map.eachLayer(function (layer) {
             if (layer.getPopup && layer.getPopup()) {
                 layer.closePopup();

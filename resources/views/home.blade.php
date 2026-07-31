@@ -117,7 +117,7 @@
                 <div class="add-point-btn d-flex w-auto gap-2 justify-content-center"
                     style="z-index: 2; pointer-events: none">
                     <button id="addPointBtn"
-                        class="btn w-50 btn-primary d-flex flex-row
+                        class="btn w-50 btn-primary d-flex flex-row disabled
                 align-items-center justify-content-center p-2 rounded-5 shadow-xl">
                         <i class="fa-solid fa-plus w-4 h-4"></i>
                         <p class="m-0 font-bold" style="font-size: 12px">Add Point</p>
