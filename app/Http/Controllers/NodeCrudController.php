@@ -91,9 +91,8 @@ class NodeCrudController extends Controller
             $model_class = $registry[$type]['model'];
             $fields = $model_class ? (new $model_class)->getFillable() : [];
             $specificData = $request->only($fields);
-
-            if (!empty($specificFields)) {
-                $specificData = $request->only($specificFields);
+            if (!empty($specificData)) {
+                // Log::info($specificData);
                 DB::table($table)->where('node_id', $id)->update($specificData);
             }
 

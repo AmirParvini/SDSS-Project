@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'home');
 Route::get("/load_data", [HomeController::class, 'index'])->name('load_data');
 Route::post("/optima", [OptimizationController::class, 'optimize'])->name('optima');
+Route::get("/optima", [OptimizationController::class, 'optimize'])->name('optima');
 Route::get('/scenario-report/{scenario_id?}', [ReportController::class, 'getReport'])->name('scenario.report');
 // Route::post('/solving',[SolvingController::class, 'index'])->name('solving.index');
 // Route::get('/solving',[SolvingController::class, 'index'])->name('solving.index');
