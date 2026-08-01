@@ -45,9 +45,6 @@ class SolutionDecoder:
         self.package_cost = 0
         self.ground_vehicle_cost = 0
         self.air_vehicle_cost = 0
-        self.shelter_establish_cost = 0
-        self.tmc_establish_cost = 0
-        self.total_cost = 0
 
     def decode(self, chromosomes: List[Chromosome], pareto_pops: List[Individual]) -> List[dict]:
         return [self._decode_one(idx+1, chrom, pareto_pops[idx]) for idx, chrom in enumerate(chromosomes)]
@@ -59,8 +56,13 @@ class SolutionDecoder:
         hospital_cap = deepcopy(problem.capacity.hospital)
         tmc_cap = deepcopy(problem.capacity.tmc)
 
+        self.package_flow_cost = 0
+        self.package_cost = 0
+        self.ground_vehicle_cost = 0
+        self.air_vehicle_cost = 0
+
         da_ec_alloc, num_selected_ec = self._assigner.assign(chromosome)
-        self.shelter_establish_cost = num_selected_ec * problem.cost['ec_cost']
+        shelter_establish_cost = num_selected_ec * problem.cost['ec_cost']
         allocation = self._allocator.allocate(da_ec_alloc)
         demand = allocation.demand
 
@@ -83,10 +85,9 @@ class SolutionDecoder:
             chromosome, hospital_cap, shortage_moderate, shortage_severe
         )
         tmc_allocations, num_tmc = self._injured_to_tmc(chromosome, tmc_cap, tmc_shortage, tmc_id_list)
-        self.tmc_establish_cost = num_tmc * problem.cost['tmc_cost']
-        self.total_cost = self.package_flow_cost + self.package_cost + self.ground_vehicle_cost +\
-              self.air_vehicle_cost + self.shelter_establish_cost + self.tmc_establish_cost +\
-                self.total_cost
+        tmc_establish_cost = num_tmc * problem.cost['tmc_cost']
+        total_cost = self.package_flow_cost + self.package_cost + self.ground_vehicle_cost +\
+              self.air_vehicle_cost + shelter_establish_cost + tmc_establish_cost
         return {
             "solution_id": solution_id,
             "dc_id": dc_id_list,
@@ -109,9 +110,9 @@ class SolutionDecoder:
                 "package_cost": self.package_cost,
                 "ground_vehicle_cost": self.ground_vehicle_cost,
                 "air_vehicle_cost": self.air_vehicle_cost,
-                "shelter_establish_cost": self.shelter_establish_cost,
-                "tmc_establish_cost": self.tmc_establish_cost,
-                "total_cost": self.total_cost
+                "shelter_establish_cost": shelter_establish_cost,
+                "tmc_establish_cost": tmc_establish_cost,
+                "total_cost": total_cost
             }
         }
 
