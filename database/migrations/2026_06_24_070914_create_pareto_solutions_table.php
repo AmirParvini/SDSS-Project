@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->integer('solution_id');
             $table->integer('scenario_id');
-            $table->decimal('z1', 10, 2);
-            $table->decimal('z2', 10, 2);
-            $table->decimal('z3', 10, 2);
+            $table->decimal('z1', 15, 2);
+            $table->decimal('z2', 15, 2);
+            $table->decimal('z3', 15, 2);
         });
     }
 
