@@ -19,6 +19,7 @@ import HscParameterService from "./services/HscParameterService.js";
 import NodeApiService from "./services/NodeApiService.js";
 import ResultService from "./services/ResultService.js";
 import ScenarioService from "./services/ScenarioService.js";
+import TopsisService from "./services/TopsisService.js";
 import AddPointModal from "./ui/AddPointModal.js";
 import AllocationTableView from "./ui/AllocationTableView.js";
 import CostsReportView from "./ui/CostsReportView.js";
@@ -36,6 +37,7 @@ class HomeController {
         scenarioApi,
         hscApi,
         resultApi,
+        topsisApi,
         mapView,
         tableView,
         panel,
@@ -53,6 +55,7 @@ class HomeController {
         this.scenarioApi = scenarioApi;
         this.hscApi = hscApi;
         this.resultApi = resultApi;
+        this.topsisApi = topsisApi;
         this.mapView = mapView;
         this.tableView = tableView;
         this.panel = panel;
@@ -187,6 +190,9 @@ class HomeController {
         // انتخاب یک جواب از جدول پرتو → فیلتر نقشه + جدول تخصیص + کانتینر هزینه.
         this.paretoView.onRowSelect = (id) => this._selectSolution(id);
 
+        // دکمه‌ی TOPSIS در جدول پرتو → رتبه‌بندی جواب‌های روی صفحه + هایلایت برنده.
+        this.paretoView.onRunTopsis = (payload) => this._runTopsis(payload);
+
         // کلیک روی سطر جدول تخصیص → تمرکز روی مبدأ و نمایش مسیرهای آن.
         this.allocationView.onRowSelect = (payload) =>
             this._focusAllocationRow(payload);
@@ -294,6 +300,26 @@ class HomeController {
 
         this.costsView.render(solution.costs, solution.id);
         this.costsView.show();
+    }
+
+    // ---- use-case: رتبه‌بندی جواب‌های پرتو با Topsis -------------------------------
+    // شناسه‌ها/مقادیر همان چیزیه‌اند که همین اکنون در جدول دیده می‌شوند
+    // (ParetoTableView آن‌ها را می‌خواند؛ هیچ کوئری تازه‌ای از بک‌اند زده نمی‌شود)؛
+    // پاسخ فقط solution_id برنده است که برای هایلایت سطر مربوطه به ParetoTableView برمی‌گردد.
+    _runTopsis({ solutionIds, values, weights }) {
+        this.paretoView.setTopsisLoading(true);
+        this.topsisApi
+            .getBestSolutionId({ solutionIds, values, weights })
+            .then((bestSolutionId) => {
+                this.paretoView.highlightBestSolution(bestSolutionId);
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("An error occurred while running Topsis.");
+            })
+            .finally(() => {
+                this.paretoView.setTopsisLoading(false);
+            });
     }
 
     // ---- تمرکز روی یک نود در حالت گزارش -------------------------------------
@@ -603,6 +629,7 @@ $(function () {
         hscApi: new HscParameterService(),
         resultApi: new ResultService(),
         resultApi: new ResultService(),
+        topsisApi: new TopsisService(),
         mapView: new NodeMapView(),
         tableView: new NodeTableView(),
         panel: new NodePropertyPanel(),

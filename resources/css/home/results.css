@@ -476,3 +476,111 @@ body.allocation-collapsed .results-panel--left,
 body.allocation-collapsed .results-panel--right {
     bottom: 48px;
 }
+
+/* ---------------------------- Results buttons ---------------------------- */
+.results-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--results-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--results-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+.results-btn:hover {
+    background: var(--results-hover);
+    border-color: var(--results-accent);
+    color: var(--results-accent);
+}
+.results-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.results-btn--primary {
+    background: var(--results-accent);
+    border-color: var(--results-accent);
+    color: #fff;
+}
+.results-btn--primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+}
+.results-btn--secondary {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+}
+.results-btn--secondary:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    color: #111827;
+}
+.results-btn__icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* ------------------------- Topsis weight controls ------------------------ */
+.topsis-weights {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.topsis-weights__field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.topsis-weights__field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--results-muted);
+}
+.topsis-weights__input {
+    width: 56px;
+    height: 28px;
+    border: 1px solid var(--results-border);
+    border-radius: 6px;
+    padding: 0 6px;
+    font-size: 12px;
+    background: #fff;
+    color: var(--results-text);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.topsis-weights__input:focus {
+    border-color: var(--results-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ---------------------------- Best-row highlight ------------------------- */
+.results-table tbody tr.results-row.highlight-best-solution {
+    box-shadow: inset 3px 0 0 #d97706 !important;
+    font-weight: 700;
+}
+/* Background lives on the <td> (not the <tr>) because .is-pinned-top below
+   makes these cells position: sticky, and a sticky cell only carries paint
+   set on itself along for the ride – the same reason thead th (further up
+   this file) paints its own background instead of relying on <tr>. */
+.results-table tbody tr.results-row.highlight-best-solution td {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Freezes the Topsis winner as the table's first row, right below the
+   (already sticky) header, so it stays visible while the rest of the rows
+   scroll underneath it – like a spreadsheet's frozen top row.
+   --pareto-thead-h is measured and kept up to date by ParetoTableView. */
+.results-table tbody tr.results-row.is-pinned-top td {
+    position: sticky;
+    top: var(--pareto-thead-h, 37px);
+    z-index: 1;
+}
