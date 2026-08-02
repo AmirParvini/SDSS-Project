@@ -13,29 +13,12 @@ use Throwable;
 
 class OptimizationController extends Controller
 {
-    public function optimize(OptimizationOrchestrator $orchestrator, PathOrchestrator $path_orchestrator): JsonResponse
+    public function optimize(OptimizationOrchestrator $orchestrator): JsonResponse
     {
         // $validated = $request->validate([
         //     'scenario_id' => ['required', 'integer', 'exists:scenarios,id'],
         //     ]);
         session_write_close(); 
-        try{
-            $path_orchestrator->run(
-                scenarioId: Scenario::where('active', 1)->value('id'),
-                pythonPath: 'public/python/PathCalculator/cli.py',
-                timeout: 1800
-            );
-        }
-        catch (Throwable $e) {
-            report($e);
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Internal server error! (500)',
-                'detail' => $e->getMessage(),
-                'errorOutput' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 500);
-        }
 
         try {
             $result = $orchestrator->run(

@@ -207,6 +207,7 @@ class HomeController {
     _runModel() {
         const $btn = $("#runModelBtn");
         $btn.prop("disabled", true).addClass("is-loading");
+        $btn.find(".run-model__busy p").text("Checking and calculating routes...");
         $("#reportsTab").addClass("disabled");
         $("#hsc_parameters").parent().addClass("d-none");
         $("#scenarioBar").addClass("d-none");
@@ -214,7 +215,11 @@ class HomeController {
         $("#editScenarioBtn").addClass("d-none");
         $("#cancelRunningBtn").parent().removeClass("d-none");
         this.resultApi
-            .runModel()
+            .calculatePaths()
+            .then(() => {
+                $btn.find(".run-model__busy p").text("Running optimization...");
+                return this.resultApi.runModel();
+            })
             .then((payload) => {
                 this.resultSet = new ResultSet(
                     payload,
@@ -234,6 +239,7 @@ class HomeController {
             })
             .finally(() => {
                 $btn.prop("disabled", false).removeClass("is-loading");
+                $btn.find(".run-model__busy p").text("Running...");
                 $("#reportsTab").removeClass("disabled");
                 $("#hsc_parameters").parent().removeClass("d-none");
                 $("#scenarioBar").removeClass("d-none");
