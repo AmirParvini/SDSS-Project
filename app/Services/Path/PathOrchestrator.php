@@ -20,18 +20,29 @@ class PathOrchestrator {
 
         $assings = $this->input_preparation->assinments($scenarioId);
 
+        if (empty($assings["ground"]) && empty($assings["air"])) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No new paths to calculate.',
+                'ground' => null,
+                'air' => null,
+            ]);
+        }
+
         $ground_result = null;
         $air_result = null;
         $errors = [];
 
         // Run ground path service independently
         try {
-            $ground_result = $this->ground_path_service->run(
-                scenario_id: $scenarioId,
-                assigns: $assings["ground"],
-                pythonPath: $pythonPath,
-                timeout: $timeout,
-            );
+            if (!empty($assings["ground"])) {
+                $ground_result = $this->ground_path_service->run(
+                    scenario_id: $scenarioId,
+                    assigns: $assings["ground"],
+                    pythonPath: $pythonPath,
+                    timeout: $timeout,
+                );
+            }
         } catch (PathProcessException $e) {
             report($e);
             $errors['ground'] = [
@@ -49,10 +60,12 @@ class PathOrchestrator {
 
         // Run air path service independently
         try {
-            $air_result = $this->air_path_service->run(
-                scenario_id: $scenarioId,
-                assigns: $assings["air"]
-            );
+            if (!empty($assings["air"])) {
+                $air_result = $this->air_path_service->run(
+                    scenario_id: $scenarioId,
+                    assigns: $assings["air"]
+                );
+            }
         } catch (PathProcessException $e) {
             report($e);
             $errors['air'] = [
