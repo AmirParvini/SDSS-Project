@@ -533,9 +533,23 @@ class HomeController {
 
     _loadResults() {
         let scenario_id = this.scenarioSelector.getSelectedId();
-        this.resultApi.fetchReports(scenario_id).then((payload) => {
-            this.resultSet = new ResultSet(payload, scenario_id);
-        });
+        const loadingOverlay = document.getElementById('reportsLoadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('d-none');
+        }
+
+        this.resultApi.fetchReports(scenario_id)
+            .then((payload) => {
+                this.resultSet = new ResultSet(payload, scenario_id);
+            })
+            .catch((error) => {
+                console.error("Error fetching reports:", error);
+            })
+            .finally(() => {
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('d-none');
+                }
+            });
     }
 
     // ---- use-case: ذخیره (ایجاد/ویرایش) -----------------------------------

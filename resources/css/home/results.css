@@ -584,3 +584,44 @@ body.allocation-collapsed .results-panel--right {
     top: var(--pareto-thead-h, 37px);
     z-index: 1;
 }
+
+/* -------------------------- Reports Loading Overlay ----------------------- */
+.reports-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+    user-select: none;
+}
+
+.reports-loading-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 32px;
+    background: #ffffff;
+    border: 1px solid var(--results-border, #e2e8f0);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    color: var(--results-text, #1e293b);
+}
+
+.reports-loading-box .run-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(37, 99, 235, 0.2);
+    border-top-color: var(--results-accent, #2563eb);
+}
+
+.reports-loading-overlay.d-none {
+    display: none !important;
+}

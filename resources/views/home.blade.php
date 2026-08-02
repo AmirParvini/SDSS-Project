@@ -130,6 +130,15 @@
             <x-results.pareto-table />
             <x-results.allocations-table />
         </div>
+
+        {{-- Reports Loading Overlay --}}
+        <div id="reportsLoadingOverlay" class="reports-loading-overlay d-none">
+            <div class="reports-loading-box">
+                <div class="run-spinner"></div>
+                <p class="m-0 font-bold" style="font-size: 14px;">Loading Results ...</p>
+            </div>
+        </div>
+
         <x-modals.add-point-modal style="z-index: 3;" :node_types="$node_types" />
         <x-modals.hsc-parameters-modal id="hscParamsModal" style="z-index: 3;" />
     </div>
