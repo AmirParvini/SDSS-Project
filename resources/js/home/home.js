@@ -356,12 +356,10 @@ class HomeController {
         if (!this.currentSolution) return;
         const solution = this.currentSolution;
 
-        const focusOnSource = allocationType === "package_flows";
-        const type = focusOnSource ? sourceType : targetType;
-        const id = focusOnSource ? sourceId : targetId;
-        const geometries = focusOnSource
-            ? solution.getSourceGeometries(allocationType, id)
-            : solution.getTargetGeometries(allocationType, id);
+        const geometries = solution.getAllocationGeometry(allocationType, sourceId, targetId);
+
+        const type = sourceType;
+        const id = sourceId;
 
         const latlng = this.mapView.getLatLngById(type, id);
         if (latlng) this.mapView.focus(latlng);

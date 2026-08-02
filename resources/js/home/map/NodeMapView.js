@@ -280,7 +280,7 @@ export default class NodeMapView {
             L.geoJSON(geometry, {
                 style: {
                     color: ALLOCATION_COLORS[type] || "#334155",
-                    weight: 4,
+                    weight: 2,
                     opacity: 0.85,
                 },
             }).addTo(this._resultOverlay);

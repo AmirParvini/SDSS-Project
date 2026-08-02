@@ -136,8 +136,11 @@ export default class AllocationTableView {
         this._tbody.html(html);
 
         this._tbody.find(".results-row").on("click", (e) => {
-            if (!this.onRowSelect) return;
             const $row = $(e.currentTarget);
+            this._tbody.find(".results-row").removeClass("is-active");
+            $row.addClass("is-active");
+
+            if (!this.onRowSelect) return;
             const endpoints = ALLOCATION_ENDPOINTS[this._currentType];
             this.onRowSelect({
                 allocationType: this._currentType,
