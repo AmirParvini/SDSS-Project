@@ -71,7 +71,6 @@ export const COST_COLORS = [
 
 // Node types that own a capacity shortage, and where to read it from a solution.
 export const SHORTAGE_SOURCES = {
-    ec: [{ key: "solution_shelter_shortage", label: "Shelter Shortage" }],
     h: [
         { key: "solution_hospital_shortage_severe", label: "Severe Shortage" },
         {
@@ -80,4 +79,7 @@ export const SHORTAGE_SOURCES = {
         },
     ],
     tmc: [{ key: "solution_tmc_shortage", label: "TMC Shortage" }],
+};
+export const UNSETTLED_POPULATION = {
+    da: [{ key: "solution_unsettled_population", label: "Unsettled Population" }]
 };

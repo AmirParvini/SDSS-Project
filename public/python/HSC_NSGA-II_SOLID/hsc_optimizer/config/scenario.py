@@ -127,8 +127,8 @@ class StdinConfig:
 
         # Budget & injury distribution ratios
         self.budget = self.hsc_parameters['budget']
-        self.severe_ratio = self.hsc_parameters['t2']
-        self.minor_ratio = self.hsc_parameters['t1']
+        self.severe_ratio = self.hsc_parameters['t1']
+        self.minor_ratio = self.hsc_parameters['t2']
 
         # Shelter geometry
         self.shelter_area_usage = self.hsc_parameters['pua']

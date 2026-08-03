@@ -13,6 +13,7 @@ import {
     ALLOCATION_TYPES,
     ALLOCATION_ENDPOINTS,
     SHORTAGE_SOURCES,
+    UNSETTLED_POPULATION,
 } from "../config/resultConfig.js";
 
 export default class SolutionModel {
@@ -132,6 +133,18 @@ export default class SolutionModel {
         const sources = SHORTAGE_SOURCES[nodeType] || [];
         const out = [];
         sources.forEach(({ key, label }) => {
+            const bucket = this.raw[key] || {};
+            if (bucket[nodeId] !== undefined) {
+                out.push({ label, value: bucket[nodeId] });
+            }
+        });
+        return out;
+    }
+
+    getUnsettledPop(nodeType, nodeId) {
+        const source = UNSETTLED_POPULATION[nodeType] || [];
+        const out = [];
+        source.forEach(({ key, label }) => {
             const bucket = this.raw[key] || {};
             if (bucket[nodeId] !== undefined) {
                 out.push({ label, value: bucket[nodeId] });

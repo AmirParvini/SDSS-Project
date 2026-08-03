@@ -25,7 +25,6 @@ class ShelterAllocationService:
     def allocate(self, da_ec: Dict[int, List[int]]) -> AllocationResult:
         problem = self._problem
 
-        demand = {ec_id: 0 for ec_list in da_ec.values() for ec_id in ec_list}
         allocations: Dict[int, Dict[int, float]] = {da_id: {} for da_id in da_ec}
         # مقدار اولیه کمبودها را اعشاری (0.0) در نظر می‌گیریم تا خطای گرد کردن در طول حلقه رخ ندهد
         ec_shortages = {ec_id: 0.0 for ec_list in da_ec.values() for ec_id in ec_list}
@@ -35,13 +34,14 @@ class ShelterAllocationService:
         remaining_capacity = copy.deepcopy(problem.capacity.shelter)
 
         # Capacity-aware allocation.
+        unsettled_population = {}
+        total_alloc = {}
         for da_id, ec_id_list in da_ec.items():
             homeless_count = problem.homeless[f'{da_id}']
             
             # استفاده از max(0, ...) برای اطمینان از اینکه ظرفیت‌های منفی احتمالی ناشی از محاسبات دیگر وارد محاسبات نشوند
             available_caps = [max(0, remaining_capacity[f'{v}']) for v in ec_id_list]
             total_available = sum(available_caps)
-
             remaining_pop = homeless_count
 
             if total_available >= homeless_count and total_available > 0:
@@ -57,9 +57,9 @@ class ShelterAllocationService:
                         alloc = min(calculated_alloc, max(0, remaining_capacity[f'{ec_id}']))
                     
                     allocations[da_id][ec_id] = alloc
+                    total_alloc[ec_id] = total_alloc.get(ec_id, 0) + alloc 
                     dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
                     remaining_capacity[f'{ec_id}'] -= alloc
-                    demand[ec_id] += math.ceil(alloc / 5)
                     total_weighted_dist += alloc * dist
                     remaining_pop -= alloc
             else:
@@ -67,35 +67,18 @@ class ShelterAllocationService:
                 for ec_id in ec_id_list:
                     alloc = max(0, remaining_capacity[f'{ec_id}'])
                     allocations[da_id][ec_id] = alloc
-                    dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
+                    total_alloc[ec_id] = total_alloc.get(ec_id, 0) + alloc
                     remaining_capacity[f'{ec_id}'] -= alloc
-                    demand[ec_id] += math.ceil(alloc / 5)
-                    total_weighted_dist += alloc * dist
                     remaining_pop -= alloc
-                
-            # -- بخش اصلاح شده: ثبت دقیق و پویای کمبود هر مرکز --
-                # اگر پس از تخصیص، هنوز جمعیتی از این منطقه باقی مانده باشد:
-                if remaining_pop > 0:
-                    total_shortage += remaining_pop
-                    
-                    # توزیع کسریِ این منطقه بین مراکز متصل به آن، بر اساس نسبت ظرفیت اولیه‌شان
-                    initial_caps = [max(0, problem.capacity.shelter[f'{v}']) for v in ec_id_list]
-                    total_init = sum(initial_caps)
-                    
-                    for i, ec_id in enumerate(ec_id_list):
-                        if total_init > 0:
-                            ec_shortages[ec_id] += remaining_pop * (initial_caps[i] / total_init)
-                        else:
-                            # حالت استثنایی که ظرفیت اولیه همه مراکز صفر باشد
-                            ec_shortages[ec_id] += remaining_pop / len(ec_id_list)
-
-            # تبدیل مقادیر نهایی کمبود به عدد صحیح (رفع خطاهای جزئی اعشاری)
-            ec_shortages = {k: round(v) for k, v in ec_shortages.items()}
-
+                    dist = problem.distance.da_to_ec[f"{da_id},{ec_id}"]
+                    total_weighted_dist += alloc * dist
+                total_shortage += remaining_pop
+            unsettled_population[da_id] = round(remaining_pop) if remaining_pop > 0 else 0
+        demand = {key: math.ceil(value / 5) for key, value in total_alloc.items()}
         return AllocationResult(
             demand=demand,
             total_shortage=total_shortage,
             weighted_distance=total_weighted_dist,
             allocations=allocations,
-            ec_shortages=ec_shortages,
+            unsettled_population=unsettled_population,
         )

@@ -3,17 +3,15 @@
 namespace App\Services\Optimization;
 
 use App\Models\Cost;
-use App\Models\Hospital;
 use App\Models\HospitalAllocation;
 use App\Models\HospitalShortage;
-use App\Models\HscParameter;
 use App\Models\PackageFlow;
 use App\Models\ParetoSolution;
 use App\Models\Path;
-use App\Models\Scenario;
 use App\Models\ShelterAllocation;
-use App\Models\ShelterShortage;
 use App\Models\TemporaryMedicalCenterAllocation;
+use App\Models\TmcShortage;
+use App\Models\UnsettledPopulation;
 use Throwable;
 
 class SaveResults
@@ -38,6 +36,7 @@ class SaveResults
                         'target_id' => $pf['target_id'],
                         'flow' => $pf['flow'],
                         'flow_cost' => $pf['flow_cost'],
+                        'unmet_demand' => $pf['unmet_demand'],
                     ]);
                 }
                 foreach ($solution['tmc_allocations'] as $ta) {
@@ -99,18 +98,18 @@ class SaveResults
                     'total_cost' => $solution['costs']['total_cost']
                 ]);
     
-                $ss = $solution['solution_shelter_shortage'];
-                foreach ($ss as $id=>$shortage)
-                ShelterShortage::insert([
+                $up = $solution['solution_unsettled_population'];
+                foreach ($up as $id=>$pop)
+                UnsettledPopulation::insert([
                     'scenario_id' => $scenario_id,
                     'solution_id' => $solution['solution_id'],
                     'node_id' => $id,
-                    'shortage' => $shortage
+                    'pop' => $pop
                 ]);
     
                 $ts = $solution['solution_tmc_shortage'];
                 foreach ($ts as $id=>$shortage)
-                ShelterShortage::insert([
+                TmcShortage::insert([
                     'scenario_id' => $scenario_id,
                     'solution_id' => $solution['solution_id'],
                     'node_id' => $id,

@@ -9,10 +9,11 @@ use App\Models\TemporaryMedicalCenterAllocation;
 use App\Models\Cost;
 use App\Models\Scenario;
 use App\Models\ParetoSolution;
-use App\Models\ShelterShortage;
 use App\Models\HospitalShortage;
 use App\Models\TmcShortage;
 use App\Models\Path;
+use App\Models\UnsettledPopulation;
+use Illuminate\Support\Facades\Log;
 
 class ReportService
 {
@@ -45,7 +46,7 @@ class ReportService
         $tmcAllocationsGrouped = TemporaryMedicalCenterAllocation::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
         $costsGrouped = Cost::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
 
-        $shelterShortagesGrouped = ShelterShortage::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
+        $UnsettledPopulation = UnsettledPopulation::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
         $hospitalShortagesGrouped = HospitalShortage::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
         $tmcShortagesGrouped = TmcShortage::where('scenario_id', $scenarioId)->get()->groupBy('solution_id');
 
@@ -77,7 +78,7 @@ class ReportService
             $costRow = $costsGrouped->get($solId, collect())->first();
 
             // Get shortages for this solution
-            $sShortages = $shelterShortagesGrouped->get($solId, collect());
+            $unsettled_population = $UnsettledPopulation->get($solId, collect());
             $hShortages = $hospitalShortagesGrouped->get($solId, collect());
             $tShortages = $tmcShortagesGrouped->get($solId, collect());
 
@@ -95,8 +96,10 @@ class ReportService
                     "geometry" => $getGeometry($pf->source_id, $pf->target_id, "ground"),
                     "flow" => (float) $pf->flow,
                     "flow_cost" => (float) $pf->flow_cost,
+                    "unment_demand" => (int) $pf->unment_demand,
                 ];
             })->values()->toArray();
+            Log::info($packageFlowRecords);
 
             // Process shelter allocations with geometry
             $shelterAllocationRecords = $sAllocations->map(function ($sa) use ($getGeometry) {
@@ -147,7 +150,7 @@ class ReportService
             })->values()->toArray();
 
             // Structure shortages
-            $solution_shelter_shortage = $sShortages->pluck('shortage', 'node_id')->toArray();
+            $solution_unsettled_population = $unsettled_population->pluck('shortage', 'node_id')->toArray();
             $solution_hospital_shortage_severe = $hShortages->pluck('severe_shortage', 'node_id')->toArray();
             $solution_hospital_shortage_moderate = $hShortages->pluck('moderate_shortage', 'node_id')->toArray();
             $solution_tmc_shortage = $tShortages->pluck('shortage', 'node_id')->toArray();
@@ -177,7 +180,7 @@ class ReportService
                 "shelter_allocations" => $shelterAllocationRecords,
                 "hospital_allocations" => $hospitalAllocationRecords,
                 "tmc_allocations" => $tmcAllocationRecords,
-                "solution_shelter_shortage" => $solution_shelter_shortage,
+                "solution_unsettled_population" => $solution_unsettled_population,
                 "solution_hospital_shortage_severe" => $solution_hospital_shortage_severe,
                 "solution_hospital_shortage_moderate" => $solution_hospital_shortage_moderate,
                 "solution_tmc_shortage" => $solution_tmc_shortage,

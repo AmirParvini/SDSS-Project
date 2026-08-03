@@ -205,6 +205,7 @@ class HomeController {
     // هیچ داده‌ای ارسال نمی‌شود؛ فقط یک درخواست به کنترلر solving زده می‌شود و
     // خروجی (لیست جواب‌ها) نگه‌داری می‌شود تا در حالت گزارش نمایش داده شود.
     _runModel() {
+        if (!confirm("Are you sure you want to run the model?")) return;
         const $btn = $("#runModelBtn");
         $btn.prop("disabled", true).addClass("is-loading");
         $btn.find(".run-model__busy p").text("Checking and calculating routes...");

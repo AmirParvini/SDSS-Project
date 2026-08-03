@@ -33,11 +33,13 @@ export default class ResultPopupBuilder {
     build(solution, nodeType, nodeId, props = {}) {
         const allocations = solution.getNodeAllocations(nodeType, nodeId);
         const shortages = solution.getShortages(nodeType, nodeId);
+        const unsettled_pop = solution.getUnsettledPop(nodeType, nodeId);
 
         return `
             <div class="result-popup">
                 ${this._header(nodeType, nodeId, props)}
                 ${this._shortageBlock(shortages)}
+                ${this._unsettledBlock(unsettled_pop)}
                 ${this._connectionsBlock(allocations)}
             </div>
         `;
@@ -66,6 +68,22 @@ export default class ResultPopupBuilder {
             <div class="result-popup__section result-popup__section--warn">
                 <div class="result-popup__title">Capacity Shortage</div>
                 <ul class="result-popup__shortage">${items}</ul>
+            </div>
+        `;
+    }
+
+    _unsettledBlock(pops) {
+        if (!pops.length) return "";
+        const items = pops
+            .map(
+                (p) =>
+                    `<li><span>${p.label}</span><b>${this._num(p.value)}</b></li>`,
+            )
+            .join("");
+        return `
+            <div class="result-popup__section result-popup__section--warn">
+                <div class="result-popup__title">Unsettled Population</div>
+                <ul class="result-popup__unsettled">${items}</ul>
             </div>
         `;
     }

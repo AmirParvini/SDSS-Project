@@ -146,7 +146,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
             # budget constraint (the original kept a non-accumulated variable).
             metrics.last_relief_package_cost += (
                 dist * problem.cost["reliefpackage_transportation_cost"] * flow) +\
-            (problem.cost["reliefpackage_cost"] * round( demand[shelter_id] * (1 - chromosome.shelter_flow_ratio[idx])))
+            (problem.cost["reliefpackage_cost"] * flow)
             metrics.unmet_demand[shelter_id] = round(
                 demand[shelter_id] * (1 - chromosome.shelter_flow_ratio[idx])
             )
@@ -195,7 +195,6 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
             for h_idx, j in enumerate(row[:n_hosp]):
                 if j <= 0:
                     continue
-                metrics.tmcs_cost += problem.cost["tmc_cost"]
                 hospital_id = problem.h_id[h_idx]
                 self._consume_capacity(
                     hospital_cap,
@@ -227,6 +226,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
         # loop, always == n_hosp - 1) when reading the ground ratio and the
         # capacity look-up below.
         legacy_idx = n_hosp - 1
+        n_tmc = []
         for idx, raw_row in enumerate(chromosome.moderate_split):
             row = np.array(raw_row) / sum(raw_row)
             minor = problem.minor_injured[f'{problem.da_id[idx]}']
@@ -234,6 +234,7 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
                 if j <= 0:
                     continue
                 tmc_id = problem.tmc_id[tmc_idx]
+                n_tmc.append(tmc_id)
                 if minor * j > tmc_cap[f'{tmc_id}']:
                     metrics.tmc_shortage += round(minor * j) - tmc_cap[f'{tmc_id}']
                     tmc_cap[f'{tmc_id}'] = 0
@@ -257,7 +258,8 @@ class HumanitarianCostEvaluator(ObjectiveEvaluator):
                     j,
                     metrics,
                 )
-
+        num_tmc = len(set(n_tmc))
+        metrics.tmcs_cost = num_tmc * problem.cost["tmc_cost"]
     # -- shared building blocks --------------------------------------------
     def _consume_capacity(
         self, cap_table, facility_id, injured, metrics, shortage_attr

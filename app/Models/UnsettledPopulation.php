@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ShelterShortage extends Model
+class UnsettledPopulation extends Model
 {
     //
 }

@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('shelter_shortages', function (Blueprint $table) {
+        Schema::create('unsettled_populations', function (Blueprint $table) {
             $table->id();
             $table->foreignId("scenario_id")->constrained();
             $table->integer("solution_id");
             $table->foreignId("node_id")->constrained();
-            $table->integer("shortage");
+            $table->integer("pop");
         });
     }
 
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('shelter_shortages');
+        Schema::dropIfExists('unsettled_populations');
     }
 };

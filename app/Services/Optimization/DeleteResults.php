@@ -8,9 +8,9 @@ use App\Models\HospitalShortage;
 use App\Models\PackageFlow;
 use App\Models\ParetoSolution;
 use App\Models\ShelterAllocation;
-use App\Models\ShelterShortage;
 use App\Models\TemporaryMedicalCenterAllocation;
 use App\Models\TmcShortage;
+use App\Models\UnsettledPopulation;
 
 class DeleteResults
 {
@@ -22,7 +22,7 @@ class DeleteResults
         HospitalAllocation::query()->where('scenario_id', $scenarioId)->delete();
         ShelterAllocation::query()->where('scenario_id', $scenarioId)->delete();
         Cost::query()->where('scenario_id', $scenarioId)->delete();
-        ShelterShortage::query()->where('scenario_id', $scenarioId)->delete();
+        UnsettledPopulation::query()->where('scenario_id', $scenarioId)->delete();
         HospitalShortage::query()->where('scenario_id', $scenarioId)->delete();
         TmcShortage::query()->where('scenario_id', $scenarioId)->delete();
     }

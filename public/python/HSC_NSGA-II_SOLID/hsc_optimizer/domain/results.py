@@ -16,7 +16,7 @@ class AllocationResult:
     total_shortage: float                          # unmet shelter capacity
     weighted_distance: float                       # sum(alloc * distance)
     allocations: Dict[int, Dict[int, float]]       # da_id -> {shelter_id: people}
-    ec_shortages: Dict[int, float]                 # shelter_id -> potential shortage
+    unsettled_population: Dict[int, float]                 # shelter_id -> potential shortage
 
 
 @dataclass
